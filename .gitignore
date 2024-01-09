@@ -1,0 +1,18 @@
+# IntelliJ
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+.run/
+
+# MacOS
+**/.DS_Store
+
+# Gradle
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
