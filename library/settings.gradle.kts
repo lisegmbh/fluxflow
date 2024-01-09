@@ -17,6 +17,8 @@ include("springboot-quartz")
 
 include("springboot")
 include("springboot-web")
+include("springboot-in-memory-persistence")
+include("springboot-test-scheduling")
 include("testing")
 
 include("query")

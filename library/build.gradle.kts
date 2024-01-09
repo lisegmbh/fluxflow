@@ -9,7 +9,6 @@ repositories {
     mavenCentral()
 }
 
-
 subprojects {
     val subProject = this
     
@@ -27,6 +26,11 @@ subprojects {
     java {
         withSourcesJar()
         withJavadocJar()
+        sourceCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlin {
+        jvmToolchain(17)
     }
 
     dependencies {
@@ -49,6 +53,8 @@ subprojects {
                 groupId = subProject.group.toString()
                 artifactId = subProject.name
                 version = subProject.version.toString()
+
+                from(components["java"])
             }
         }
     }

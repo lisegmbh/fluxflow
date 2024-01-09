@@ -4,10 +4,12 @@ dependencies {
     
     implementation(kotlin("reflect"))
     
-    implementation(project(":api"))
+    api(project(":api"))
+    api(project(":engine"))
+    runtimeOnly(project(":springboot-test-scheduling"))
+
     implementation(project(":stereotyped"))
     implementation(project(":reflection"))
-    implementation(project(":engine"))
     implementation(project(":persistence"))
     implementation(project(":scheduling"))
     implementation(project(":validation"))

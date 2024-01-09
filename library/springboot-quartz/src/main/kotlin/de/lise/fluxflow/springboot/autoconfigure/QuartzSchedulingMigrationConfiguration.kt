@@ -7,7 +7,11 @@ import org.springframework.context.annotation.Configuration
 import javax.sql.DataSource
 
 @Configuration
-@ConditionalOnProperty(name = ["fluxflow.migration.quartz.enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+    name = ["fluxflow.migration.quartz.enabled"],
+    havingValue = "true",
+    matchIfMissing = true
+)
 open class QuartzSchedulingMigrationConfiguration {
     @Bean
     open fun quartz(
@@ -19,3 +23,5 @@ open class QuartzSchedulingMigrationConfiguration {
         return liquibase
     }
 }
+
+
