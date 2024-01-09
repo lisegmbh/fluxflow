@@ -16,3 +16,9 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+
+# AsciiDoc
+doc/**/*.png
+doc/**/*.pdf
+doc/**/*.cache
+doc/doc.xml

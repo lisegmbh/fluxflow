@@ -1,0 +1,13 @@
+= FluxFlow
+:toc:
+:sectnums:
+:sectnumlevels: 3
+:toclevels: 3
+
+include::steps/steps.adoc[leveloffset=+1]
+include::automation/automation.adoc[leveloffset=+1]
+include::jobs/jobs.adoc[leveloffset=+1]
+include::queries/queries.adoc[leveloffset=+1]
+include::injection/injection.adoc[leveloffset=+1]
+include::validation/validation.adoc[leveloffset=+1]
+
