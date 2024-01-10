@@ -47,6 +47,8 @@ import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
+import de.lise.fluxflow.stereotyped.unwrapping.UnwrapService
+import de.lise.fluxflow.stereotyped.unwrapping.UnwrapServiceImpl
 import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
@@ -233,6 +235,11 @@ open class FluxFlowConfiguration {
             parameterResolver,
             mutableMapOf()
         )
+    }
+
+    @Bean
+    open fun unwrapService(): UnwrapService {
+        return UnwrapServiceImpl()
     }
 
     @Bean
