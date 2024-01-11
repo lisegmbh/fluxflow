@@ -9,7 +9,9 @@ Unlike some BPMN engines,
 the logic isn't spread across various (hard to test) artifacts like *.bpmn files but consolidated within your code.
 
 *In a nutshell*
-> With FluxFlow, your Java/Kotlin class becomes a workflow step. Its properties hold the step's state (step data). Its methods will define the available step actions and workflow transitions to be performed.  
+> With FluxFlow, your Java/Kotlin class becomes a workflow step,<br/>
+> its properties hold the step's state (step data),<br />
+> and its methods will define the available step actions and workflow transitions to be performed.  
 
 FluxFlow works best with Spring Boot, providing dependency injection and support for persistence.
 Nevertheless,
