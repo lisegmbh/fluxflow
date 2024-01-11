@@ -2,6 +2,56 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A flexible workflow engine that helps to create and orchestrate business processes using domain code.
+The fundamental idea behind FluxFlow is to provide a "lightweight"
+and non-intrusive orchestrator around your domain logic, 
+which will ultimately define your business process.
+Unlike some BPMN engines,
+the logic isn't spread across various (hard to test) artifacts like *.bpmn files but consolidated within your code.
+
+*In a nutshell*
+> With FluxFlow, your Java/Kotlin class becomes a workflow step. Its properties hold the step's state (step data). Its methods will define the available step actions and workflow transitions to be performed.  
+
+FluxFlow works best with Spring Boot, providing dependency injection and support for persistence.
+Nevertheless,
+the core functionality doesn't depend on Spring and might also be used standalone or with any another framework.    
+
+## Sample
+
+```kotlin
+import java.time.Instant
+
+class CreateVacationRequestStep(
+    var firstname: String, // Step data
+    var lastname: String,  // Step data  
+    var start: Instant,    // Step data
+    var end: Instant       // Step data
+) {
+    
+    // Step action that transitions into the next step
+    fun submit(): CheckVacationRequestStep {
+        return CheckVacationRequestStep(
+            // Step data passed into the next step
+            firstname,
+            lastname,
+            start,
+            end
+        )
+    }
+}
+```
+
+## Features
+- Lightweight workflow engine, including
+  - Workflow data: Information shared during the entire workflow
+  - Steps: The building blocks of workflows
+  - Step data: Information specific to a step that can be fetched and update
+  - Step actions: Actions and transitions that can be invoked within a step
+  - Jobs: Automatic execution of logic at a specified time (requires Quartz)
+  - Validation: Validation powered by the standard Jakarta Bean Validation
+- Spring Boot compatible
+- Allows easy (unit) testing of your workflow logic
+- Extensible
+- Open Source
 
 ## Contributors
 - [Christian Scholz](https://github.com/bobmazy)
