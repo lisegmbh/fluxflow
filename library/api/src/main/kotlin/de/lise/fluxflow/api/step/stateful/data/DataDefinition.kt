@@ -23,5 +23,10 @@ interface DataDefinition<T> {
      * Is `null`, if validation is not required for the data.
      */
     val validation: DataValidationDefinition?
+
+    /**
+     * Returns `true`, if the step data is modifiable.
+     */
+    val isModifiable: Boolean
     fun createData(step: Step): Data<T>
 }
