@@ -9,6 +9,8 @@ repositories {
     mavenCentral()
 }
 
+val projVersion = project.findProperty("projVersion")
+
 subprojects {
     val subProject = this
     
@@ -17,7 +19,7 @@ subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
     
     group = "de.lise.fluxflow"
-    version = "0.0.1"
+    version = projVersion ?: "0.0.1"
 
     repositories {
         mavenCentral()
@@ -48,6 +50,13 @@ subprojects {
     }
 
     publishing {
+        repositories {
+            maven {
+                name = "snapshot"
+                url = uri("https://nexus.cloud.lise.de/repository/maven-public/")
+                credentials(PasswordCredentials::class)
+            }
+        }
         publications {
             create<MavenPublication>("maven") {
                 groupId = subProject.group.toString()
