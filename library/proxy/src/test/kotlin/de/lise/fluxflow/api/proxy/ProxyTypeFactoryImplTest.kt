@@ -1,6 +1,7 @@
 package de.lise.fluxflow.api.proxy
 
 import de.lise.fluxflow.api.proxy.step.StepAccessor
+import de.lise.fluxflow.api.proxy.step.action.ActionProxyFactory
 import de.lise.fluxflow.api.proxy.step.data.DataProxyFactory
 import de.lise.fluxflow.api.proxy.step.data.DataProxyFactoryImpl
 import de.lise.fluxflow.api.step.Step
@@ -12,13 +13,20 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.*
+import kotlin.reflect.KClass
 
 class ProxyTypeFactoryImplTest {
+    private val nopActionProxyFactory = mock<ActionProxyFactory> {
+        on { appendActionProxies(any(), any<KClass<*>>(), any()) } doAnswer { invocationOnMock ->
+            invocationOnMock.arguments[2] as ProxyBuilder
+        }
+    }
+
     class SomeFinalClass
     @Test
     fun `createStepProxy should throw an InvalidProxyInterfaceException for final proxy interface types`() {
         // Arrange
-        val proxyFactoryImpl = ProxyTypeFactoryImpl(DataProxyFactoryImpl(mock<StepDataService>{}))
+        val proxyFactoryImpl = ProxyTypeFactoryImpl(DataProxyFactoryImpl(mock<StepDataService>{}), nopActionProxyFactory)
         val stepDefinition = mock<StepDefinition> {}
 
         // Act & Assert
@@ -31,7 +39,7 @@ class ProxyTypeFactoryImplTest {
     @Test
     fun `createProxy should throw an InvalidProxyInterfaceException for class types`() {
         // Arrange
-        val proxyFactoryImpl = ProxyTypeFactoryImpl(DataProxyFactoryImpl(mock<StepDataService>{}))
+        val proxyFactoryImpl = ProxyTypeFactoryImpl(DataProxyFactoryImpl(mock<StepDataService>{}), nopActionProxyFactory)
         val stepDefinition = mock<StepDefinition> {}
 
         // Act & Assert
@@ -47,6 +55,7 @@ class ProxyTypeFactoryImplTest {
         val dataProxyFactory = mock<DataProxyFactory> { }
         val proxyTypeFactory = ProxyTypeFactoryImpl(
             dataProxyFactory,
+            nopActionProxyFactory
         )
         val stepDefinition = mock<StepDefinition> {}
 
@@ -63,6 +72,7 @@ class ProxyTypeFactoryImplTest {
         val dataProxyFactory = mock<DataProxyFactory> { }
         val proxyTypeFactory = ProxyTypeFactoryImpl(
             dataProxyFactory,
+            nopActionProxyFactory
         )
         val stepDefinition = mock<StepDefinition> { }
         val step = mock<Step> { }
@@ -81,6 +91,7 @@ class ProxyTypeFactoryImplTest {
         val dataProxyFactory = mock<DataProxyFactory> { }
         val proxyTypeFactory = ProxyTypeFactoryImpl(
             dataProxyFactory,
+            nopActionProxyFactory
         )
         val nonStatefulStepDefinition = mock<StepDefinition> {
             on { kind } doReturn StepKind("some-kind")
@@ -107,6 +118,7 @@ class ProxyTypeFactoryImplTest {
         }
         val proxyTypeFactory = ProxyTypeFactoryImpl(
             dataProxyFactory,
+            nopActionProxyFactory
         )
         val stepDefinition = mock<StatefulStepDefinition> {}
 
@@ -127,6 +139,7 @@ class ProxyTypeFactoryImplTest {
         val dataProxyFactory = mock<DataProxyFactory> { }
         val proxyTypeFactory = ProxyTypeFactoryImpl(
             dataProxyFactory,
+            nopActionProxyFactory
         )
         val stepDefinition = mock<StepDefinition> {}
 

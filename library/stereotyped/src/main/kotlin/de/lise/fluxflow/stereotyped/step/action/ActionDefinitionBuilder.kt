@@ -2,7 +2,6 @@ package de.lise.fluxflow.stereotyped.step.action
 
 import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.step.stateful.action.ActionDefinition
-import de.lise.fluxflow.api.step.stateful.action.ActionKind
 import de.lise.fluxflow.api.validation.ValidationBehavior
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
@@ -52,8 +51,7 @@ class ActionDefinitionBuilder(
             return null
         }
 
-        val annotation = function.annotations
-            .firstNotNullOfOrNull { it as? de.lise.fluxflow.stereotyped.step.action.Action }
+        val annotation = ActionKindInspector.getAnnotation(function)
         if (requireAnnotation && annotation == null) {
             return null
         }
@@ -65,10 +63,10 @@ class ActionDefinitionBuilder(
         }
 
         val implicitStatusBehavior = annotation?.statusBehavior ?: ImplicitStatusBehavior.Default
-        val kind = annotation?.value
-            ?.takeUnless { it.isBlank() }
-            ?.let { ActionKind(it) }
-            ?: ActionKind(function.name)
+        val kind = ActionKindInspector.getActionKind(
+            function,
+            annotation
+        )
         val metadata = metadataBuilder.build(function)
         val converter = continuationBuilder.createResultConverter(implicitStatusBehavior, true, function)
 

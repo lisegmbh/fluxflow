@@ -36,7 +36,7 @@ class DataProxyFactoryImpl(
 
                 result = appendDataProxy(
                     dataDefinition,
-                    builder,
+                    result,
                     property
                 )
             }

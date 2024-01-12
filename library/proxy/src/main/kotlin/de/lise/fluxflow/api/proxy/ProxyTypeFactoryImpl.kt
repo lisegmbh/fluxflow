@@ -2,6 +2,7 @@ package de.lise.fluxflow.api.proxy
 
 import de.lise.fluxflow.api.proxy.step.StepAccessor
 import de.lise.fluxflow.api.proxy.step.StepProxyType
+import de.lise.fluxflow.api.proxy.step.action.ActionProxyFactory
 import de.lise.fluxflow.api.proxy.step.data.DataProxyFactory
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.StepDefinition
@@ -22,6 +23,7 @@ import kotlin.reflect.jvm.javaMethod
 
 class ProxyTypeFactoryImpl(
     private val dataProxyFactory: DataProxyFactory,
+    private val actionProxyFactory: ActionProxyFactory
 ) : ProxyTypeFactory {
     override fun <T : Any> createProxy(
         stepDefinition: StepDefinition,
@@ -52,6 +54,11 @@ class ProxyTypeFactoryImpl(
 
         if (stepDefinition is StatefulStepDefinition) {
             builder = dataProxyFactory.appendDataProxies(
+                stepDefinition,
+                clazz,
+                builder
+            )
+            builder = actionProxyFactory.appendActionProxies(
                 stepDefinition,
                 clazz,
                 builder

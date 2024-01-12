@@ -1,7 +1,12 @@
 package de.lise.fluxflow.api.proxy
 
+import de.lise.fluxflow.api.proxy.step.action.ActionProxyFactory
+import de.lise.fluxflow.api.proxy.step.action.ActionProxyFactoryImpl
+import de.lise.fluxflow.api.proxy.step.data.DataProxyFactory
 import de.lise.fluxflow.api.proxy.step.data.DataProxyFactoryImpl
 import de.lise.fluxflow.api.step.Step
+import de.lise.fluxflow.api.step.stateful.action.Action
+import de.lise.fluxflow.api.step.stateful.action.ActionService
 import de.lise.fluxflow.api.step.stateful.data.Data
 import de.lise.fluxflow.api.step.stateful.data.StepDataService
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
@@ -10,6 +15,7 @@ import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionFunctionResolverImpl
+import de.lise.fluxflow.stereotyped.step.action.ActionKindInspector
 import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataKindInspector
@@ -18,6 +24,7 @@ import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
+import kotlin.reflect.KClass
 
 class ProxyIT {
     private val continuationBuilder = ContinuationBuilder()
@@ -52,6 +59,17 @@ class ProxyIT {
         HashMap(),
     )
 
+    private val nopActionProxyFactory = mock<ActionProxyFactory> {
+        on { appendActionProxies(any(), any<KClass<*>>(), any()) } doAnswer { invocationOnMock ->
+            invocationOnMock.arguments[2] as ProxyBuilder
+        }
+    }
+    private val nopDataProxyFactory = mock<DataProxyFactory> {
+        on { appendDataProxies(any(), any<KClass<*>>(), any()) } doAnswer { invocationOnMock ->
+            invocationOnMock.arguments[2] as ProxyBuilder
+        }
+    }
+
 
     interface TestStepWithSimpleProp { var name: String }
     class TestStepWithSimplePropImpl(override var name: String) : TestStepWithSimpleProp
@@ -72,7 +90,7 @@ class ProxyIT {
 
         val dataProxyFactory = DataProxyFactoryImpl(stepDataService)
         val stepDefinition = stepDefinitionBuilder.build(TestStepWithSimplePropImpl("value-from-instance"))
-        val proxyTypeFactoryImpl = ProxyTypeFactoryImpl(dataProxyFactory)
+        val proxyTypeFactoryImpl = ProxyTypeFactoryImpl(dataProxyFactory, nopActionProxyFactory)
 
         // Act
         val proxyObject = proxyTypeFactoryImpl.createProxy<TestStepWithSimpleProp>(stepDefinition).instantiateProxy(step)
@@ -100,7 +118,7 @@ class ProxyIT {
 
         val dataProxyFactory = DataProxyFactoryImpl(stepDataService)
         val stepDefinition = stepDefinitionBuilder.build(TestStepWithSimplePropImpl("value-from-instance"))
-        val proxyTypeFactoryImpl = ProxyTypeFactoryImpl(dataProxyFactory)
+        val proxyTypeFactoryImpl = ProxyTypeFactoryImpl(dataProxyFactory, nopActionProxyFactory)
 
         val valueToBeAssigned = "new-value"
 
@@ -110,5 +128,33 @@ class ProxyIT {
 
         // Assert
         verify(stepDataService, times(1)).setValue(data, valueToBeAssigned)
+    }
+
+    interface TestStepWithAction { fun action() }
+    class TestStepWithActionImpl : TestStepWithAction {
+        override fun action() {
+
+        }
+    }
+    @Test
+    fun `proxies should use the ActionService when invoking functions`() {
+        // Arrange
+        val step = mock<Step> {}
+        val action = mock<Action> {}
+        val actionKind = ActionKindInspector.getActionKind(TestStepWithActionImpl::action)
+        val actionService = mock<ActionService> {
+            on { getAction(eq(step), eq(actionKind)) } doReturn action
+        }
+
+        val actionProxyFactory = ActionProxyFactoryImpl(actionService)
+        val stepDefinition = stepDefinitionBuilder.build(TestStepWithActionImpl())
+        val proxyTypeFactoryImpl = ProxyTypeFactoryImpl(nopDataProxyFactory, actionProxyFactory)
+
+        // Act
+        val proxyObject = proxyTypeFactoryImpl.createProxy<TestStepWithAction>(stepDefinition).instantiateProxy(step)
+        proxyObject.action()
+
+        // Assert
+        verify(actionService, times(1)).invokeAction(action)
     }
 }
