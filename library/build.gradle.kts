@@ -4,7 +4,6 @@ plugins {
     `maven-publish`
 }
 
-
 repositories {
     mavenCentral()
 }
@@ -75,14 +74,41 @@ subprojects {
                     }
                     scm {
                         connection.set("scm:git:git://github.com/lisegmbh/fluxflow.git")
-                        developerConnection.set("scm:git:ssh://git@github.com:lisegmbh/fluxflow.git")
+                        developerConnection.set("scm:git:ssh://github.com:lisegmbh/fluxflow.git")
                         url.set("https://github.com/lisegmbh/fluxflow")
                     }
                     developers {
                         developer {
-                            id.set("lisegmbh")
-                            name.set("lise GmbH")
-                            email.set("support@lise.de")
+                            id.set("bobmazy")
+                            name.set("Christian Scholz")
+                            email.set("christian.scholz@lise.de")
+                            organization.set("lise GmbH")
+                            organizationUrl.set("https://lise.de")
+                            url.set("https://github.com/bobmazy")
+                        }
+                        developer {
+                            id.set("DerPipo")
+                            name.set("Dominik Alexander")
+                            email.set("dominik.alexander@lise.de")
+                            organization.set("lise GmbH")
+                            organizationUrl.set("https://lise.de")
+                            url.set("https://github.com/DerPipo")
+                        }
+                        developer {
+                            id.set("jagadish-singh-lise")
+                            name.set("Jagadish Singh")
+                            email.set("jagadish.singh@lise.de")
+                            organization.set("lise GmbH")
+                            organizationUrl.set("https://lise.de")
+                            url.set("https://github.com/jagadish-singh-lise")
+                        }
+                        developer {
+                            id.set("masinger")
+                            name.set("Marcel Singer")
+                            email.set("marcel.singer@live.de")
+                            organization.set("lise Gmbh")
+                            organizationUrl.set("https://lise.de")
+                            url.set("https://github.com/masinger")
                         }
                     }
                 }
