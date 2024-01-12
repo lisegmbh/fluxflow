@@ -1,5 +1,6 @@
 # FluxFlow
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) 
+[![Build Status](https://build.lise.de/buildStatus/icon?job=Hessen+Mobil%2Ffluxflow%2Fdevelop)](https://build.lise.de/job/Hessen%20Mobil/job/fluxflow/job/develop/)
 
 A flexible workflow engine that helps to create and orchestrate business processes using domain code.
 The fundamental idea behind FluxFlow is to provide a "lightweight"
