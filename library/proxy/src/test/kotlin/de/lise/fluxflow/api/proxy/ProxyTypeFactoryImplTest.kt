@@ -97,7 +97,7 @@ class ProxyTypeFactoryImplTest {
     fun `createProxy should use the provided DataProxyFactory whenever the step is stateful`() {
         // Arrange
         val dataProxyFactory = mock<DataProxyFactory> {
-            on { it.appendDataProxies<Any?>(
+            on { it.appendDataProxies<Any>(
                 any(), // 0
                 any(), // 1
                 any(), // 2

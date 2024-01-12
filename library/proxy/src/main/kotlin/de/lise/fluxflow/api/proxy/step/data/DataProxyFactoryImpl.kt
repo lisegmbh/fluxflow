@@ -18,9 +18,9 @@ import kotlin.reflect.jvm.javaMethod
 class DataProxyFactoryImpl(
     private val stepDataService: StepDataService
 ) : DataProxyFactory {
-    override fun <T> appendDataProxies(
+    override fun <T : Any> appendDataProxies(
         stepDefinition: StatefulStepDefinition,
-        clazz: KClass<*>,
+        clazz: KClass<T>,
         builder: ProxyBuilder,
     ): ProxyBuilder {
         var result = builder
@@ -65,7 +65,7 @@ class DataProxyFactoryImpl(
         }
 
         (property as? KMutableProperty1<T, *>)?.setter?.javaMethod?.let { setter ->
-            if(!dataDefinition.isModifiable) {
+            if (!dataDefinition.isModifiable) {
                 throw ProxyCreationException(
                     "Can not map setter of property '${property.name}' to step data '${dataKind.value}', as it is immutable."
                 )
