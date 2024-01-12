@@ -15,7 +15,6 @@ pipeline {
                     changeRequest()
                     branch 'develop'
                     branch 'main'
-                    branch 'feature/6-add-build-script'
                 }
             }
             steps {
@@ -30,7 +29,6 @@ pipeline {
             when {
                 anyOf {
                     branch 'develop'
-                    branch 'feature/6-add-build-script'
                 }
             }
             steps {
@@ -38,6 +36,22 @@ pipeline {
                     dir('library') {
                         withCredentials([usernamePassword(credentialsId: 'fluxflow-snapshot-publisher', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')]) {
                             sh "gradle publishMavenPublicationToSnapshotRepository -PprojVersion=0.0.0-SNAPSHOT -PsnapshotUsername=\"\$MAVEN_USER\" -PsnapshotPassword=\"\$MAVEN_PASSWORD\""
+                        }
+                    }
+                }
+            }
+        }
+        stage('Publish stable') {
+            when {
+                anyOf {
+                    tag '^\\d+\\.\\d+\\.\\d+$'
+                }
+            }
+            steps {
+                container('gradle') {
+                    dir('library') {
+                        withCredentials([usernamePassword(credentialsId: 'fluxflow-snapshot-publisher', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')]) {
+                            sh "gradle publishMavenPublicationToSnapshotRepository -PprojVersion=\"$TAG_NAME\" -PsnapshotUsername=\"\$MAVEN_USER\" -PsnapshotPassword=\"\$MAVEN_PASSWORD\""
                         }
                     }
                 }
