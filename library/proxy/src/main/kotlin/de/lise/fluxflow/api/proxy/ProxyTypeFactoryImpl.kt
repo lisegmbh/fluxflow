@@ -51,7 +51,7 @@ class ProxyTypeFactoryImpl(
 
 
         if (stepDefinition is StatefulStepDefinition) {
-            builder = dataProxyFactory.appendDataProxies<T>(
+            builder = dataProxyFactory.appendDataProxies(
                 stepDefinition,
                 clazz,
                 builder
