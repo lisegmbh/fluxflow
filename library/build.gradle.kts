@@ -64,6 +64,28 @@ subprojects {
                 version = subProject.version.toString()
 
                 from(components["java"])
+
+                pom {
+                    url.set("https://github.com/lisegmbh/fluxflow")
+                    licenses {
+                        license {
+                            name.set("The Apache License, Version 2.0")
+                            url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                        }
+                    }
+                    scm {
+                        connection.set("scm:git:git://github.com/lisegmbh/fluxflow.git")
+                        developerConnection.set("scm:git:ssh://git@github.com:lisegmbh/fluxflow.git")
+                        url.set("https://github.com/lisegmbh/fluxflow")
+                    }
+                    developers {
+                        developer {
+                            id.set("lisegmbh")
+                            name.set("lise GmbH")
+                            email.set("support@lise.de")
+                        }
+                    }
+                }
             }
         }
     }
