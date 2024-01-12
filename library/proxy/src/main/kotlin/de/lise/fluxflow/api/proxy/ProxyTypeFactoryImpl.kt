@@ -17,6 +17,7 @@ import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaConstructor
+import kotlin.reflect.jvm.javaMethod
 
 
 class ProxyTypeFactoryImpl(
@@ -29,7 +30,7 @@ class ProxyTypeFactoryImpl(
         if (clazz.isFinal) {
             throw ProxyCreationException.finalClass(clazz)
         }
-        if(!clazz.java.isInterface) {
+        if (!clazz.java.isInterface) {
             throw InvalidProxyInterfaceException("Proxying currently only supports interfaces.")
         }
 
@@ -37,19 +38,19 @@ class ProxyTypeFactoryImpl(
             true -> ByteBuddy().subclass(Any::class.java).implement(clazz.java)
             false -> ByteBuddy().subclass(clazz.java)
         }.implement(StepAccessor::class.java)
-            .defineField("_proxyStep", Step::class.java, Modifier.PRIVATE.and(Modifier.FINAL))
-            .defineMethod("get_proxyStep", Step::class.java, Modifier.PUBLIC)
-            .intercept(FieldAccessor.ofField("_proxyStep"))
+            .defineField(STEP_FIELD_NAME, Step::class.java, Modifier.PRIVATE.and(Modifier.FINAL))
+            .defineMethod(STEP_GETTER_NAME, Step::class.java, Modifier.PUBLIC)
+            .intercept(FieldAccessor.ofField(STEP_FIELD_NAME))
             .defineConstructor(Visibility.PUBLIC)
             .withParameters(Step::class.java)
             .intercept(
                 MethodCall.invoke(Any::class.primaryConstructor!!.javaConstructor!!).andThen(
-                    FieldAccessor.ofField("_proxyStep").setsArgumentAt(0)
+                    FieldAccessor.ofField(STEP_FIELD_NAME).setsArgumentAt(0)
                 )
             )
 
 
-        if(stepDefinition is StatefulStepDefinition) {
+        if (stepDefinition is StatefulStepDefinition) {
             builder = dataProxyFactory.appendDataProxies<T>(
                 stepDefinition,
                 clazz,
@@ -74,5 +75,10 @@ class ProxyTypeFactoryImpl(
             @Suppress("UNCHECKED_CAST")
             constructor.newInstance(step) as T
         }
+    }
+
+    private companion object {
+        val STEP_FIELD_NAME: String = StepAccessor::_proxyStep.name
+        val STEP_GETTER_NAME: String = StepAccessor::_proxyStep.getter.javaMethod!!.name
     }
 }
