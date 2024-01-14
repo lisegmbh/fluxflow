@@ -44,7 +44,7 @@ pipeline {
         stage('Publish stable') {
             when {
                 anyOf {
-                    tag '^\\d+\\.\\d+\\.\\d+$'
+                    tag '^v\\d+\\.\\d+\\.\\d+$'
                 }
             }
             steps {

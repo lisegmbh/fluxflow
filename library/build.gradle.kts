@@ -9,6 +9,14 @@ repositories {
 }
 
 val projVersion = project.findProperty("projVersion")
+    ?.let {
+        it as String
+    }?.let {
+        when(it.startsWith("v")) {
+            true -> it.substring(1)
+            else -> it
+        }
+    }
 
 subprojects {
     val subProject = this
