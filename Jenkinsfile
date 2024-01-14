@@ -15,6 +15,7 @@ pipeline {
                     changeRequest()
                     branch 'develop'
                     branch 'main'
+                    tag comparator: 'REGEXP', pattern: '^v\\d+\\.\\d+\\.\\d+$'
                 }
             }
             steps {
@@ -44,7 +45,7 @@ pipeline {
         stage('Publish stable') {
             when {
                 anyOf {
-                    tag '^\\d+\\.\\d+\\.\\d+$'
+                    tag comparator: 'REGEXP', pattern: '^v\\d+\\.\\d+\\.\\d+$'
                 }
             }
             steps {
