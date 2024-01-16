@@ -1,0 +1,12 @@
+site_name: FluxFlow
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - java
+    - kotlin
+nav:
+  - Home: index.md
+  - Steps: steps.md
+  - Jobs: jobs.md
