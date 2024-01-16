@@ -20,7 +20,6 @@ configuration, scheduling, interaction with workflow components, and
 best practices for incorporating jobs into workflow designs using
 FluxFlow.
 
-# Usage
 
 ## Job definition
 
@@ -115,56 +114,56 @@ constructor parameter. The priority and logic of said resolution is
 given by the table
 "[table\_title](#jobs_usage_constructor_injection_priorities)".
 
-<table>
-<caption>Job constructor injection priorities</caption>
-<colgroup>
-<col style="width: 16%" />
-<col style="width: 16%" />
-<col style="width: 33%" />
-<col style="width: 33%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><p><strong>Priority</strong></p></td>
-<td style="text-align: left;"><p>Source</p></td>
-<td style="text-align: left;"><p>Description</p></td>
-<td style="text-align: left;"><p>Prerequisites</p></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><p><strong>0</strong></p></td>
-<td style="text-align: left;"><p>Workflow model</p></td>
-<td style="text-align: left;"><p>The workflow model associated with the
-job’s workflow.</p></td>
-<td style="text-align: left;"><p>The workflow model’s type must be
-assignable to the parameter’s type.</p></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><p><strong>1</strong></p></td>
-<td style="text-align: left;"><p>Job parameters</p></td>
-<td style="text-align: left;"><p>The parameter’s as they have been set
-during the job’s scheduling.</p></td>
-<td style="text-align: left;"><ol type="1">
-<li><p>The job parameter’s type must be assignable to the constructor
-parameter’s type</p></li>
-<li><p>The constructor parameter name must match the job parameters name
-(which is obtained from the associated property)</p></li>
-</ol>
-<p>See <a href="#job_usage_definition_parameters">Parameters</a> for
-more information.</p></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><p><strong>2</strong></p></td>
-<td style="text-align: left;"><p>IoC container</p></td>
-<td style="text-align: left;"><p>FluxFlow tries to obtain an instance of
-the requested type from the inversion of control container (e.g. a
-Spring Bean)</p></td>
-<td style="text-align: left;"><ol type="1">
-<li><p>There is an IoC container</p></li>
-<li><p>The IoC container is able to provide an instance that is
-assignable to the parameter’s type</p></li>
-</ol></td>
-</tr>
-</tbody>
+<table style="max-width: 100%">
+    <caption>Job constructor injection priorities</caption>
+    <colgroup>
+        <col style="width: 16%" />
+        <col style="width: 16%" />
+        <col style="width: 33%" />
+        <col style="width: 33%" />
+    </colgroup>
+    <tbody>
+        <tr class="odd">
+            <td style="text-align: left;"><p><strong>Priority</strong></p></td>
+            <td style="text-align: left;"><p>Source</p></td>
+            <td style="text-align: left;"><p>Description</p></td>
+            <td style="text-align: left;"><p>Prerequisites</p></td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><p><strong>0</strong></p></td>
+        <td style="text-align: left;"><p>Workflow model</p></td>
+        <td style="text-align: left;"><p>The workflow model associated with the
+        job’s workflow.</p></td>
+        <td style="text-align: left;"><p>The workflow model’s type must be
+        assignable to the parameter’s type.</p></td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><p><strong>1</strong></p></td>
+        <td style="text-align: left;"><p>Job parameters</p></td>
+        <td style="text-align: left;"><p>The parameter’s as they have been set
+        during the job’s scheduling.</p></td>
+        <td style="text-align: left;"><ol type="1">
+        <li><p>The job parameter’s type must be assignable to the constructor
+        parameter’s type</p></li>
+        <li><p>The constructor parameter name must match the job parameters name
+        (which is obtained from the associated property)</p></li>
+        </ol>
+        <p>See <a href="#job_usage_definition_parameters">Parameters</a> for
+        more information.</p></td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><p><strong>2</strong></p></td>
+        <td style="text-align: left;"><p>IoC container</p></td>
+        <td style="text-align: left;"><p>FluxFlow tries to obtain an instance of
+        the requested type from the inversion of control container (e.g. a
+        Spring Bean)</p></td>
+        <td style="text-align: left;"><ol type="1">
+        <li><p>There is an IoC container</p></li>
+        <li><p>The IoC container is able to provide an instance that is
+        assignable to the parameter’s type</p></li>
+        </ol></td>
+        </tr>
+    </tbody>
 </table>
 
 Job constructor injection priorities
@@ -218,56 +217,54 @@ access external functionality or to obtain information regarding the
 current execution. Parameter resolution is done as outlined in the table
 
 <table>
-<caption>Payload function injection priorities</caption>
-<colgroup>
-<col style="width: 16%" />
-<col style="width: 16%" />
-<col style="width: 33%" />
-<col style="width: 33%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><p><strong>Priority</strong></p></td>
-<td style="text-align: left;"><p>Source</p></td>
-<td style="text-align: left;"><p>Description</p></td>
-<td style="text-align: left;"><p>Prerequisites</p></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><p><strong>0</strong></p></td>
-<td style="text-align: left;"><p><code>Job</code> API object.</p></td>
-<td style="text-align: left;"><p>The <code>Job</code> API object,
-representing the currently executing job.</p></td>
-<td style="text-align: left;"><p>The parameter’s type must be assignable
-from <code>Job</code>.</p></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;"><p><strong>1</strong></p></td>
-<td style="text-align: left;"><p><code>Workflow&lt;TModel&gt;</code> API
-object</p></td>
-<td style="text-align: left;"><p>The <code>Workflow&lt;TModel&gt;</code>
-API object, representing the currently executing job’s
-workflow.</p></td>
-<td style="text-align: left;"><ol type="1">
-<li><p>The parameter’s type must be assignable from
-<code>Worfklow</code>.</p></li>
-</ol></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><p><strong>2</strong></p></td>
-<td style="text-align: left;"><p>IoC container</p></td>
-<td style="text-align: left;"><p>FluxFlow tries to obtain an instance of
-the requested type from the inversion of control container (e.g. a
-Spring Bean)</p></td>
-<td style="text-align: left;"><ol type="1">
-<li><p>There is an IoC container</p></li>
-<li><p>The IoC container is able to provide an instance that is
-assignable to the parameter’s type</p></li>
-</ol></td>
-</tr>
-</tbody>
+    <caption>Payload function injection priorities</caption>
+    <colgroup>
+    <col style="width: 16%" />
+    <col style="width: 16%" />
+    <col style="width: 33%" />
+    <col style="width: 33%" />
+    </colgroup>
+    <tbody>
+        <tr class="odd">
+        <td style="text-align: left;"><p><strong>Priority</strong></p></td>
+        <td style="text-align: left;"><p>Source</p></td>
+        <td style="text-align: left;"><p>Description</p></td>
+        <td style="text-align: left;"><p>Prerequisites</p></td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><p><strong>0</strong></p></td>
+        <td style="text-align: left;"><p><code>Job</code> API object.</p></td>
+        <td style="text-align: left;"><p>The <code>Job</code> API object,
+        representing the currently executing job.</p></td>
+        <td style="text-align: left;"><p>The parameter’s type must be assignable
+        from <code>Job</code>.</p></td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><p><strong>1</strong></p></td>
+        <td style="text-align: left;"><p><code>Workflow&lt;TModel&gt;</code> API
+        object</p></td>
+        <td style="text-align: left;"><p>The <code>Workflow&lt;TModel&gt;</code>
+        API object, representing the currently executing job’s
+        workflow.</p></td>
+        <td style="text-align: left;"><ol type="1">
+        <li><p>The parameter’s type must be assignable from
+        <code>Worfklow</code>.</p></li>
+        </ol></td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><p><strong>2</strong></p></td>
+        <td style="text-align: left;"><p>IoC container</p></td>
+        <td style="text-align: left;"><p>FluxFlow tries to obtain an instance of
+        the requested type from the inversion of control container (e.g. a
+        Spring Bean)</p></td>
+        <td style="text-align: left;"><ol type="1">
+        <li><p>There is an IoC container</p></li>
+        <li><p>The IoC container is able to provide an instance that is
+        assignable to the parameter’s type</p></li>
+        </ol></td>
+        </tr>
+    </tbody>
 </table>
-
-Payload function injection priorities
 
 The direct injection of a workflow’s model is currently unsupported due
 to technical limitations. Inject the `Workflow<TModel>` instead and
@@ -488,7 +485,7 @@ during scheduling.
             return Continuation.job(
                 Instant.now().plus(10, ChronoUnit.MINUTES),
                 SoundAlarmClockJob(),
-                CancellationKey("alarm") // 
+                CancellationKey("alarm") // (1)
             )
         }
 
@@ -497,13 +494,13 @@ during scheduling.
             return Continuation.job(
                 Instant.now().plus(1, ChronoUnit.HOURS),
                 SoundAlarmClockJob(),
-                CancellationKey("alarm") // 
+                CancellationKey("alarm") // (1)
             )
         }
     }
 
--   Reusing the cancellation key "alarm" for both with cause jobs
-    created by `wakeMeUpIn10Minutes` to be replaced jobs created by
+1. Reusing the cancellation key "alarm" for both, causes jobs
+    created by `wakeMeUpIn10Minutes` to be replaced by jobs created by
     `wakeMeUpIn1Hour` and vice versa.
 
 ### Explicit job cancellation

@@ -6,6 +6,8 @@ theme:
     - yaml
     - java
     - kotlin
+extra_css:
+  - style.css
 nav:
   - Home: index.md
   - Steps: steps.md
