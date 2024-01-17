@@ -65,6 +65,11 @@ subprojects {
                 url = uri("https://nexus.cloud.lise.de/repository/maven-public/")
                 credentials(PasswordCredentials::class)
             }
+            maven {
+                name = "staging"
+                url = uri("https://s01.oss.sonatype.org/content/groups/staging")
+                credentials(PasswordCredentials::class)
+            }
         }
         publications {
             create<MavenPublication>("maven") {
