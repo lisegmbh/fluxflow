@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm") version "1.9.21"
     `java-library`
     `maven-publish`
+    `signing`
 }
 
 repositories {
@@ -24,6 +25,7 @@ subprojects {
     apply(plugin = "maven-publish")
     apply(plugin = "java-library")
     apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "signing")
     
     group = "de.lise.fluxflow"
     version = projVersion ?: "0.0.1"
@@ -122,5 +124,9 @@ subprojects {
                 }
             }
         }
+    }
+    
+    signing {
+        sign(publishing.publications["maven"])
     }
 }
