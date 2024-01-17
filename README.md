@@ -16,7 +16,7 @@ the logic isn't spread across various (hard to test) artifacts like *.bpmn files
 
 FluxFlow works best with Spring Boot, providing dependency injection and support for persistence.
 Nevertheless,
-the core functionality doesn't depend on Spring and might also be used standalone or with any another framework.    
+the core functionality doesn't depend on Spring and might also be used standalone or with any another framework.
 
 ## Sample
 
@@ -55,6 +55,27 @@ class CreateVacationRequestStep(
 - Allows easy (unit) testing of your workflow logic
 - Extensible
 - Open Source
+
+## Getting started
+
+### Spring Boot dependencies
+
+**`build.gradle.kts`**
+```kotlin
+dependencies {
+  // Base dependencies
+  implementation("de.lise.fluxflow:springboot:0.0.1")
+  
+  // Persistence options
+  // a) In-Memory: no persistence between executions; can be used for testing or experiments 
+  implementation("de.lise.fluxflow:springboot-in-memory-persistence:0.0.1")
+  // b) MongoDB
+  implementation("de.lise.fluxflow:mongo:0.0.1")
+  
+  // ... your other Spring Boot dependencies
+  // e.g. implementation("org.springframework.boot:spring-boot-starter-web")
+}
+```
 
 ## Contributors
 - [Christian Scholz](https://github.com/bobmazy)
