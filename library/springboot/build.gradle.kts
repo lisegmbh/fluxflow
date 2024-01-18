@@ -19,5 +19,5 @@ dependencies {
 
 
     testImplementation(project(":testing"))
-    testImplementation("org.springframework.boot:spring-boot-starter-test:3.2.0")
+    testImplementation("org.springframework.boot:spring-boot-starter-test:3.2.1")
 }
