@@ -42,7 +42,7 @@ pipeline {
                 }
             }
         }
-        stage('Publish stable') {
+        stage('Publish Maven Central Staging') {
             when {
                 anyOf {
                     tag comparator: 'REGEXP', pattern: '^v\\d+\\.\\d+\\.\\d+$'
@@ -51,8 +51,18 @@ pipeline {
             steps {
                 container('gradle') {
                     dir('library') {
-                        withCredentials([usernamePassword(credentialsId: 'fluxflow-snapshot-publisher', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')]) {
-                            sh "gradle publishMavenPublicationToSnapshotRepository -PprojVersion=\"$TAG_NAME\" -PsnapshotUsername=\"\$MAVEN_USER\" -PsnapshotPassword=\"\$MAVEN_PASSWORD\""
+                        withCredentials([
+                                file(credentialsId: '', variable: 'KEYRING_FILE'),
+                                string(credentialsId: '', variable: 'KEYRING_PASSWORD'),
+                                usernamePassword(credentialsId: '', passwordVariable: 'MAVEN_PASSWORD', usernameVariable: 'MAVEN_USER')
+                        ]) {
+                            sh "gradle publishMavenPublicationToStagingRepository" +
+                                    " -PprojVersion=\"$TAG_NAME\"" +
+                                    " -PstagingUsername=\"\$MAVEN_USER\"" +
+                                    " -PstagingPassword=\"\$MAVEN_PASSWORD\"" +
+                                    " -Psigning.keyId=73F5D362" +
+                                    " -Psigning.password=\"\$KEYRING_PASSWORD\"" +
+                                    " -Psigning.secretKeyRingFile=\"\$KEYRING_FILE\""
                         }
                     }
                 }

@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm") version "1.9.21"
     `java-library`
     `maven-publish`
-    `signing`
+    signing
 }
 
 repositories {
@@ -67,7 +67,7 @@ subprojects {
             }
             maven {
                 name = "staging"
-                url = uri("https://s01.oss.sonatype.org/content/groups/staging")
+                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
                 credentials(PasswordCredentials::class)
             }
         }
@@ -80,6 +80,11 @@ subprojects {
                 from(components["java"])
 
                 pom {
+                    name.set(subProject.name)
+                    description.set(
+                        subProject.description
+                            ?: "A flexible workflow engine that helps to create and orchestrate business processes using domain code."
+                    )
                     url.set("https://github.com/lisegmbh/fluxflow")
                     licenses {
                         license {
