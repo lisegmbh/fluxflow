@@ -35,8 +35,18 @@ pipeline {
             steps {
                 container('gradle') {
                     dir('library') {
-                        withCredentials([usernamePassword(credentialsId: 'fluxflow-snapshot-publisher', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')]) {
-                            sh "gradle publishMavenPublicationToSnapshotRepository -PprojVersion=0.0.0-SNAPSHOT -PsnapshotUsername=\"\$MAVEN_USER\" -PsnapshotPassword=\"\$MAVEN_PASSWORD\""
+                        withCredentials([
+                                file(credentialsId: '', variable: 'KEYRING_FILE'),
+                                string(credentialsId: '', variable: 'KEYRING_PASSWORD'),
+                                usernamePassword(credentialsId: 'fluxflow-snapshot-publisher', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')
+                        ]) {
+                            sh "gradle publishMavenPublicationToSnapshotRepository" +
+                                    " -PprojVersion=0.0.0-SNAPSHOT" +
+                                    " -PsnapshotUsername=\"\$MAVEN_USER\"" +
+                                    " -PsnapshotPassword=\"\$MAVEN_PASSWORD\"" +
+                                    " -Psigning.keyId=73F5D362" +
+                                    " -Psigning.password=\"\$KEYRING_PASSWORD\"" +
+                                    " -Psigning.secretKeyRingFile=\"\$KEYRING_FILE\""
                         }
                     }
                 }
