@@ -3,6 +3,7 @@ plugins {
     `java-library`
     `maven-publish`
     signing
+    id("io.spring.dependency-management") version "1.1.4"
 }
 
 repositories {
@@ -21,11 +22,13 @@ val projVersion = project.findProperty("projVersion")
 
 subprojects {
     val subProject = this
+    val springBootVersion = "3.2.1"
     
     apply(plugin = "maven-publish")
     apply(plugin = "java-library")
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "signing")
+    apply(plugin = "io.spring.dependency-management")
     
     group = "de.lise.fluxflow"
     version = projVersion ?: "0.0.1"
@@ -42,6 +45,12 @@ subprojects {
 
     kotlin {
         jvmToolchain(17)
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
+        }
     }
 
     dependencies {

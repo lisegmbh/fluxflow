@@ -1,5 +1,5 @@
 dependencies {
-    implementation("org.springframework:spring-context:6.0.13")
+    implementation("org.springframework:spring-context")
     implementation(project(":springboot"))
 
     api(project(":springboot-in-memory-persistence"))
