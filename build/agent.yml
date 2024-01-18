@@ -7,7 +7,7 @@ spec:
       command:
         - cat
       tty: true
-      resource:
+      resources:
         requests:
           cpu: 500m
           memory: 500Mi
