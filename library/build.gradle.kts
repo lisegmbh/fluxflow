@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm") version "1.9.21"
     `java-library`
     `maven-publish`
+    signing
 }
 
 repositories {
@@ -24,6 +25,7 @@ subprojects {
     apply(plugin = "maven-publish")
     apply(plugin = "java-library")
     apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "signing")
     
     group = "de.lise.fluxflow"
     version = projVersion ?: "0.0.1"
@@ -63,6 +65,11 @@ subprojects {
                 url = uri("https://nexus.cloud.lise.de/repository/maven-public/")
                 credentials(PasswordCredentials::class)
             }
+            maven {
+                name = "staging"
+                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+                credentials(PasswordCredentials::class)
+            }
         }
         publications {
             create<MavenPublication>("maven") {
@@ -73,6 +80,11 @@ subprojects {
                 from(components["java"])
 
                 pom {
+                    name.set(subProject.name)
+                    description.set(
+                        subProject.description
+                            ?: "A flexible workflow engine that helps to create and orchestrate business processes using domain code."
+                    )
                     url.set("https://github.com/lisegmbh/fluxflow")
                     licenses {
                         license {
@@ -122,5 +134,9 @@ subprojects {
                 }
             }
         }
+    }
+    
+    signing {
+        sign(publishing.publications["maven"])
     }
 }
