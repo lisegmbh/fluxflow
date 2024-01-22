@@ -107,4 +107,25 @@ class StepIT {
 
         assertThat(stepsAfterActions).hasSize(2)
     }
+    
+    @Test
+    fun `onCreated automation functions triggered by a multiple continuation should be executed together`() {
+        // Arrange
+        val step1 = TestStepWithConsolidatedOnCreatedExecution()
+        val step2 = TestStepWithConsolidatedOnCreatedExecution()
+        
+        // Act
+        workflowStarterService!!.start(
+            Any(), 
+            Continuation.multiple(
+                Continuation.step(step1),
+                Continuation.step(step2)
+            )
+        )
+        
+        // Assert
+        assertThat(step1.steps).hasSize(2)
+        assertThat(step2.steps).hasSize(2)
+    }
+    
 }

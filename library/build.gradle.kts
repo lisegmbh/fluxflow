@@ -31,7 +31,7 @@ subprojects {
     apply(plugin = "io.spring.dependency-management")
     
     group = "de.lise.fluxflow"
-    version = projVersion ?: "0.0.1"
+    version = projVersion ?: "0.0.2-SNAPSHOT"
 
     repositories {
         mavenCentral()
@@ -81,6 +81,14 @@ subprojects {
             }
         }
         publications {
+            create<MavenPublication>("snapshot") {
+                groupId = subProject.group.toString()
+                artifactId = subProject.name
+                version = subProject.version.toString()
+
+                from(components["java"])
+            }
+            
             create<MavenPublication>("maven") {
                 groupId = subProject.group.toString()
                 artifactId = subProject.name
