@@ -290,15 +290,13 @@ open class FluxFlowConfiguration {
     open fun stepService(
         persistence: StepPersistence,
         stepActivationService: StepActivationService,
-        eventService: EventService,
-        workflowUpdateService: WorkflowUpdateService
+        eventService: EventService
     ): StepServiceImpl {
         return StepServiceImpl(
             persistence,
             stepActivationService,
             eventService,
-            continuationService!!,
-            workflowUpdateService
+            continuationService!!
         )
     }
 
@@ -309,7 +307,8 @@ open class FluxFlowConfiguration {
         jobService: JobService,
         continuationHistoryService: ContinuationHistoryServiceImpl,
         workflowStarterService: WorkflowStarterService,
-        workflowService: WorkflowService
+        workflowService: WorkflowService,
+        workflowUpdateService: WorkflowUpdateService
     ): ContinuationService {
         return ContinuationService(
             stepServiceImpl,
@@ -317,7 +316,8 @@ open class FluxFlowConfiguration {
             jobService,
             continuationHistoryService,
             workflowStarterService,
-            workflowService
+            workflowService,
+            workflowUpdateService
         )
     }
 

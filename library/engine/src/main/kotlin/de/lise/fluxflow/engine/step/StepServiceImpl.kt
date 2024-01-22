@@ -21,8 +21,7 @@ class StepServiceImpl(
     private val persistence: StepPersistence,
     private val stepActivationService: StepActivationService,
     private val eventService: EventService,
-    private val continuationService: ContinuationService,
-    private val workflowUpdateService: WorkflowUpdateService
+    private val continuationService: ContinuationService
 ) : StepService {
     fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
         val step = definition.createStep(
@@ -34,20 +33,11 @@ class StepServiceImpl(
         createData(step)
         eventService.publish(StepCreatedEvent(step))
 
-        val automationContinuations = definition.onCreatedAutomations.map { it.createAutomation(step).execute() }
-        if (automationContinuations.isNotEmpty()) {
-            // Persist changes that may have occurred during automation
-            val savedStep = saveChanges(step)
-            workflowUpdateService.saveChanges(savedStep.workflow)
-            return StepCreationResult(
-                savedStep,
-                automationContinuations
-            )
-        }
+        val onCreatedAutomations = definition.onCreatedAutomations.map { it.createAutomation(step) }
 
         return StepCreationResult(
             step,
-            automationContinuations
+            onCreatedAutomations
         )
     }
 
