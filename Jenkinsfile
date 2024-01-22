@@ -41,7 +41,6 @@ pipeline {
                                 usernamePassword(credentialsId: 'fluxflow-snapshot-publisher', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')
                         ]) {
                             sh "gradle publishMavenPublicationToSnapshotRepository" +
-                                    " -PprojVersion=0.0.0-SNAPSHOT" +
                                     " -PsnapshotUsername=\"\$MAVEN_USER\"" +
                                     " -PsnapshotPassword=\"\$MAVEN_PASSWORD\"" +
                                     " -Psigning.keyId=73F5D362" +
