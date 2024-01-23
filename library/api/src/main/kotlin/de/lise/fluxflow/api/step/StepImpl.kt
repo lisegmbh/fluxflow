@@ -8,6 +8,4 @@ open class StepImpl(
     override val workflow: Workflow<*>,
     override val status: Status,
     override val metadata: Map<String, Any>
-): Step {
-
-}
+): Step
