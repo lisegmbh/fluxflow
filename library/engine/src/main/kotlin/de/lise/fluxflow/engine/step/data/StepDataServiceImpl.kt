@@ -62,9 +62,14 @@ class StepDataServiceImpl(
             )
         }
 
-        eventService.publish(StepDataEvent(data, oldValue, value))
-
         stepServiceImpl.saveChanges(data.step)
         workflowUpdateService.saveChanges(data.step.workflow)
+
+        /*
+            When publishing the StepDataEvent,
+            the workflow should be in a clean state (= all changes should be persisted).
+            Listeners should not expect that their changes will be persisted implicitly.
+         */
+        eventService.publish(StepDataEvent(data, oldValue, value))
     }
 }

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Fixed
+- #47 Changes to the step and workflow are now persisted before publishing events.
 ### Changed
 - Harmonized Spring Boot dependencies
 - The Spring packages are now targeting version 3.2.1

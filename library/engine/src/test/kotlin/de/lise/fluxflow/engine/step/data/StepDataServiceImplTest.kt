@@ -14,15 +14,24 @@ import de.lise.fluxflow.engine.step.StepServiceImpl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 
 class StepDataServiceImplTest {
-    private fun defaultService(allowInactiveModification: Boolean): StepDataServiceImpl {
+
+
+    private fun defaultService(
+        allowInactiveModification: Boolean,
+        eventService: EventService? = null,
+        stepServiceImpl: StepServiceImpl? = null,
+        workflowUpdateService: WorkflowUpdateService? = null
+    ): StepDataServiceImpl {
         return StepDataServiceImpl(
-            mock<StepServiceImpl> {},
-            mock<WorkflowUpdateService> {},
-            mock<EventService> {},
+            stepServiceImpl ?: mock<StepServiceImpl> {},
+            workflowUpdateService ?: mock<WorkflowUpdateService>{},
+            eventService ?: mock<EventService> {},
             allowInactiveModification,
             mock<ContinuationService> {}
         )
@@ -125,5 +134,39 @@ class StepDataServiceImplTest {
         assertThrows<UnmodifiableDataException> {
             dataService.setValue(data, "")
         }
+    }
+
+    @Test
+    fun `setValue should persist changes before publishing the StepDateEvent`() {
+        // Arrange
+        val stepServiceImpl = mock<StepServiceImpl>{}
+        val eventService = mock<EventService> {}
+        val dataService = defaultService(
+            false,
+            eventService = eventService,
+            stepServiceImpl = stepServiceImpl
+        )
+        val stepMock = mock<Step> {
+            on { status } doReturn Status.Active
+        }
+        val dataDefinition = mock<DataDefinition<String>> {
+            on { updateListeners } doReturn emptyList()
+        }
+        val data = mock<ModifiableData<String>> {
+            on { step } doReturn stepMock
+            on { definition } doReturn dataDefinition
+        }
+
+        // Act
+        dataService.setValue(data, "Test")
+
+        // Assert
+        val executionOrder = inOrder(
+            stepServiceImpl,
+            eventService
+        )
+
+        executionOrder.verify(stepServiceImpl).saveChanges(any<Step>())
+        executionOrder.verify(eventService).publish(any())
     }
 }
