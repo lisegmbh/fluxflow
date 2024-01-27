@@ -2,12 +2,12 @@ package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.event.EventService
+import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.*
 import de.lise.fluxflow.api.step.query.StepQuery
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
-import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.StepFinalizationSemaphore
 import de.lise.fluxflow.engine.event.step.StepCreatedEvent
@@ -16,12 +16,14 @@ import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.query.toDataQuery
 import de.lise.fluxflow.query.pagination.Page
+import org.slf4j.LoggerFactory
 
 class StepServiceImpl(
     private val persistence: StepPersistence,
     private val stepActivationService: StepActivationService,
     private val eventService: EventService,
-    private val continuationService: ContinuationService
+    private val continuationService: ContinuationService,
+    private val changeDetector: ChangeDetector<StepData>,
 ) : StepService {
     fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
         val step = definition.createStep(
@@ -117,12 +119,26 @@ class StepServiceImpl(
 
     private fun setState(step: Step, status: Status): Step {
         val stepData = persistence.findForWorkflowAndId(step.workflow.id, step.identifier)!!
+        if(step.status == status) {
+            return step
+        }
         return saveChanges(step, stepData.withState(status))
     }
 
     fun saveChanges(step: Step): Step {
-        val stepData = persistence.findForWorkflowAndId(step.workflow.id, step.identifier)!!
-        return saveChanges(step, stepData.withData(fetchData(step)))
+        val oldVersion = persistence.findForWorkflowAndId(step.workflow.id, step.identifier)!!
+        val newVersion = oldVersion.withData(fetchData(step))
+
+        if(!changeDetector.hasChanged(oldVersion, newVersion)) {
+            Logger.debug(
+                "Step '{}' of workflow '{}' will not be persisted, because it didn't change.",
+                step.identifier.value,
+                step.workflow.id.value
+            )
+            return step
+        }
+
+        return saveChanges(step, newVersion)
     }
 
     private fun saveChanges(step: Step, data: StepData): Step {
@@ -137,5 +153,9 @@ class StepServiceImpl(
             .map { StepIdentifier(it.id) }
             .toSet()
             .let { persistence.deleteMany(it) }
+    }
+
+    private companion object {
+        val Logger = LoggerFactory.getLogger(StepServiceImpl::class.java)!!
     }
 }

@@ -29,6 +29,7 @@ import de.lise.fluxflow.engine.workflow.WorkflowStarterServiceImpl
 import de.lise.fluxflow.engine.workflow.WorkflowUpdateServiceImpl
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
@@ -295,13 +296,15 @@ open class BasicConfiguration {
     open fun stepService(
         persistence: StepPersistence,
         stepActivationService: StepActivationService,
-        eventService: EventService
+        eventService: EventService,
+        changeDetector: ChangeDetector<StepData>
     ): StepServiceImpl {
         return StepServiceImpl(
             persistence,
             stepActivationService,
             eventService,
-            continuationService!!
+            continuationService!!,
+            changeDetector
         )
     }
 
