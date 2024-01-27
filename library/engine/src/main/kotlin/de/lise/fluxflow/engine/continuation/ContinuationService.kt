@@ -115,7 +115,7 @@ open class ContinuationService(
         continuation: WorkflowContinuation<*, *>
     ): ContinuationCommit {
         if (continuation.forkBehavior == ForkBehavior.Replace) {
-            val oldId = workflow.id
+            val oldId = workflow.identifier
             workflowService.replace(oldId)
             workflowStarterService.start(
                 continuation.model,
@@ -130,7 +130,7 @@ open class ContinuationService(
                 null
             )
             if (continuation.forkBehavior == ForkBehavior.Remove) {
-                workflowService.delete(workflow.id)
+                workflowService.delete(workflow.identifier)
             }
         }
         return ContinuationCommit.Nop
@@ -161,7 +161,7 @@ open class ContinuationService(
     ): ContinuationCommit {
         val job = jobService.schedule(workflow, continuation)
         continuationHistoryService.create(
-            workflow.id,
+            workflow.identifier,
             originatingObject?.reference,
             continuation,
             WorkflowObjectReference.create(job)
@@ -179,7 +179,7 @@ open class ContinuationService(
             continuation.cancellationKey
         )
         continuationHistoryService.create(
-            workflow.id,
+            workflow.identifier,
             originatingObject?.reference,
             continuation,
             null
@@ -198,13 +198,13 @@ open class ContinuationService(
         )
         val previousStep =
             continuationHistoryService.findPreviousStep(currentStep) ?: throw InvalidContinuationException(
-                "The step \"${currentStep.identifier.value}\" of workflow \"${workflow.id.value}\" does not have a previous step"
+                "The step \"${currentStep.identifier.value}\" of workflow \"${workflow.identifier.value}\" does not have a previous step"
             )
 
         val reactivatedStep = stepService.reactivate(previousStep)
 
         continuationHistoryService.create(
-            workflow.id,
+            workflow.identifier,
             originatingObject.reference,
             continuation,
             ReferredWorkflowObject.create(reactivatedStep).reference
@@ -219,7 +219,7 @@ open class ContinuationService(
         continuation: NoContinuation
     ): ContinuationCommit {
         continuationHistoryService.create(
-            workflow.id,
+            workflow.identifier,
             originatingObject?.reference,
             continuation,
             null
@@ -240,7 +240,7 @@ open class ContinuationService(
         val nextOriginatingObject = ReferredWorkflowObject.create(creationResult.step)
 
         continuationHistoryService.create(
-            workflow.id,
+            workflow.identifier,
             originatingObject?.reference,
             continuation,
             nextOriginatingObject.reference

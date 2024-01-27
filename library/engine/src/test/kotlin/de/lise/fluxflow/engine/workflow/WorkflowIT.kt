@@ -30,10 +30,10 @@ class WorkflowIT {
         )
 
         // Act
-        workflowService!!.delete(workflow.id)
+        workflowService!!.delete(workflow.identifier)
 
         // Assert
-        assertTrue(workflowService!!.getAll().none { it.id == workflow.id })
+        assertTrue(workflowService!!.getAll().none { it.identifier == workflow.identifier })
     }
 
     @Test
@@ -44,10 +44,10 @@ class WorkflowIT {
         )
 
         // Act
-        workflowService!!.delete(workflow.id)
+        workflowService!!.delete(workflow.identifier)
 
         //Assert
-        assertThrows<WorkflowNotFoundException> { workflowService!!.get<Any>(workflow.id) }
+        assertThrows<WorkflowNotFoundException> { workflowService!!.get<Any>(workflow.identifier) }
     }
 
     @Test
@@ -67,12 +67,12 @@ class WorkflowIT {
         val stringModelWorkflows = workflowService!!.getAll(String::class)
 
         // Assert
-        assertThat(testModelWorkflows.map { it.id })
-            .contains(testModelWorkflow.id)
-            .doesNotContain(stringModelWorkflow.id)
-        assertThat(stringModelWorkflows.map { it.id })
-            .containsExactly(stringModelWorkflow.id)
-            .doesNotContain(testModelWorkflow.id)
+        assertThat(testModelWorkflows.map { it.identifier })
+            .contains(testModelWorkflow.identifier)
+            .doesNotContain(stringModelWorkflow.identifier)
+        assertThat(stringModelWorkflows.map { it.identifier })
+            .containsExactly(stringModelWorkflow.identifier)
+            .doesNotContain(testModelWorkflow.identifier)
     }
 }
 

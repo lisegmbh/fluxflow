@@ -18,7 +18,7 @@ interface DefaultResolvers {
                 ),
                 CallbackParameterResolver(
                     ParamMatcher.isAssignableFrom(WorkflowIdentifier::class),
-                    workflow.map { it.id }
+                    workflow.map { it.identifier }
                 )
             )
         }

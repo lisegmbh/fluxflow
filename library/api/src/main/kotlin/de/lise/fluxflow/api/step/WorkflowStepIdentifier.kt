@@ -7,7 +7,7 @@ data class WorkflowStepIdentifier(
     val stepIdentifier: StepIdentifier
 ) {
     constructor(step: Step) : this(
-        step.workflow.id,
+        step.workflow.identifier,
         step.identifier
     )
 }

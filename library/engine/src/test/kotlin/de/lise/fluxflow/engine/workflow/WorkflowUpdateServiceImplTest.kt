@@ -33,7 +33,7 @@ class WorkflowUpdateServiceImplTest {
         )
 
         val workflow = mock<Workflow<Any>> {
-            on { id } doReturn testId
+            on { identifier } doReturn testId
             on { model } doReturn testModel
         }
 

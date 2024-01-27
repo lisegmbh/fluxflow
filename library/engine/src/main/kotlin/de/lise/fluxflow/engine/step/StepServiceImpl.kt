@@ -47,7 +47,7 @@ class StepServiceImpl(
         return persistence.create(
             StepData(
                 step.identifier.value,
-                step.workflow.id.value,
+                step.workflow.identifier.value,
                 step.definition.kind.value,
                 fetchData(step),
                 step.status,
@@ -71,19 +71,19 @@ class StepServiceImpl(
     }
 
     override fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>): List<Step> {
-        return persistence.findForWorkflow(workflow.id)
+        return persistence.findForWorkflow(workflow.identifier)
             .map { stepActivationService.activate(workflow, it) }
     }
 
     override fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: StepQuery): Page<Step> {
         return persistence.findForWorkflow(
-            workflow.id,
+            workflow.identifier,
             query.toDataQuery()
         ).map { stepActivationService.activate(workflow, it) }
     }
 
     override fun <TWorkflowModel> findStep(workflow: Workflow<TWorkflowModel>, stepIdentifier: StepIdentifier): Step? {
-        return persistence.findForWorkflowAndId(workflow.id, stepIdentifier)
+        return persistence.findForWorkflowAndId(workflow.identifier, stepIdentifier)
             ?.let { stepActivationService.activate(workflow, it) }
     }
 
@@ -118,7 +118,7 @@ class StepServiceImpl(
     }
 
     private fun setState(step: Step, status: Status): Step {
-        val stepData = persistence.findForWorkflowAndId(step.workflow.id, step.identifier)!!
+        val stepData = persistence.findForWorkflowAndId(step.workflow.identifier, step.identifier)!!
         if(step.status == status) {
             return step
         }
@@ -126,14 +126,14 @@ class StepServiceImpl(
     }
 
     fun saveChanges(step: Step): Step {
-        val oldVersion = persistence.findForWorkflowAndId(step.workflow.id, step.identifier)!!
+        val oldVersion = persistence.findForWorkflowAndId(step.workflow.identifier, step.identifier)!!
         val newVersion = oldVersion.withData(fetchData(step))
 
         if(!changeDetector.hasChanged(oldVersion, newVersion)) {
             Logger.debug(
                 "Step '{}' of workflow '{}' will not be persisted, because it didn't change.",
                 step.identifier.value,
-                step.workflow.id.value
+                step.workflow.identifier.value
             )
             return step
         }

@@ -38,7 +38,7 @@ class ContinuationServiceTest {
         )
         val workflowId = mock<WorkflowIdentifier> { }
         val workflow = mock<Workflow<Any>> { 
-            on { id } doReturn workflowId
+            on { identifier } doReturn workflowId
         }
         val continuation = Continuation.step(Any())
         

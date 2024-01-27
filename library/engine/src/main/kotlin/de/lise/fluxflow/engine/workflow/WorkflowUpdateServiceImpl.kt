@@ -18,21 +18,21 @@ class WorkflowUpdateServiceImpl(
     override fun <TWorkflowModel> saveChanges(workflow: Workflow<TWorkflowModel>): Workflow<TWorkflowModel> {
         eventService.publish(BeforeWorkflowUpdateEvent(workflow))
 
-        val oldWorkflowData = persistence.find(workflow.id)!!
+        val oldWorkflowData = persistence.find(workflow.identifier)!!
         val updatedWorkflowData = oldWorkflowData.withModel(workflow.model)
         if(!changeDetector.hasChanged(oldWorkflowData, updatedWorkflowData)) {
-            Logger.debug("Skip persisting/updating workflow '{}' as it hasn't changed.", workflow.id.value)
+            Logger.debug("Skip persisting/updating workflow '{}' as it hasn't changed.", workflow.identifier.value)
             return workflow
         }
-        
+
         val updatedWorkflow = persistence.save(updatedWorkflowData)
 
         eventService.publish(WorkflowUpdatedEvent(workflow))
 
         return WorkflowImpl(updatedWorkflow)
     }
-    
+
     private companion object {
-        private val Logger = LoggerFactory.getLogger(WorkflowStarterServiceImpl::class.java)!! 
+        private val Logger = LoggerFactory.getLogger(WorkflowStarterServiceImpl::class.java)!!
     }
 }

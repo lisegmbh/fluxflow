@@ -21,7 +21,7 @@ class MemoryCachingStepActivationService(
     ): Step {
         return stepCache.get(
             WorkflowStepIdentifier(
-                workflow.id,
+                workflow.identifier,
                 StepIdentifier(stepData.id)
             )
         ) {
