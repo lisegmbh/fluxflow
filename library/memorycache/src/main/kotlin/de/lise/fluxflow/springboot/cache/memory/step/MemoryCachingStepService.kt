@@ -29,7 +29,7 @@ class MemoryCachingStepService(
     override fun <TWorkflowModel> findStep(workflow: Workflow<TWorkflowModel>, stepIdentifier: StepIdentifier): Step? {
         return try {
             stepCache.get(
-                WorkflowStepIdentifier(workflow.id, stepIdentifier)
+                WorkflowStepIdentifier(workflow.identifier, stepIdentifier)
             ) {
                 stepService.findStep(workflow, stepIdentifier) ?: throw NoSuchElementException()
             }

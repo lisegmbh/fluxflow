@@ -36,7 +36,7 @@ class JobServiceImpl(
         val persistedJobData = jobPersistence.create(
             JobData(
                 job.identifier.value,
-                workflow.id.value,
+                workflow.identifier.value,
                 jobDefinition.kind.value,
                 fetchParameters(job),
                 jobContinuation.scheduledTime,
@@ -48,7 +48,7 @@ class JobServiceImpl(
         schedulingService.schedule(
             jobContinuation.scheduledTime,
             SchedulingReference(
-                workflow.id,
+                workflow.identifier,
                 JobIdentifier(persistedJobData.id),
                 jobContinuation.cancellationKey,
                 job,
@@ -63,18 +63,18 @@ class JobServiceImpl(
         cancellationKey: CancellationKey
     ) {
         schedulingService.cancel(
-            workflow.id,
+            workflow.identifier,
             cancellationKey
         )
         jobPersistence.cancelJobs(
-            workflow.id,
+            workflow.identifier,
             cancellationKey
         )
     }
 
     fun setStatus(job: Job, status: JobStatus): Job {
         val newJobData = jobPersistence.findForWorkflowAndId(
-            job.workflow.id,
+            job.workflow.identifier,
             job.identifier
         )!!.withStatus(status)
 
@@ -84,12 +84,12 @@ class JobServiceImpl(
     }
 
     override fun <TWorkflowModel> findJob(workflow: Workflow<TWorkflowModel>, jobIdentifier: JobIdentifier): Job? {
-        return jobPersistence.findForWorkflowAndId(workflow.id, jobIdentifier)
+        return jobPersistence.findForWorkflowAndId(workflow.identifier, jobIdentifier)
             ?.let { jobActivationService.activate(workflow, it) }
     }
 
     override fun <TWorkflowModel> findAllJobs(workflow: Workflow<TWorkflowModel>): List<Job> {
-        return jobPersistence.findForWorkflow(workflow.id)
+        return jobPersistence.findForWorkflow(workflow.identifier)
             .map { jobActivationService.activate(workflow, it) }
     }
 

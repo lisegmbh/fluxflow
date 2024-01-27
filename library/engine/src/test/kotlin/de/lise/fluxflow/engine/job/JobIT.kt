@@ -119,12 +119,12 @@ class JobIT {
         val valueSetByJob = BusyWait.toBeNonNull(3) {
             jobJobParameterValue
         }
-        assertThat(valueSetByJob.workflow.id).isEqualTo(workflow.id)
+        assertThat(valueSetByJob.workflow.identifier).isEqualTo(workflow.identifier)
 
         val workflowSetByJob = BusyWait.toBeNonNull(1) {
             jobWorkflowParameterValue
         }
-        assertThat(workflowSetByJob.id).isEqualTo(workflow.id)
+        assertThat(workflowSetByJob.identifier).isEqualTo(workflow.identifier)
 
         val workflowServiceSetByJob = BusyWait.toBeNonNull(1) {
             jobWorkflowStarterServiceParameterValue

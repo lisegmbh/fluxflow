@@ -49,7 +49,7 @@ class ValidationService(
 
             if (allValidationIssues.isNotEmpty()) {
                 throw DataValidationException(
-                    "Validation failed for step \"${step.identifier}\" of workflow \"${step.workflow.id}\"",
+                    "Validation failed for step \"${step.identifier}\" of workflow \"${step.workflow.identifier}\"",
                     action,
                     allValidationIssues
                 )

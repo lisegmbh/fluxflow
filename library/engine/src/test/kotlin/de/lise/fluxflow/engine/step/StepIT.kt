@@ -39,10 +39,10 @@ class StepIT {
 
         // Assert
         stepsFromWorkflow1.items.forEach {
-            assertThat(it.workflow.id).isEqualTo(workflow1.id)
+            assertThat(it.workflow.identifier).isEqualTo(workflow1.identifier)
         }
         stepsFromWorkflow2.items.forEach {
-            assertThat(it.workflow.id).isEqualTo(workflow2.id)
+            assertThat(it.workflow.identifier).isEqualTo(workflow2.identifier)
         }
     }
 

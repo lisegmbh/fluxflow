@@ -57,7 +57,7 @@ class ContinuationHistoryServiceImpl(
         val ref = findAll(
             Query.withFilter<ContinuationRecordFilter, ContinuationRecordSort>(
                 ContinuationRecordFilter(
-                    workflowIdentifier = Filter.eq(currentStep.workflow.id.value),
+                    workflowIdentifier = Filter.eq(currentStep.workflow.identifier.value),
                     type = Filter.eq(ContinuationType.Step),
                     originatingObject = WorkflowObjectReferenceFilter(
                         kind = Filter.eq(WorkflowObjectKind.Step)

@@ -165,7 +165,7 @@ class StepAutomationIT {
         )
         
         // Assert
-        val result = workflowService!!.get<TestWorkflowModelForModifyingAutomationFunctions>(startedWorkflow.id)
+        val result = workflowService!!.get<TestWorkflowModelForModifyingAutomationFunctions>(startedWorkflow.identifier)
         assertThat(result.model.hasBeenChanged).isTrue()
     }
     
