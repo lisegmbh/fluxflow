@@ -6,7 +6,6 @@ data class EqualsAndHashCode<in TElement>(
     val equalityChecker: JavaEqualityChecker<TElement>,
     val hashCodeComposer: HashComposer<TElement>
 ) {
-
     fun areEqual(instance: TElement, other: Any?): Boolean {
         return equalityChecker.checkIfEqual(instance, other)
     }
@@ -19,7 +18,7 @@ data class EqualsAndHashCode<in TElement>(
         @JvmStatic
         fun <TElement : Any> forType(
             type: KClass<TElement>,
-            makeAccessible: Boolean = false
+            makeAccessible: Boolean = true
         ): EqualsAndHashCode<TElement> {
             return EqualsAndHashCodeBuilder(
                 type,
@@ -29,7 +28,7 @@ data class EqualsAndHashCode<in TElement>(
 
         @JvmStatic
         inline fun <reified TElement : Any> forType(
-            makeAccessible: Boolean = false
+            makeAccessible: Boolean = true
         ): EqualsAndHashCode<TElement> {
             return forType(TElement::class, makeAccessible)
         }

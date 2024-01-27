@@ -9,7 +9,7 @@ typealias PropertyMap<TElement> = Map<KProperty1<TElement, *>, (element: TElemen
 class EqualsAndHashCodeBuilder<TElement : Any>(
     private val type: KClass<TElement>,
     private val strictTypeCheck: Boolean = true,
-    private val makeAccessible: Boolean = false
+    private val makeAccessible: Boolean = true
 ) {
     fun build(): EqualsAndHashCode<TElement> {
         val propertyGetters = buildPropertyGetters()
