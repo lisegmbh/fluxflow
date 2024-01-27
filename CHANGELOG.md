@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Fixed
-- #47 Changes to the step and workflow are now persisted before publishing events.
+1. #47 Changes to the step and workflow are now persisted before publishing events.
 ### Changed
-- Harmonized Spring Boot dependencies
-- The Spring packages are now targeting version 3.2.1
+1. Harmonized Spring Boot dependencies
+2. The Spring packages are now targeting version 3.2.1
 ### Removed
 
 ## [0.0.1] - 2024-01-24
 
 ### Added
-- Initial FluxFlow release
+1.~~~~ Initial FluxFlow release
