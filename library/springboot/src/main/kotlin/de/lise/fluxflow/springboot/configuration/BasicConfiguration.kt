@@ -1,10 +1,11 @@
-package de.lise.fluxflow.springboot
+package de.lise.fluxflow.springboot.configuration
 
 import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
+import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepService
 import de.lise.fluxflow.api.workflow.WorkflowService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
@@ -29,6 +30,7 @@ import de.lise.fluxflow.engine.workflow.WorkflowUpdateServiceImpl
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.step.StepPersistence
+import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.reflection.activation.parameter.*
 import de.lise.fluxflow.scheduling.SchedulingCallback
@@ -63,7 +65,8 @@ import java.time.Clock
 
 @Configuration
 @ComponentScan(basePackages = ["de.lise.fluxflow.springboot.autoconfigure"])
-open class FluxFlowConfiguration {
+@Import(ChangeDetectionConfiguration::class)
+open class BasicConfiguration {
     @Lazy
     @Autowired
     // This needs to be done to avoid the circular dependency between StepServiceImpl and ContinuationService
@@ -114,10 +117,12 @@ open class FluxFlowConfiguration {
     @Bean
     open fun workflowUpdateService(
         persistence: WorkflowPersistence,
+        changeDetector: ChangeDetector<WorkflowData>,
         eventService: EventService
     ): WorkflowUpdateService {
         return WorkflowUpdateServiceImpl(
             persistence,
+            changeDetector,
             eventService
         )
     }
