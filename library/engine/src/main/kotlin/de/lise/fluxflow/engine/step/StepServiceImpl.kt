@@ -133,7 +133,7 @@ class StepServiceImpl(
             Logger.debug(
                 "Step '{}' of workflow '{}' will not be persisted, because it didn't change.",
                 step.identifier.value,
-                step.workflow.id.value
+                step.workflow.identifier.value
             )
             return step
         }

@@ -103,7 +103,7 @@ WorkflowQuery.empty<WorkflowFilter<PizzaOrder>, WorkflowSort<PizzaOrder>>()
                     Sort.desc()
                 )
             )
-        ).addSort(WorkflowSort.id(Direction.Ascending))
+        ).addSort(WorkflowSort.identifier(Direction.Ascending))
 ----
 
 === Pagination

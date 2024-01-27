@@ -21,7 +21,7 @@ class WorkflowUpdateServiceImpl(
         val oldWorkflowData = persistence.find(workflow.identifier)!!
         val updatedWorkflowData = oldWorkflowData.withModel(workflow.model)
         if(!changeDetector.hasChanged(oldWorkflowData, updatedWorkflowData)) {
-            Logger.debug("Skip persisting/updating workflow '{}' as it hasn't changed.", workflow.id.value)
+            Logger.debug("Skip persisting/updating workflow '{}' as it hasn't changed.", workflow.identifier.value)
             return workflow
         }
 
