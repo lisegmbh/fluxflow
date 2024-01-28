@@ -1,0 +1,23 @@
+.wy-table-responsive table td, .wy-table-responsive table th {
+    white-space: normal !important;
+}
+
+.wy-table-responsive {
+    overflow : visible !important;
+}
+
+ol > .caption, ul> .caption {
+    list-style-type: none !important;
+    margin-left: 0 !important;
+    text-align: center;
+}
+
+ol > .caption::before, ul > .caption::before {
+    content: 'Listing ';
+    font-weight: bold;
+}
+
+.caption.image::before {
+    content: 'Figure ';
+    font-weight: bold;
+}
