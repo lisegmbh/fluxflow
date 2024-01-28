@@ -6,19 +6,27 @@ a workflow. Whether you’re automating business processes, orchestrating
 complex tasks, or streamlining operations, understanding and effectively
 utilizing steps is vital for creating efficient and robust workflows.
 
-**Example process (ordering pizza) using basing steps and branching**
 
-    @startuml
-    start
+<div class="caption image">Example process (ordering pizza) using basic steps and branching</div>
 
-    repeat :Add pizza to cart;
-    repeat while(Enough pizza?) is (No)
-    :Navigate to checkout;
-    :Submit form;
+![](sample-process.png)
+
+<!--
+[plantuml]
+----
+@startuml
+start
+
+repeat :Add pizza to cart;
+repeat while(Enough pizza?) is (No)
+:Navigate to checkout;
+:Submit form;
 
 
-    stop
-    @enduml
+stop
+@enduml
+----
+-->
 
 A step serves as a building block of a workflow, defining a specific
 task that needs to be performed. It encapsulates the instructions,
@@ -1048,78 +1056,3 @@ In order to access an action’s metadata, the
 Refer to section [Definition of metadata](#step_definition_of_metadata)
 for more information on how metadata works and how the generated
 metadata can be customized.
-
-# Implementation details
-
-## Step activation
-
-"Step activation" is the process that is performed when loading a
-persisted step from the database. It involves the following phases:
-
-1.  **Information retrieval** Persisted step data is fetched from the
-    persistence layer.
-
-2.  **Type discovery** The definition type, associated with the step, is
-    discovered.
-
-3.  **Type activation** An instance of the step definition type is
-    created.
-
-4.  **Step reflection** A `StepDefinition` instance is created based on
-    the step definition type and backed by the constructed instance.
-
-5.  **Step creation** The final `Step` object is created using its
-    definition.
-
-**Step activation sequence**
-
-    @startuml
-    actor Actor as user
-
-    user -> StepService : findStep(\n\tworkflow,\n\tstepIdentifier\n)
-    activate StepService
-
-    StepService -> StepPersistence : findForWorkflow(workflow, id)
-    activate StepPersistence
-    StepPersistence --> StepService : StepData
-    deactivate StepPersistence
-
-    StepService -> StepActivationService : active(workflow, stepData)
-    activate StepActivationService
-
-    StepActivationService -> StepActivation ** : <<create>>
-    StepActivation -> TypeActivator ** : <<create>>
-    StepActivationService -> StepActivation : activateStepDefinition(...)
-    activate StepActivation
-
-    StepActivation -> ClassLoader : getClass(stepDefinitionClass)
-    activate ClassLoader
-    ClassLoader --> StepActivation : Class<?>
-    deactivate ClassLoader
-
-    StepActivation -> TypeActivator : findActivation(classObject)
-    activate TypeActivator
-    TypeActivator --> StepActivation : Activation<T>
-    destroy TypeActivator
-
-    StepActivation -> StepDefinitionBuilder : build(activatedStepObject)
-    activate StepDefinitionBuilder
-    StepDefinitionBuilder -> StepDefinition ** : <<create>>
-    StepDefinitionBuilder --> StepActivation : StepDefinition
-    deactivate StepDefinitionBuilder
-    StepActivation --> StepActivationService
-    destroy StepActivation
-
-    StepActivationService -> StepDefinition : createStep(..)
-    activate StepDefinition
-    StepDefinition -> Step ** : <<create>>
-    StepDefinition --> StepActivationService : Step
-    deactivate StepDefinition
-
-    StepActivationService --> StepService : Step
-    deactivate StepActivationService
-
-    StepService --> user
-    deactivate StepService
-
-    @enduml

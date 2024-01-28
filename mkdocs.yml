@@ -10,5 +10,14 @@ extra_css:
   - style.css
 nav:
   - Home: index.md
-  - Steps: steps.md
-  - Jobs: jobs.md
+  - API Objects:
+    - Steps: steps.md
+    - Jobs: jobs.md
+  - Features:
+    - Automation: automation.md
+    - Injection: injection.md
+    - Validation: validation.md
+    - Queries: queries.md
+  - Other resources:
+    - Sources: https://github.com/lisegmbh/fluxflow
+    - Issues: https://github.com/lisegmbh/fluxflow/issues

@@ -45,20 +45,22 @@ is going to be executed, once the scheduled time has come. It doesn’t
 matter how the method is named. As long as the following conditions hold
 true, FluxFlow will be able to discover and use it:
 
-1.  the method is public
 
-2.  the method is not abstract
 
-3.  the method is the only public method within its type or is annotated
-    with `@JobPayload`
-
-4.  all declared parameters (if present), only refer to
-
-    1.  an object that can be obtained from the IoC container
-
-    2.  the `Workflow<*>` API object
-
-    3.  the `Job` API object
+<ol id="payload-function-requirements">
+    <li>the method is public</li>
+    <li>the method is not abstract</li>
+    <li>the method is the only public method within its type or is annotated</li>
+    <li>with `@JobPayload`</li>
+    <li> all declared parameters (if present), only refer to
+        <ol>
+            <li>1.  an object that can be obtained from the IoC container</li>
+            <li>2.  the `Workflow<*>` API object</li>
+            <li>3.  the `Job` API object</li>
+        </ol>
+    </li>
+    <li class="caption">Requirements regarding a job's payload method</li>
+</ol>
 
 ### Parameters
 
@@ -112,9 +114,9 @@ injection can be used to receive certain objects. During job
 construction FluxFlow tries to resolve a value for each declared
 constructor parameter. The priority and logic of said resolution is
 given by the table
-"[table\_title](#jobs_usage_constructor_injection_priorities)".
+"[Job constructor injection priorities](#jobs-usage-constructor-injection-priorities)".
 
-<table style="max-width: 100%">
+<table id="jobs-usage-constructor-injection-priorities" style="max-width: 100%">
     <caption>Job constructor injection priorities</caption>
     <colgroup>
         <col style="width: 16%" />
@@ -166,8 +168,6 @@ given by the table
     </tbody>
 </table>
 
-Job constructor injection priorities
-
 A typical use case for this functionality is to inject services, which
 will do the heavy-lifting and can be shared among different kind of
 jobs. In our example this might be a service that provides the actual
@@ -210,7 +210,8 @@ injection**
 
 ### Payload function injection
 
-As already mention in "[???](#payload_function_requirements)", a payload
+As already mentioned in "[Requirements regarding a job's payload method
+](#payload-function-requirements)", a payload
 function can declare parameters. Similar to the [Constructor
 injection](#job_usage_constructor_injection), this can be useful to
 access external functionality or to obtain information regarding the
