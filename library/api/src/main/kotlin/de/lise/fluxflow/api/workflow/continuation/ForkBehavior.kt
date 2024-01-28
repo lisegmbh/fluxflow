@@ -16,7 +16,7 @@ enum class ForkBehavior {
     Remove,
 
     /***
-     * This behavior will remove the original workflow and create the new workflow reusing the old identifies.
+     * This behavior will remove the original workflow and create the new workflow reusing the old identifier.
      */
     Replace
 }
