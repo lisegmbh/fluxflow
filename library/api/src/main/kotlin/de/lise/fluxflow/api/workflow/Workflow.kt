@@ -7,6 +7,11 @@ package de.lise.fluxflow.api.workflow
  */
 interface Workflow<TModel> {
     /**
+     * Returns the definition describing this workflow.
+     */
+    val definition: WorkflowDefinition<TModel>
+    
+    /**
      * Returns this workflow's unique identifier. 
      */
     val identifier: WorkflowIdentifier
