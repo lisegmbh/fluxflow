@@ -9,4 +9,3 @@ interface StepActivationService {
     fun <TWorkflowModel> activate(workflow: Workflow<TWorkflowModel>, stepData: StepData): Step
     fun toStepDefinition(definitionObject: Any): StepDefinition
 }
-
