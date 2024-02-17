@@ -3,12 +3,12 @@ package de.lise.fluxflow.stereotyped.step.data
 import de.lise.fluxflow.api.step.stateful.data.DataKind
 import de.lise.fluxflow.api.step.stateful.data.DataListenerDefinition
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
+import de.lise.fluxflow.reflection.isInvokableInstanceFunction
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.step.action.ImplicitStatusBehavior
 import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
-import kotlin.reflect.KVisibility
 import kotlin.reflect.full.findAnnotations
 import kotlin.reflect.full.functions
 
@@ -37,9 +37,7 @@ class DataListenerDefinitionBuilder(
         dataType: Type,
         function: KFunction<*>
     ): ((TFunctionOwner) -> DataListenerDefinition<TProp>)? {
-        if(
-            !canBeInvoked(function)
-        ) {
+        if(!function.isInvokableInstanceFunction()) {
             return null
         }
 
@@ -77,12 +75,6 @@ class DataListenerDefinitionBuilder(
 
                 continuationConverter.toContinuation(callable.call())
             }
-        }
-    }
-
-    private companion object {
-        fun canBeInvoked(function: KFunction<*>): Boolean {
-            return function.visibility == KVisibility.PUBLIC && !function.isAbstract
         }
     }
 }

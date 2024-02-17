@@ -52,6 +52,7 @@ import de.lise.fluxflow.stereotyped.step.data.DataListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import de.lise.fluxflow.stereotyped.unwrapping.UnwrapService
 import de.lise.fluxflow.stereotyped.unwrapping.UnwrapServiceImpl
+import de.lise.fluxflow.stereotyped.workflow.ModelListenerDefinitionBuilder
 import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
@@ -114,10 +115,21 @@ open class BasicConfiguration {
             *resolvers.toTypedArray()
         )
     }
-    
+
     @Bean
-    open fun workflowActivationService(): WorkflowActivationService {
-        return WorkflowActivationServiceImpl()
+    open fun modelListenerDefinitionBuilder(
+        parameterResolver: ParameterResolver
+    ): ModelListenerDefinitionBuilder {
+        return ModelListenerDefinitionBuilder(parameterResolver)
+    }
+
+    @Bean
+    open fun workflowActivationService(
+        modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder
+    ): WorkflowActivationService {
+        return WorkflowActivationServiceImpl(
+            modelListenerDefinitionBuilder
+        )
     }
 
     @Bean
