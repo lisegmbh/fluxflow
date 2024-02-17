@@ -25,11 +25,13 @@ class WorkflowUpdateServiceImplTest {
             on { hasChanged(any(), any()) } doReturn false
         }
         val eventService = mock<EventService> {}
+        val activationService = mock<WorkflowActivationService>{}
 
         val workflowUpdateService = WorkflowUpdateServiceImpl(
             workflowPersistence,
             changeDetector,
-            eventService
+            eventService,
+            activationService
         )
 
         val workflow = mock<Workflow<Any>> {

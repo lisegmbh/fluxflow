@@ -14,6 +14,7 @@ class WorkflowUpdateServiceImpl(
     private val persistence: WorkflowPersistence,
     private val changeDetector: ChangeDetector<WorkflowData>,
     private val eventService: EventService,
+    private val activationService: WorkflowActivationService
 ) : WorkflowUpdateService {
     override fun <TWorkflowModel> saveChanges(workflow: Workflow<TWorkflowModel>): Workflow<TWorkflowModel> {
         eventService.publish(BeforeWorkflowUpdateEvent(workflow))
@@ -29,7 +30,7 @@ class WorkflowUpdateServiceImpl(
 
         eventService.publish(WorkflowUpdatedEvent(workflow))
 
-        return WorkflowImpl(updatedWorkflow)
+        return activationService.activate(updatedWorkflow)
     }
 
     private companion object {

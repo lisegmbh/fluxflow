@@ -24,16 +24,16 @@ import de.lise.fluxflow.engine.step.StepServiceImpl
 import de.lise.fluxflow.engine.step.action.ActionServiceImpl
 import de.lise.fluxflow.engine.step.data.StepDataServiceImpl
 import de.lise.fluxflow.engine.step.validation.ValidationService
-import de.lise.fluxflow.engine.workflow.WorkflowServiceImpl
-import de.lise.fluxflow.engine.workflow.WorkflowStarterServiceImpl
-import de.lise.fluxflow.engine.workflow.WorkflowUpdateServiceImpl
+import de.lise.fluxflow.engine.workflow.*
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
-import de.lise.fluxflow.reflection.activation.parameter.*
+import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
+import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
+import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
 import de.lise.fluxflow.scheduling.SchedulingCallback
 import de.lise.fluxflow.scheduling.SchedulingService
 import de.lise.fluxflow.springboot.activation.parameter.SpringValueExpressionParameterResolver
@@ -114,17 +114,24 @@ open class BasicConfiguration {
             *resolvers.toTypedArray()
         )
     }
+    
+    @Bean
+    open fun workflowActivationService(): WorkflowActivationService {
+        return WorkflowActivationServiceImpl()
+    }
 
     @Bean
     open fun workflowUpdateService(
         persistence: WorkflowPersistence,
         changeDetector: ChangeDetector<WorkflowData>,
-        eventService: EventService
+        eventService: EventService,
+        activationService: WorkflowActivationService
     ): WorkflowUpdateService {
         return WorkflowUpdateServiceImpl(
             persistence,
             changeDetector,
-            eventService
+            eventService,
+            activationService
         )
     }
    
@@ -134,12 +141,14 @@ open class BasicConfiguration {
         eventService: EventService,
         stepService: StepServiceImpl,
         jobService: JobServiceImpl,
+        activationService: WorkflowActivationService
     ): WorkflowServiceImpl {
         return WorkflowServiceImpl(
             persistence,
             eventService,
             stepService,
-            jobService
+            jobService,
+            activationService
         )
     }
     

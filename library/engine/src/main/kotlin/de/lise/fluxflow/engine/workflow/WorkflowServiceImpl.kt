@@ -24,16 +24,15 @@ class WorkflowServiceImpl(
     private val persistence: WorkflowPersistence,
     private val eventService: EventService,
     private val stepService: StepServiceImpl,
-    private val jobService: JobServiceImpl
+    private val jobService: JobServiceImpl,
+    private val activationService: WorkflowActivationService
 ) : WorkflowService {
-
-
     fun <TWorkflowModel> create(
         workflowModel: TWorkflowModel,
         forcedId: WorkflowIdentifier?
     ): Workflow<TWorkflowModel> {
         val data = persistence.create(workflowModel, forcedId)
-        val workflow = WorkflowImpl<TWorkflowModel>(data)
+        val workflow = activationService.activate<TWorkflowModel>(data)
         eventService.publish(WorkflowCreatedEvent(workflow))
 
         return workflow
@@ -41,7 +40,9 @@ class WorkflowServiceImpl(
 
     override fun getAll(): List<Workflow<*>> {
         return persistence.findAll()
-            .map { WorkflowImpl<Any>(it) }
+            .map { 
+                activationService.activate<Any?>(it)
+            }
     }
 
     override fun <TWorkflowModel : Any> getAll(workflowType: KClass<TWorkflowModel>): List<Workflow<TWorkflowModel>> {
@@ -62,7 +63,7 @@ class WorkflowServiceImpl(
         return persistence.findAll(
             query.toDataQuery()
         ).map {
-            WorkflowImpl<Any>(it)
+            activationService.activate<Any?>(it)
         }
     }
 
@@ -85,25 +86,29 @@ class WorkflowServiceImpl(
 
     override fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel> {
         return persistence.find(identifier)
-            ?.let { WorkflowImpl(it) }
-            ?: throw WorkflowNotFoundException(identifier)
+            ?.let {
+                activationService.activate(it)
+            } ?: throw WorkflowNotFoundException(identifier)
     }
 
     override fun delete(identifierToDelete: WorkflowIdentifier) {
-        val workflowToDelete = persistence.find(identifierToDelete)
+        val workflowDataToDelete = persistence.find(identifierToDelete)
             ?: throw WorkflowNotFoundException(identifierToDelete)
 
+        val workflowToDelete = activationService.activate<Any?>(workflowDataToDelete)
+        
         persistence.delete(identifierToDelete)
         stepService.deleteAllForWorkflow(identifierToDelete)
         jobService.deleteAllForWorkflow(identifierToDelete)
 
         eventService.publish(
             WorkflowDeletedEvent(
-                WorkflowImpl<Any>(workflowToDelete)
+                workflowToDelete
             )
         )
     }
 
+    @Deprecated("This method was never intended to be part of the public API and should only be used internally. It will be removed or replaced in an upcoming version.")
     override fun replace(identifierToDelete: WorkflowIdentifier) {
         persistence.delete(identifierToDelete)
         stepService.deleteAllForWorkflow(identifierToDelete)
