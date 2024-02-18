@@ -76,4 +76,4 @@ class WorkflowIT {
     }
 }
 
-class WorkflowITTestModel {}
+class WorkflowITTestModel
