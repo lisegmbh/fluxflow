@@ -1,6 +1,7 @@
 site_name: FluxFlow
 theme:
   name: readthedocs
+  logo: assets/condensed-white-transparent-200.png
   highlightjs: true
   hljs_languages:
     - yaml

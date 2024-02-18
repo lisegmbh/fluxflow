@@ -1,4 +1,4 @@
-# FluxFlow
+# <img src="docs/assets/condensed-400.png" width="200" alt="FluxFlow">
 
 [![Maven Central](https://img.shields.io/maven-central/v/de.lise.fluxflow/springboot.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22de.lise.fluxflow%22%20AND%20a:%22springboot%22)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) 
