@@ -14,7 +14,7 @@ interface DataDefinition<T> {
     val isCalculatedValue: Boolean
 
     /**
-     * A list of listeners to be informed, if the step data defined by this instance changes.
+     * A list of listeners to be informed, whenever the step data defined by this instance changes.
      */
     val updateListeners: List<DataListenerDefinition<T>>
 

@@ -14,22 +14,30 @@ class WorkflowUpdateServiceImpl(
     private val persistence: WorkflowPersistence,
     private val changeDetector: ChangeDetector<WorkflowData>,
     private val eventService: EventService,
+    private val activationService: WorkflowActivationService
 ) : WorkflowUpdateService {
+    @Suppress("UNCHECKED_CAST")
     override fun <TWorkflowModel> saveChanges(workflow: Workflow<TWorkflowModel>): Workflow<TWorkflowModel> {
         eventService.publish(BeforeWorkflowUpdateEvent(workflow))
 
         val oldWorkflowData = persistence.find(workflow.identifier)!!
         val updatedWorkflowData = oldWorkflowData.withModel(workflow.model)
-        if(!changeDetector.hasChanged(oldWorkflowData, updatedWorkflowData)) {
+        if (!changeDetector.hasChanged(oldWorkflowData, updatedWorkflowData)) {
             Logger.debug("Skip persisting/updating workflow '{}' as it hasn't changed.", workflow.identifier.value)
             return workflow
         }
+
+        val oldWorkflowModel = oldWorkflowData.model as TWorkflowModel
+        workflow.definition.updateListeners
+            .filter { it.hasRelevantChanges(oldWorkflowModel, workflow.model) }
+            .map { it.create(workflow) }
+            .forEach { it.onChange(oldWorkflowModel, workflow.model) }
 
         val updatedWorkflow = persistence.save(updatedWorkflowData)
 
         eventService.publish(WorkflowUpdatedEvent(workflow))
 
-        return WorkflowImpl(updatedWorkflow)
+        return activationService.activate(updatedWorkflow)
     }
 
     private companion object {

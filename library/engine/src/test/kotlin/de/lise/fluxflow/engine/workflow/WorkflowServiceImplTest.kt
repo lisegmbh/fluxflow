@@ -2,6 +2,7 @@ package de.lise.fluxflow.engine.workflow
 
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowEvent
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
 import de.lise.fluxflow.engine.event.workflow.WorkflowDeletedEvent
@@ -21,12 +22,16 @@ class WorkflowServiceImplTest {
         eventService: EventService = mock<EventService>(),
         stepService: StepServiceImpl = mock<StepServiceImpl>(),
         jobService: JobServiceImpl = mock<JobServiceImpl>(),
+        activationService: WorkflowActivationService = mock<WorkflowActivationService> {
+            on { activate<Any?>(any()) } doReturn mock<Workflow<Any?>> {}
+        }
     ): WorkflowServiceImpl {
         return WorkflowServiceImpl(
             workflowPersistence,
             eventService,
             stepService,
             jobService,
+            activationService
         )
     }
 

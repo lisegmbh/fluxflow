@@ -18,26 +18,28 @@ import de.lise.fluxflow.engine.job.JobActivationService
 import de.lise.fluxflow.engine.job.JobSchedulingCallback
 import de.lise.fluxflow.engine.job.JobServiceImpl
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
+import de.lise.fluxflow.engine.state.DefaultChangeDetector
 import de.lise.fluxflow.engine.step.StepActivationService
 import de.lise.fluxflow.engine.step.StepActivationServiceImpl
 import de.lise.fluxflow.engine.step.StepServiceImpl
 import de.lise.fluxflow.engine.step.action.ActionServiceImpl
 import de.lise.fluxflow.engine.step.data.StepDataServiceImpl
 import de.lise.fluxflow.engine.step.validation.ValidationService
-import de.lise.fluxflow.engine.workflow.WorkflowServiceImpl
-import de.lise.fluxflow.engine.workflow.WorkflowStarterServiceImpl
-import de.lise.fluxflow.engine.workflow.WorkflowUpdateServiceImpl
+import de.lise.fluxflow.engine.workflow.*
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
-import de.lise.fluxflow.reflection.activation.parameter.*
+import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
+import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
+import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
 import de.lise.fluxflow.scheduling.SchedulingCallback
 import de.lise.fluxflow.scheduling.SchedulingService
 import de.lise.fluxflow.springboot.activation.parameter.SpringValueExpressionParameterResolver
 import de.lise.fluxflow.springboot.bootstrapping.SpringBootstrapper
+import de.lise.fluxflow.springboot.expression.SpringSelectorExpressionParser
 import de.lise.fluxflow.springboot.ioc.SpringIocProvider
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
@@ -52,6 +54,8 @@ import de.lise.fluxflow.stereotyped.step.data.DataListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import de.lise.fluxflow.stereotyped.unwrapping.UnwrapService
 import de.lise.fluxflow.stereotyped.unwrapping.UnwrapServiceImpl
+import de.lise.fluxflow.stereotyped.workflow.ModelListenerDefinitionBuilder
+import de.lise.fluxflow.stereotyped.workflow.SelectorExpressionParser
 import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
@@ -62,6 +66,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.*
+import org.springframework.expression.spel.standard.SpelExpressionParser
 import java.time.Clock
 
 @Configuration
@@ -116,15 +121,43 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun selectorExpressionParser(): SelectorExpressionParser {
+        return SpringSelectorExpressionParser(SpelExpressionParser())
+    }
+
+    @Bean
+    open fun modelListenerDefinitionBuilder(
+        parameterResolver: ParameterResolver,
+        selectorExpressionParser: SelectorExpressionParser
+    ): ModelListenerDefinitionBuilder {
+        return ModelListenerDefinitionBuilder(
+            parameterResolver,
+            DefaultChangeDetector(),
+            selectorExpressionParser
+        )
+    }
+
+    @Bean
+    open fun workflowActivationService(
+        modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder
+    ): WorkflowActivationService {
+        return WorkflowActivationServiceImpl(
+            modelListenerDefinitionBuilder
+        )
+    }
+
+    @Bean
     open fun workflowUpdateService(
         persistence: WorkflowPersistence,
         changeDetector: ChangeDetector<WorkflowData>,
-        eventService: EventService
+        eventService: EventService,
+        activationService: WorkflowActivationService
     ): WorkflowUpdateService {
         return WorkflowUpdateServiceImpl(
             persistence,
             changeDetector,
-            eventService
+            eventService,
+            activationService
         )
     }
    
@@ -134,12 +167,14 @@ open class BasicConfiguration {
         eventService: EventService,
         stepService: StepServiceImpl,
         jobService: JobServiceImpl,
+        activationService: WorkflowActivationService
     ): WorkflowServiceImpl {
         return WorkflowServiceImpl(
             persistence,
             eventService,
             stepService,
-            jobService
+            jobService,
+            activationService
         )
     }
     

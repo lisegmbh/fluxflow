@@ -11,6 +11,9 @@ extra_css:
 nav:
   - Home: index.md
   - API Objects:
+    - Workflows:
+      - Basics: workflow/basics.md
+      - Model: workflow/model.md
     - Steps: steps.md
     - Jobs: jobs.md
   - Features:

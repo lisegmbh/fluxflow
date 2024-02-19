@@ -10,7 +10,7 @@ import de.lise.fluxflow.reflection.activation.parameter.*
 
 interface DefaultResolvers {
     companion object {
-        fun forWorkflow(workflow: ParameterProvider<Workflow<*>>): Array<ParameterResolver> {
+        fun <TModel> forWorkflow(workflow: ParameterProvider<Workflow<TModel>>): Array<ParameterResolver> {
             return arrayOf(
                 CallbackParameterResolver(
                     ParamMatcher.isAssignableFrom(Workflow::class),
