@@ -8,7 +8,6 @@ import kotlin.reflect.javaType
 
 class ReflectionUtils private constructor() {
     companion object {
-
         @JvmStatic
         fun <TObject, TProp : Any> findReturnClass(
             prop: KProperty1<out TObject, TProp?>

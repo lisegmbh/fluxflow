@@ -6,8 +6,8 @@ package de.lise.fluxflow.api.workflow
 interface ModelListener<in TModel> {
     /**
      * Is invoked when the model changed.
-     * @param oldValue The old model value.
-     * @param newValue The new model value.
+     * @param oldModel The old model value.
+     * @param newModel The new model value.
      */
-    fun onChange(oldValue: TModel, newValue: TModel)
+    fun onChange(oldModel: TModel, newModel: TModel)
 }
