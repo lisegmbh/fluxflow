@@ -6,10 +6,11 @@ import de.lise.fluxflow.api.workflow.Workflow
 
 class ReflectedModelListenerDefinition<TInstance, TModel>(
     private val instance: TInstance,
+    private val condition: ChangeCondition<TModel>,
     private val callback: ModelListenerCallback<TInstance, TModel>
 ) : ModelListenerDefinition<TModel> {
     override fun hasRelevantChanges(oldValue: TModel, newValue: TModel): Boolean {
-        return true // TODO: Add conditional changes
+        return condition.isSatisfied(oldValue, newValue)
     }
 
     override fun create(workflow: Workflow<TModel>): ModelListener<TModel> {

@@ -1,5 +1,6 @@
 package de.lise.fluxflow.stereotyped.workflow
 
+import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.workflow.ModelListenerDefinition
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.isInvokableInstanceFunction
@@ -11,12 +12,14 @@ import kotlin.reflect.full.functions
 
 class ModelListenerDefinitionBuilder(
     private val parameterResolver: ParameterResolver,
+    private val changeDetector: ChangeDetector<Any?>,
+    private val selectorExpressionParser: SelectorExpressionParser,
     private val cache: MutableMap<KClass<*>, Set<CachedModelListenerDefinitionBuilder<*>>> = ConcurrentHashMap()
 ) {
     fun <TModel : Any> build(
         model: TModel?
     ): List<ModelListenerDefinition<TModel>> {
-        if(model == null) {
+        if (model == null) {
             return emptyList()
         }
         @Suppress("UNCHECKED_CAST")
@@ -63,10 +66,12 @@ class ModelListenerDefinitionBuilder(
         if (listenerAnnotations.isEmpty()) {
             return null
         }
+        val condition: ChangeCondition<TModel> = buildChangeCondition<TModel>(listenerAnnotations)
 
         return { obj ->
             ReflectedModelListenerDefinition(
-                obj
+                obj,
+                condition,
             ) { workflow, instance, old, new ->
                 val callable = ModelListenerFunctionResolver(
                     parameterResolver,
@@ -81,5 +86,25 @@ class ModelListenerDefinitionBuilder(
                 callable.call()
             }
         }
+    }
+
+    private fun <TModel> buildChangeCondition(listenerAnnotations: List<ModelListener>): ChangeCondition<TModel> {
+        return listenerAnnotations.map<ModelListener, ChangeCondition<TModel>> { annotation ->
+            if (annotation.selector.isBlank()) {
+                ChangeCondition.True
+            } else {
+                val parsedExpression = selectorExpressionParser.parse(annotation.selector)
+                if (annotation.selectorReturnsDecision) {
+                    ChangeCondition { old, new -> parsedExpression.evaluate(old, new, new) == true }
+                } else {
+                    ChangeCondition { old, new ->
+                        changeDetector.hasChanged(
+                            parsedExpression.evaluate(old, new, old),
+                            parsedExpression.evaluate(old, new, new)
+                        )
+                    }
+                }
+            }
+        }.let { ChangeCondition.any(it) }
     }
 }

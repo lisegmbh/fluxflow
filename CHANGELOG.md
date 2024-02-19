@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+1. **Model listeners**<br/>
+A model listener can be used to act upon changes to a workflow's model.
+Similar to data listeners,
+model listeners are declared by creating a function within the workflow model and annotating it with `@ModelListener`.
+[Issue #70](https://github.com/lisegmbh/fluxflow/issues/70)
+
 
 ### Changed
 1. Harmonized Spring Boot dependencies.
