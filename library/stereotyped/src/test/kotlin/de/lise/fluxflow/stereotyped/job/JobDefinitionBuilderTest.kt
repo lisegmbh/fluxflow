@@ -22,6 +22,7 @@ class JobDefinitionBuilderTest {
         mock {},
         mock {},
         parameterResolver,
+        mock {},
         mutableMapOf()
     )
 
@@ -98,6 +99,7 @@ class JobDefinitionBuilderTest {
             mock {},
             continuationBuilder,
             parameterResolver,
+            mock {},
             mutableMapOf()
         )
         val testJob = TestJob()
@@ -138,6 +140,7 @@ class JobDefinitionBuilderTest {
             mock {},
             continuationBuilder,
             parameterResolver,
+            mock {},
             mutableMapOf()
         )
         val testJob = mock<TestJob> {}

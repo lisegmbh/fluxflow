@@ -268,13 +268,15 @@ open class BasicConfiguration {
     open fun jobDefinitionBuilder(
         parameterDefinitionBuilder: ParameterDefinitionBuilder,
         continuationBuilder: ContinuationBuilder,
-        parameterResolver: ParameterResolver
+        parameterResolver: ParameterResolver,
+        metadataBuilder: MetadataBuilder
     ): JobDefinitionBuilder {
         return JobDefinitionBuilder(
             parameterDefinitionBuilder,
             continuationBuilder,
             parameterResolver,
-            mutableMapOf()
+            metadataBuilder,
+            mutableMapOf(),
         )
     }
 

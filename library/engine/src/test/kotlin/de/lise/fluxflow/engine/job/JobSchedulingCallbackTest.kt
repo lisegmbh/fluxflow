@@ -131,6 +131,7 @@ class JobSchedulingCallbackTest {
             ParameterDefinitionBuilder(),
             ContinuationBuilder(),
             { _ -> null },
+            mock {},
             mutableMapOf()
         )
         val modifyingTestJob = definitionBuilder.build(WorkflowModifyingTestJob())
