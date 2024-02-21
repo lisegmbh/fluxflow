@@ -306,7 +306,6 @@ and workflow**
     }
 
 ### State changes
-
 A job might change the workflow state and data of its owning workflow.
 All changes applied to it will be persisted after the job has been
 successfully run. If an exception occurrs, the changes will not be
@@ -337,8 +336,27 @@ committed and instead be rolled back.
 
 -   Accessing and modifying its data
 
-## Scheduling
+### Adding metadata to jobs
+Like other FluxFlow objects, jobs can have metadata added to them and their definition.
+You can apply them by annotating the job definition type with an appropriate annotation.
+More details on how to create a metadata annotation can be found in ["Definition of metadata"](/steps/#definition-of-metadata).
 
+```kotlin
+@Metadata("jobType")
+@Retention
+annotation class JobType(
+    val type: String
+)
+
+@JobType("housekeeping")
+class ClearStaleWorkflowJob {
+    fun clear() {
+        // ...
+    }
+}
+```
+
+## Scheduling
 As far as FluxFlow is concerned, all jobs are scheduled for a fixed and
 absolute time. This has been an intentional design decision, which aims
 to reduce the scheduling complexity while allowing the developers to
@@ -358,25 +376,24 @@ parameter specifies the actual job to be executed. The job passed into
 the function is usually an instance of a job definition as described in
 "[Job definition](#job_usage_definition)".
 
-    @Job
-    class SendMailJob(
-        private val receiverAddress: String
-    ) {
-        fun execute() {
-            // do actual work
-        }
+```kotlin
+@Job
+class SendMailJob(
+    private val receiverAddress: String
+) {
+    fun execute() {
+        // do actual work
     }
+}
 
-    Continuation.job( // 
-        Instant.now().plus(Duration.ofMinutes(5)), // 
-        SendMailJob("receiver@example.com") // 
-    )
-
+Continuation.job( // 
+    Instant.now().plus(Duration.ofMinutes(5)), // 
+    SendMailJob("receiver@example.com") // 
+)
+```
 -   construct the time the job should be scheduled for (based on domain
     logic)
-
 -   construct an instance of the desired job definition
-
 -   use the returned intent to tell FluxFlow to schedule the job for
     execution
 
