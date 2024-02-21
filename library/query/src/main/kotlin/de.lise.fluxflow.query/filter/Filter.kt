@@ -121,11 +121,18 @@ interface Filter<in TModel> {
 
         @JvmStatic
         fun <TModel> anyOf(
-            value: List<TModel>,
+            values: List<TModel>,
         ): Filter<TModel> {
-            return AnyOfFilter(value)
+            return `in`(values)
         }
 
+        @JvmStatic
+        fun <TModel> `in`(
+            values: List<TModel>
+        ): Filter<TModel> {
+            return InFilter(values)
+        }
+        
         @JvmStatic
         fun <TKey, TValue> mapValue(
             key: TKey,

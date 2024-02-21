@@ -1,8 +1,8 @@
 package de.lise.fluxflow.api.step.query.filter
 
 import de.lise.fluxflow.api.step.StepKind
-import de.lise.fluxflow.query.filter.AnyOfFilter
 import de.lise.fluxflow.query.filter.EqualFilter
+import de.lise.fluxflow.query.filter.InFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -34,9 +34,9 @@ class StepKindFilterTest {
         val filter = StepKindFilter.anyOf(testKinds)
 
         // Assert
-        assertThat(filter.value).isInstanceOf(AnyOfFilter::class.java)
-        val anyOfFilter = filter.value as AnyOfFilter<String>
-        assertThat(anyOfFilter.anyOfValues).containsExactlyInAnyOrderElementsOf(
+        assertThat(filter.value).isInstanceOf(InFilter::class.java)
+        val inFilter = filter.value as InFilter<String>
+        assertThat(inFilter.anyOfValues).containsExactlyInAnyOrderElementsOf(
             testKinds.map { it.value }
         )
     }
