@@ -1,12 +1,12 @@
 package de.lise.fluxflow.query.inmemory.filter
 
-import de.lise.fluxflow.query.filter.AnyOfFilter
+import de.lise.fluxflow.query.filter.InFilter
 
 class InMemoryAnyOfFilter<TModel>(
     private val anyOfValues: List<TModel>,
 ) : InMemoryFilter<TModel> {
-    constructor(anyOfFilter: AnyOfFilter<TModel>) : this(
-        anyOfFilter.anyOfValues
+    constructor(inFilter: InFilter<TModel>) : this(
+        inFilter.anyOfValues
     )
 
     override fun toPredicate(): InMemoryPredicate<TModel> {

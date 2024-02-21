@@ -28,7 +28,7 @@ fun interface InMemoryFilter<TModel> {
                 is EndsWithFilter -> InMemoryEndsWithFilter(filter) as InMemoryFilter<TModel>
                 is ContainsFilter -> InMemoryContainsFilter(filter) as InMemoryFilter<TModel>
                 is ContainsElementFilter<*, *> -> InMemoryContainsElementFilter(filter) as InMemoryFilter<TModel>
-                is AnyOfFilter -> InMemoryAnyOfFilter(filter)
+                is InFilter -> InMemoryAnyOfFilter(filter)
 
                 is GreaterThanEqualsFilter -> InMemoryGreaterThanEqualsFilter(filter)
                 is LowerThanEqualsFilter -> InMemoryLowerThanEqualsFilter(filter)

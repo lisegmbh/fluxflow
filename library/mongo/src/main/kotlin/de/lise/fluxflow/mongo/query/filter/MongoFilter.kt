@@ -37,7 +37,7 @@ fun interface MongoFilter<TModel> {
                 is StartsWithFilter -> MongoStartsWithFilter(filter) as MongoFilter<TModel>
                 is ContainsFilter -> MongoContainsFilter(filter) as MongoFilter<TModel>
                 is ContainsElementFilter<*, *> -> MongoContainsElementFiler(filter) as MongoFilter<TModel>
-                is AnyOfFilter -> MongoAnyOfFilter(filter)
+                is InFilter -> MongoAnyOfFilter(filter)
 
                 is GreaterThanEqualsFilter -> MongoGreaterThanEqualsFilter(filter.value)
                 is LowerThanEqualsFilter -> MongoLowerThanEqualsFilter(filter.value)

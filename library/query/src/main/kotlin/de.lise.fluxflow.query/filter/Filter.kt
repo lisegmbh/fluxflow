@@ -123,7 +123,7 @@ interface Filter<in TModel> {
         fun <TModel> anyOf(
             value: List<TModel>,
         ): Filter<TModel> {
-            return AnyOfFilter(value)
+            return InFilter(value)
         }
 
         @JvmStatic
