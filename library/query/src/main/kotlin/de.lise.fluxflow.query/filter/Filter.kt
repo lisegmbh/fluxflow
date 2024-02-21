@@ -178,26 +178,56 @@ interface Filter<in TModel> {
 
         /**
          * Creates a filter matching instants occurring after or at the same time as [value].
+         * 
+         * This is an alias for [Filter.afterOrEqual].
          * @param value The instant to compare to.
-         * @return A filter matching all instants occurring after or at the same time as [value]. 
+         * @return A filter matching all instants occurring after or at the same time as [value].
+         * @see Filter.afterOrEqual
          */
         @JvmStatic
         fun gte(
             value: Instant,
         ): Filter<Instant> {
-            return GreaterThanEqualsFilter(value)
+            return afterOrEqual(value)
         }
 
         /**
+         * Creates a filter matching instants occurring after or at the same time as [instant].
+         * @param instant The instant to compare to.
+         * @return A filter matching all instants occurring after or at the same time as [instant].
+         */
+        @JvmStatic
+        fun afterOrEqual(
+            instant: Instant 
+        ): Filter<Instant> {
+            return GreaterThanEqualsFilter(instant)
+        }
+        
+        /**
          * Creates a filter matching instants occurring before or at the same time as [value].
+         * 
+         * This is an alias for [Filter.beforeOrEqual]
          * @param value The instant to compare to.
-         * @return A filter matching all instants occurring before or at the same time as [value]. 
+         * @return A filter matching all instants occurring before or at the same time as [value].
+         * @see Filter.beforeOrEqual
          */
         @JvmStatic
         fun lte(
             value: Instant,
         ): Filter<Instant> {
-            return LowerThanEqualsFilter(value)
+            return beforeOrEqual(value)
+        }
+
+        /**
+         * Creates a filter matching instants occurring before or at the same time as [instant].
+         * @param instant The instant to compare to.
+         * @return A filter matching all instants occurring before or at the same time as [instant].
+         */
+        @JvmStatic
+        fun beforeOrEqual(
+            instant: Instant
+        ): Filter<Instant> {
+            return LowerThanEqualsFilter(instant)
         }
 
         /**
@@ -290,18 +320,18 @@ interface Filter<in TModel> {
         /**
          * Returns a filter
          * that matches elements that are assignable to the specified
-         * [TTarget] and are also matched by the supplied [elementFiler].
+         * [TTarget] and are also matched by the supplied [elementFilter].
          * @param TTarget The type of element to be matched.
-         * @param elementFiler The filter that should match.
-         * @return A filter matching all elements that are assignable to [TTarget] and are also matched by [elementFiler].
+         * @param elementFilter The filter that should match.
+         * @return A filter matching all elements that are assignable to [TTarget] and are also matched by [elementFilter].
          */
         @JvmStatic
         inline fun <TSource, reified TTarget> ofType(
-            elementFiler: Filter<TTarget>,
+            elementFilter: Filter<TTarget>,
         ): Filter<TSource> {
             return OfTypeFilter(
                 TTarget::class,
-                elementFiler,
+                elementFilter,
             )
         }
 
