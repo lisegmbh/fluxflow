@@ -7,6 +7,7 @@ import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
+import de.lise.fluxflow.stereotyped.metadata.Metadata
 import de.lise.fluxflow.test.scheduling.util.BusyWait
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -150,6 +151,28 @@ class JobIT {
         ).waitForSeconds(3)
         assertThat(valueSetByJob).isEqualTo(-1)
     }
+
+    @Test
+    fun `job metadata obtained from annotations should be present on definition and job object`() {
+        // Arrange
+        val expectedMetadata = mapOf<String, Any>(
+            "jobMetadata" to "test"
+        )
+
+        // Act
+        val workflow = workflowStarterService!!.start(
+            Any(),
+            Continuation.job(
+                Instant.now().plusSeconds(1),
+                TestJobWithMetadata()
+            )
+        )
+        val job = jobService!!.findAllJobs(workflow).first()
+
+        // Assert
+        assertThat(job.metadata).isEqualTo(expectedMetadata)
+        assertThat(job.definition.metadata).isEqualTo(expectedMetadata)
+    }
 }
 
 class TestJob{
@@ -190,3 +213,16 @@ class TestReschedulingJob {
         }
     }
 }
+
+@TestJobMetadata("test")
+class TestJobWithMetadata {
+    fun run() {
+
+    }
+}
+
+@Metadata("jobMetadata")
+@Retention(AnnotationRetention.RUNTIME)
+annotation class TestJobMetadata(
+    val value: String
+)
