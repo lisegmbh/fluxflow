@@ -17,9 +17,11 @@ model listeners are declared by creating a function within the workflow model an
 ### Changed
 1. Harmonized Spring Boot dependencies.
 2. The Spring packages are now targeting version 3.2.1.
+3. `AnyOfFilter`, `InMemoryAnyOfFilter` and `MongoAnyOfFilter` have been renamed to `[...]InFilter` and deprecated aliases have been added to maintain API compatibility. The `Filter` interface now also exposes a `Filter.in` function. 
 
 ### Deprecated
 1. `Workflow.id` has been renamed to `Workflow.identifier`. The `id` property remains as an alias and is deprecated.
+2. `AnyOfFilter`, `InMemoryAnyOfFilter` and `MongoAnyOfFilter` are now deprecated aliases for `InFilter`, `InMemoryInFilter` and `MongoInFilter`.
 
 ### Fixed
 1. Changes to the step and workflow are now persisted before publishing events. [Issue #47](https://github.com/lisegmbh/fluxflow/issues/47)
