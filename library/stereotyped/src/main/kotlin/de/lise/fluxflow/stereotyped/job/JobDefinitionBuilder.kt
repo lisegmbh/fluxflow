@@ -51,6 +51,7 @@ class JobDefinitionBuilder(
             ReflectedJobDefinition(
                 kind,
                 parameterBuilders.map { parameterBuilder -> parameterBuilder(instance) },
+                emptyMap(), // TODO: Implement metadata construction
                 instance
             ) { currentJob, calledInstance ->
                 val payloadFunctionResolution = PayloadFunctionResolver(

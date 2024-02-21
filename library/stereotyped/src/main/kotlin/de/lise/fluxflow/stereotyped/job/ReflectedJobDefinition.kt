@@ -10,6 +10,7 @@ import java.time.Instant
 class ReflectedJobDefinition<TInstance>(
     override val kind: JobKind,
     override val parameters: List<ParameterDefinition<*>>,
+    override val metadata: Map<String, Any>,
     private val instance: TInstance,
     private val jobCaller: JobCaller<TInstance>
 ) : JobDefinition {

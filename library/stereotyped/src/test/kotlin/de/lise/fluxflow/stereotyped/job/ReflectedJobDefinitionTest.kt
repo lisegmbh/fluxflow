@@ -19,6 +19,7 @@ class ReflectedJobDefinitionTest {
         val reflectedJobDefinition = ReflectedJobDefinition(
             JobKind("kind"),
             emptyList(),
+            emptyMap(),
             instance,
             jobCaller
         )

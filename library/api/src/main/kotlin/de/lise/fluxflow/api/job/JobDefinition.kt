@@ -11,7 +11,13 @@ import java.time.Instant
 interface JobDefinition {
     val kind: JobKind
     val parameters: List<ParameterDefinition<*>>
-    
+
+    /**
+     * A simple key-value map providing additional metadata about this
+     * job definition and jobs that are going to be produced by it.
+     */
+    val metadata: Map<String, Any>
+
     fun createJob(
         jobIdentifier: JobIdentifier,
         workflow: Workflow<*>,
