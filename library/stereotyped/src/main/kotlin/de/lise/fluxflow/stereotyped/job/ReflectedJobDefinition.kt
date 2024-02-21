@@ -35,6 +35,7 @@ class ReflectedJobDefinition<TInstance>(
             status,
             workflow,
             parameterList,
+            metadata,
             instance,
             jobCaller
         )

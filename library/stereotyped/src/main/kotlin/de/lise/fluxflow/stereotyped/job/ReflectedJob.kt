@@ -15,6 +15,7 @@ class ReflectedJob<TInstance>(
     override val status: JobStatus,
     override val workflow: Workflow<*>,
     override val parameters: List<Parameter<*>>,
+    override val metadata: Map<String, Any>,
     private val instance: TInstance,
     private val jobCaller: JobCaller<TInstance>
 ) : Job {
