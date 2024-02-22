@@ -22,6 +22,8 @@ nav:
     - Injection: injection.md
     - Validation: validation.md
     - Queries: queries.md
+  - Spring:
+    - Settings: spring/settings.md
   - Other resources:
     - Sources: https://github.com/lisegmbh/fluxflow
     - Issues: https://github.com/lisegmbh/fluxflow/issues
