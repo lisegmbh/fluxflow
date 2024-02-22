@@ -16,9 +16,13 @@ class ReflectedJobDefinitionTest {
         // Arrange
         val instance = Any()
         val jobCaller = mock<JobCaller<Any>> { }
+        val metadata = mapOf<String, Any>(
+            "test" to 4
+        )
         val reflectedJobDefinition = ReflectedJobDefinition(
             JobKind("kind"),
             emptyList(),
+            metadata,
             instance,
             jobCaller
         )
@@ -37,9 +41,10 @@ class ReflectedJobDefinitionTest {
         )
 
         // Assert
-        assertThat(job.identifier).isSameAs(jobIdentifier)
-        assertThat(job.definition).isSameAs(reflectedJobDefinition)
-        assertThat(job.workflow).isSameAs(workflow)
-        assertThat(job.scheduledTime).isSameAs(instant)
+        assertThat(job.identifier).isEqualTo(jobIdentifier)
+        assertThat(job.definition).isEqualTo(reflectedJobDefinition)
+        assertThat(job.workflow).isEqualTo(workflow)
+        assertThat(job.scheduledTime).isEqualTo(instant)
+        assertThat(job.metadata).isEqualTo(metadata)
     }
 }

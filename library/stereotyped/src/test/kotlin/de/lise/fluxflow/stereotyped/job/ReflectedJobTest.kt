@@ -22,6 +22,7 @@ class ReflectedJobTest {
             JobStatus.Scheduled,
             mock {},
             emptyList(),
+            emptyMap(),
             jobModelInstance,
             jobCaller
         )
@@ -48,6 +49,7 @@ class ReflectedJobTest {
             JobStatus.Scheduled,
             mock {},
             emptyList(),
+            emptyMap(),
             Any(),
             jobCaller
         )

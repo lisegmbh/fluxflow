@@ -12,7 +12,8 @@ A model listener can be used to act upon changes to a workflow's model.
 Similar to data listeners,
 model listeners are declared by creating a function within the workflow model and annotating it with `@ModelListener`.
 [Issue #70](https://github.com/lisegmbh/fluxflow/issues/70)
-
+2. **Job(definition) metadata**<br/>
+Jobs and job definitions now support adding metadata using annotations.
 
 ### Changed
 1. Harmonized Spring Boot dependencies.

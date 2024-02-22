@@ -13,5 +13,10 @@ interface Job {
     val status: JobStatus
     val workflow: Workflow<*>
     val parameters: List<Parameter<*>>
+
+    /**
+     * Arbitrary metainformation associated with this job.
+     */
+    val metadata: Map<String, Any>
     fun execute(): Continuation<*>
 }

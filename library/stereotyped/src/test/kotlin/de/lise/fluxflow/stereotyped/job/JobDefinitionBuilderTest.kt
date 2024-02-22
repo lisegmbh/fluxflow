@@ -7,12 +7,14 @@ import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.continuation.ContinuationConverter
+import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.*
 import java.time.Instant
+import kotlin.reflect.KClass
 
 class JobDefinitionBuilderTest {
 
@@ -22,6 +24,7 @@ class JobDefinitionBuilderTest {
         mock {},
         mock {},
         parameterResolver,
+        mock {},
         mutableMapOf()
     )
 
@@ -98,6 +101,7 @@ class JobDefinitionBuilderTest {
             mock {},
             continuationBuilder,
             parameterResolver,
+            mock {},
             mutableMapOf()
         )
         val testJob = TestJob()
@@ -138,6 +142,7 @@ class JobDefinitionBuilderTest {
             mock {},
             continuationBuilder,
             parameterResolver,
+            mock {},
             mutableMapOf()
         )
         val testJob = mock<TestJob> {}
@@ -154,6 +159,34 @@ class JobDefinitionBuilderTest {
 
         // Assert
         verify(testJob, times(1)).payloadFunction()
+    }
+
+    @Test
+    fun `build should construct the metadata using the provided MetadataBuilder`() {
+        // Arrange
+        val metadata = mapOf<String, Any>(
+            "metadataKey" to "metadataValue"
+        )
+        val metadataBuilder = mock<MetadataBuilder> {
+            on { build(any<KClass<*>>()) } doReturn metadata
+        }
+        val jobDefinitionBuilder = JobDefinitionBuilder(
+            mock {},
+            mock {},
+            parameterResolver,
+            metadataBuilder,
+            mutableMapOf()
+        )
+        val testJob = TestJob()
+
+        // Act
+        val definition = jobDefinitionBuilder.build(testJob)
+
+        // Assert
+        verify(metadataBuilder, times(1)).build(
+            eq(TestJob::class),
+        )
+        assertThat(definition.metadata).isEqualTo(metadata)
     }
 
     private class TestJobWithConventionBasedPayloadFunction {
