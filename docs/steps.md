@@ -1,4 +1,4 @@
-# General
+# Steps
 
 In FluxFlow, the concept of a step holds paramount importance. A step
 represents a discrete unit of work or an action that is executed within
@@ -56,7 +56,9 @@ conditions. This control flow management ensures that workflows progress
 smoothly, enabling efficient resource utilization, error handling, and
 adaptability to changing conditions.
 
-## Rules of steps
+## General
+
+### Rules of steps
 
 Steps always and unambiguously belong to one workflow. Even though a
 workflow can have multiple steps, a step can only be associated with one
@@ -80,13 +82,13 @@ single workflow.
 1.  directly manipulate other workflows or steps (without using the
     FluxFlow API)
 
-## Types of steps
+### Types of steps
 
 Currently, the only supported step type is a stateful step. A stateful
 step can have persistent data and define actions, which can be
 externally manipulated or invoked.
 
-## Step data
+### Step data
 
 Many workflow steps, especially those performed by users, need some kind
 of input. As they are only required for a particular step, these inputs
@@ -96,7 +98,7 @@ As the name suggests, a step data entry can also be read externally and
 therefore be used to export information. In fact, every step data entry
 can be read while not everyone can be written externally.
 
-## Step identifiers
+### Step identifiers
 
 A step identifier uniquely identifies a step within its workflow and is
 assigned by FluxFlow. Within a given workflow, there will be no steps
@@ -105,7 +107,7 @@ not guaranteed to have distinct identifiers. In order to globally refer
 to a single instance of a step, the combination of the step’s and
 workflow’s identifier should be used.
 
-## Step definitions
+### Step definitions
 
 It is important to distinguish between a step and a step definition.
 While both terms are closely related and often used interchangeably,
@@ -129,15 +131,15 @@ specifications for how a step should be executed, while a step
 represents the actual occurrence or instantiation of that step within a
 workflow.
 
-## Step kinds
+### Step kinds
 
 Similar to the [step identifier](#_step_identifiers), a step kind
 identifies a [step definition](#_step_definitions). As step definitions
 are not scoped to a workflow, the step kind is globally unique.
 
-# Defining steps
+## Defining steps
 
-## Basics
+### Basics
 
 A step can be defined by modelling it as a class.
 
@@ -177,7 +179,7 @@ step kind, the classes fully qualified and canonical name will be used.
 In order to prevent naming collisions when using custom names, it is
 recommended to only assign a custom kind when absolutely needed.
 
-## Adding step data
+### Adding step data
 
 A step data entry can be easily defined by declaring a property within
 the step definition class. The property must be publicly accessible in
@@ -230,7 +232,7 @@ dynamically values or to react to modifications.
 
     }
 
-### Listen for changes
+#### Listen for changes
 
 Sometimes it is required to react whenever a certain value changes. The
 straight forward approach is to declare a property setter, that checks
@@ -380,7 +382,7 @@ data types.
 You can also declare additional parameters which will be resolved using
 dependency injection.
 
-### Continuing the workflow on data changes
+#### Continuing the workflow on data changes
 
 [Data listeners](#step_data_listen_for_changes) can also return a
 `Continuation`, that can be used to control the workflow’s execution.
@@ -388,7 +390,7 @@ dependency injection.
 For more details regarding continuations, see [Continuing the workflow
 using return values](#step_action_continuation).
 
-## Definition of metadata
+### Definition of metadata
 
 Step definitions can have an arbitrary set of key-value pairs, that can
 be used to provide additional context. Metadata is considered to be
@@ -400,7 +402,7 @@ This property holds a map that is never null and contains a mapping for
 arbitrary keys to some values. A value associated with a key is
 guaranteed to always be non-null.
 
-### Convention-based metadata
+#### Convention-based metadata
 
 The actual metadata is automatically obtained from annotations that have
 been applied to a step’s definition class. Assume there is the following
@@ -449,7 +451,7 @@ style="text-align: left;"><p><strong><code>displayName</code></strong></p></td>
 </tbody>
 </table>
 
-### Customizing metadata entries
+#### Customizing metadata entries
 
 By default, metadata keys are implicitly obtained using the logic
 described by the followign listing.
@@ -535,7 +537,7 @@ have the `Completed` status.
 If automatic step completion is not desired, refer to section
 [Non-completing actions](#step_action_non_completing).
 
-## Basic actions
+### Basic actions
 
 Each step function (except those inherited from `Object` or `Any`) are
 considered as an Action as long as they fulfill the following
@@ -597,7 +599,7 @@ As soon as a function is explicitly marked as an action (using the
     been disabled, as this step has at least one explicitly annotated
     function.
 
-## Injection into action functions
+### Injection into action functions
 
 As mentioned in [orderedlist\_title](#step_action_requirements), it is
 possible to inject additional dependencies using an action function’s
@@ -697,7 +699,7 @@ into the `completeOrder` action.
         }
     }
 
-## Continuing the workflow using return values
+### Continuing the workflow using return values
 
 A step action can use the returned value to control the future workflow
 behavior.
@@ -800,7 +802,7 @@ FluxFlow should start a new workflow.</p></td>
 Possible ways of continuing a workflow after a step action has been
 executed
 
-### Step continuation
+#### Step continuation
 
 A step continuation continues the current workflow by executing the
 specified step.
@@ -825,7 +827,7 @@ implicit declarations**
 -   Continue with a `CompleteOrderStep` by returning an explicit
     continuation.
 
-### No-op continuation
+#### No-op continuation
 
 If an action function is defined as a void method or returns a
 `Continuation.none()`, no further operations will be performed.
@@ -843,15 +845,15 @@ If an action function is defined as a void method or returns a
 
 -   This is equivalent to returning a `Continuation.none()`.
 
-### Job continuation
+#### Job continuation
 
 See [???](#_jobs).
 
-### Cancel jobs continuation
+#### Cancel jobs continuation
 
 See [???](#_jobs)
 
-### Multiple continuation
+#### Multiple continuation
 
 A "multiple continuation" can be used if the workflow should continue
 with more than one operation at the same time.
@@ -873,7 +875,7 @@ with more than one operation at the same time.
 
 -   and wrap them within `Continuation.multiple`.
 
-### Rollback continuation
+#### Rollback continuation
 
 A "rollback continuation" can be used to restore the previous step. If
 such continuation is returned, FluxFlow will try to determine the
@@ -934,7 +936,7 @@ the continuation’s status behavior.
             .withStatusBehavior(StatusBehavior.Preserve)
     }
 
-### Workflow continuation
+#### Workflow continuation
 
 A "workflow continuation" can be used to start an entirely new workflow.
 The current workflow can either be continued normally or be removed once
@@ -981,7 +983,7 @@ be specified explicitly or changed, using on of the following methods.
         return defaultBehavior
     }
 
-## Non-completing actions
+### Non-completing actions
 
 A step is marked as being `Completed` once an action has been
 successfully executed. However, it is possible to change this behavior
@@ -1027,7 +1029,7 @@ All status behaviors declared using the `@Action` annotation (except
 `ImplicitStatusBehavior.Default`), will override behaviors specified by
 explicitly returned continuations.
 
-## Adding metadata to actions
+### Adding metadata to actions
 
 Like steps and step definitions, an action can also have metadata
 attached to it. To do so, simply apply the relevant annotations to the
