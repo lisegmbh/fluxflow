@@ -20,6 +20,18 @@ interface StepService {
      * @return The updated step.
      */
     fun setMetadata(step: Step, key: String, value: Any?): Step
+
+    /**
+     * Removes the specified [key] from the [step]'s metadata.
+     * 
+     * This is effectively an alias for calling [setMetadata] with a `null` value. 
+     * @param step The step to be updated.
+     * @param key The entry's key to be removed.
+     * @return The updated step.
+     */
+    fun removeMetadata(step: Step, key: String): Step {
+        return setMetadata(step, key, null)
+    }
     
     fun reactivate(step: Step): Step
     fun complete(step: Step): Step
