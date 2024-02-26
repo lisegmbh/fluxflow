@@ -29,7 +29,8 @@ class StepServiceImpl(
         val step = definition.createStep(
             workflow,
             StepIdentifier(persistence.randomId()),
-            Status.Active
+            Status.Active,
+            definition.metadata
         )
 
         createData(step)
@@ -92,7 +93,7 @@ class StepServiceImpl(
             step.workflow.identifier,
             step.identifier
         )!!
-        val metadata = step.metadata.toMutableMap()
+        val metadata = stepData.metadata.toMutableMap()
         if(value == null) {
             metadata.remove(key)
         } else {

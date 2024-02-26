@@ -20,7 +20,8 @@ class StepActivationServiceImpl(
         val step = activeStepDefinition(workflow, stepData).createStep(
             workflow,
             StepIdentifier(stepData.id),
-            stepData.status
+            stepData.status,
+            stepData.metadata
         )
         if (step is StatefulStep) {
             step.data
