@@ -1058,3 +1058,35 @@ In order to access an action’s metadata, the
 Refer to section [Definition of metadata](#step_definition_of_metadata)
 for more information on how metadata works and how the generated
 metadata can be customized.
+
+## Using steps
+
+### Modifying step metadata at runtime
+In order to dynamically modify a step's metadata,
+the `StepService.setMetadata(step: Step, key: String, value: Any?)` function can be used.
+Metadata set using this function will overwrite or extend any statically defined metadata
+(see [Definition of metadata](#definition-of-metadata)).
+
+Existing metadata can be removed by passing a `null` value into the `setMetadata` function
+or using the `StepService.removeMetadata(step: Step, key: String)` alias.
+
+```kotlin
+import de.lise.fluxflow.api.step.Step
+import de.lise.fluxflow.api.step.StepService
+
+class UserTaskService(
+    private val stepService: StepService
+) {
+    fun assignUsers(step: Step, userIds: List<String>) {
+        stepService.setMetadata(step, ASSIGNED_USERS_KEY, userIds)
+    }
+    
+    fun clearAssignedUsers(step: Step) {
+        stepService.removeMetadata(step, ASSIGNED_USERS_KEY)
+    }
+    
+    private companion object {
+        const val ASSIGNED_USERS_KEY = "assignedUsers"
+    }
+}
+```
