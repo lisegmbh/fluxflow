@@ -128,4 +128,33 @@ class StepIT {
         assertThat(step2.steps).hasSize(2)
     }
     
+    @Test
+    fun `StepService's setMetadata function should update a step's metadata`() {
+        // Arrange
+        val stepDefinition = TestStepWithMetadata()
+        val workflow = workflowStarterService!!.start(
+            Any(),
+            Continuation.step(stepDefinition)
+        )
+        val step = stepService!!.findSteps(workflow).first()
+        
+        // Act
+        val addedMetadata = stepService!!.setMetadata(step, "fromCode", true)
+        val replacedMetadata = stepService!!.setMetadata(addedMetadata, "testMetadata", "from-code")
+        val removedMetadata = stepService!!.setMetadata(replacedMetadata, "testMetadata", null)
+        
+        // Assert
+        assertThat(addedMetadata.metadata).containsExactlyInAnyOrderEntriesOf(mapOf(
+            "fromCode" to true,
+            "testMetadata" to "from-annotation"
+        ))
+        assertThat(replacedMetadata.metadata).containsExactlyInAnyOrderEntriesOf(mapOf(
+            "fromCode" to true,
+            "testMetadata" to "from-code"
+        ))
+        assertThat(removedMetadata.metadata).containsExactlyInAnyOrderEntriesOf(mapOf(
+            "fromCode" to true
+        ))
+    }
+    
 }
