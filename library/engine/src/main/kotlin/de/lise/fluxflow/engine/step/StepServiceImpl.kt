@@ -87,6 +87,25 @@ class StepServiceImpl(
             ?.let { stepActivationService.activate(workflow, it) }
     }
 
+    override fun setMetadata(step: Step, key: String, value: Any?): Step {
+        val stepData = persistence.findForWorkflowAndId(
+            step.workflow.identifier,
+            step.identifier
+        )!!
+        val metadata = step.metadata.toMutableMap()
+        if(value == null) {
+            metadata.remove(key)
+        } else {
+            metadata[key] = value
+        }
+        return saveChanges(
+            step, 
+            stepData.copy(
+                metadata = metadata
+            )
+        )
+    }
+
     override fun reactivate(step: Step): Step {
         if (step.status == Status.Active) {
             return step

@@ -38,6 +38,10 @@ class MemoryCachingStepService(
         }
     }
 
+    override fun setMetadata(step: Step, key: String, value: Any?): Step {
+        return stepService.setMetadata(step, key, value)
+    }
+
     override fun reactivate(step: Step): Step {
         return stepService.reactivate(step)
     }
