@@ -30,10 +30,14 @@ interface StepDefinition {
      *
      * @param workflow The parent workflow the created step will be associated to.
      * @param stepIdentifier The identifier for the step to be created.
+     * @param status The status the step to be created should be in.
+     * @param metadata The metadata that should be associated with the step. 
+     * If `null`, the definition's metadata should be applied. 
      */
     fun createStep(
         workflow: Workflow<*>,
         stepIdentifier: StepIdentifier,
-        status: Status
+        status: Status,
+        metadata: Map<String, Any>?
     ): Step
 }

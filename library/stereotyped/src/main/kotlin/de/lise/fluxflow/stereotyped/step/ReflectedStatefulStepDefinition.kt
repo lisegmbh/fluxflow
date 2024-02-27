@@ -28,7 +28,8 @@ class ReflectedStatefulStepDefinition(
     override fun createStep(
         workflow: Workflow<*>,
         stepIdentifier: StepIdentifier,
-        status: Status
+        status: Status,
+        metadata: Map<String, Any>?
     ): Step {
         /* 
             We need to use a mutable list with deferred initialization,
@@ -42,7 +43,7 @@ class ReflectedStatefulStepDefinition(
             this,
             workflow,
             status,
-            metadata,
+            metadata ?: this.metadata,
             dataList,
             actionList,
         )

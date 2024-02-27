@@ -29,7 +29,8 @@ class StepServiceImpl(
         val step = definition.createStep(
             workflow,
             StepIdentifier(persistence.randomId()),
-            Status.Active
+            Status.Active,
+            definition.metadata
         )
 
         createData(step)
@@ -85,6 +86,25 @@ class StepServiceImpl(
     override fun <TWorkflowModel> findStep(workflow: Workflow<TWorkflowModel>, stepIdentifier: StepIdentifier): Step? {
         return persistence.findForWorkflowAndId(workflow.identifier, stepIdentifier)
             ?.let { stepActivationService.activate(workflow, it) }
+    }
+
+    override fun setMetadata(step: Step, key: String, value: Any?): Step {
+        val stepData = persistence.findForWorkflowAndId(
+            step.workflow.identifier,
+            step.identifier
+        )!!
+        val metadata = stepData.metadata.toMutableMap()
+        if(value == null) {
+            metadata.remove(key)
+        } else {
+            metadata[key] = value
+        }
+        return saveChanges(
+            step, 
+            stepData.copy(
+                metadata = metadata
+            )
+        )
     }
 
     override fun reactivate(step: Step): Step {
