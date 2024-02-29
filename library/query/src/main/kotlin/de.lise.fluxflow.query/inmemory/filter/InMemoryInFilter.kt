@@ -9,7 +9,7 @@ import de.lise.fluxflow.query.filter.InFilter
 typealias InMemoryAnyOfFilter<TModel> = InMemoryInFilter<TModel>
 
 class InMemoryInFilter<TModel>(
-    private val values: List<TModel>,
+    private val values: Set<TModel>,
 ) : InMemoryFilter<TModel> {
     constructor(inFilter: InFilter<TModel>) : this(
         inFilter.anyOfValues

@@ -240,9 +240,40 @@ interface Filter<in TModel> {
          */
         @JvmStatic
         fun <TModel> anyOf(
-            values: List<TModel>,
+            values: Collection<TModel>,
         ): Filter<TModel> {
             return `in`(values)
+        }
+        
+        /**
+         * Creates a filter that matches values that are equal to at least one of the supplied [values].
+         *
+         * This is an alias for [Filter.in].
+         * @param values A list of possible values.
+         * @return A filter matching values that are contained within [values].
+         * @see [Filter.in]
+         */        @JvmStatic
+        fun <TModel> anyOf(
+            values: Set<TModel>
+        ): Filter<TModel> {
+            return `in`(values)
+        }
+        
+        /**
+         * Creates a filter that matches values that are equal to at least one of the supplied [values].
+         * @param values A list of possible values.
+         * @return A filter matching values that are contained within [values].
+         */
+        @JvmStatic
+        fun <TModel> `in`(
+            values: Collection<TModel>
+        ): Filter<TModel> {
+            // The cast within the `when` block is specified explicitly to avoid mistaking it for an infinite recursion
+            @Suppress("USELESS_CAST")
+            return when(values) {
+                is Set<TModel> -> `in`(values as Set<TModel>)
+                else -> `in`(values.toSet())
+            }
         }
 
         /**
@@ -252,11 +283,11 @@ interface Filter<in TModel> {
          */
         @JvmStatic
         fun <TModel> `in`(
-            values: List<TModel>
+            values: Set<TModel>
         ): Filter<TModel> {
             return InFilter(values)
         }
-
+        
         /**
          * Returns a filter
          * that is matching maps containing an entry for [key] associated to a value

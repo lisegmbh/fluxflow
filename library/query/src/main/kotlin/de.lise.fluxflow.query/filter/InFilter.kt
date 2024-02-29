@@ -7,5 +7,5 @@ package de.lise.fluxflow.query.filter
 typealias AnyOfFilter<TValueType> = InFilter<TValueType>
 
 data class InFilter<TValueType>(
-    val anyOfValues: List<TValueType>,
+    val anyOfValues: Set<TValueType>,
 ) : Filter<TValueType>

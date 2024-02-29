@@ -18,7 +18,8 @@ Jobs and job definitions now support adding metadata using annotations.
 ### Changed
 1. Harmonized Spring Boot dependencies.
 2. The Spring packages are now targeting version 3.2.1.
-3. `AnyOfFilter`, `InMemoryAnyOfFilter` and `MongoAnyOfFilter` have been renamed to `[...]InFilter` and deprecated aliases have been added to maintain API compatibility. The `Filter` interface now also exposes a `Filter.in` function. 
+3. `AnyOfFilter`, `InMemoryAnyOfFilter` and `MongoAnyOfFilter` have been renamed to `[...]InFilter` and deprecated aliases have been added to maintain API compatibility. The `Filter` interface now also exposes a `Filter.in` function.
+4. The `Filter.in` and `Filer.anyOf` are now accepting a more general `Collection<TModel>` parameter. Additionally, there is an overload that directly accepts the more sensible `Set<TModel>`. [Issue #101](https://github.com/lisegmbh/fluxflow/issues/101)
 
 ### Deprecated
 1. `Workflow.id` has been renamed to `Workflow.identifier`. The `id` property remains as an alias and is deprecated.
