@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.query.Criteria
 typealias MongoAnyOfFilter<TModel> = MongoInFilter<TModel>
 
 data class MongoInFilter<TModel>(
-    private val values: List<TModel>
+    private val values: Set<TModel>
 ) : MongoFilter<TModel> {
     constructor(inFilter: InFilter<TModel>) : this(
         inFilter.anyOfValues
