@@ -23,12 +23,4 @@ interface WorkflowService {
      * @param identifierToDelete the id of the workflow to delete
      */
     fun delete(identifierToDelete: WorkflowIdentifier)
-
-    /**
-     * Deletes the workflow with the given identifier and all of its related steps.
-     *
-     * @param identifierToDelete the id of the workflow to delete
-     */
-    @Deprecated("This method was never intended to be part of the public API and should only be used internally. It will be removed or replaced in an upcoming version.")
-    fun replace(identifierToDelete: WorkflowIdentifier)
 }
