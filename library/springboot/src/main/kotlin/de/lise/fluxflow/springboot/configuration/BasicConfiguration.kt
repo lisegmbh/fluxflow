@@ -352,7 +352,7 @@ open class BasicConfiguration {
         jobService: JobService,
         continuationHistoryService: ContinuationHistoryServiceImpl,
         workflowStarterService: WorkflowStarterService,
-        workflowService: WorkflowService,
+        workflowService: WorkflowServiceImpl,
         workflowUpdateService: WorkflowUpdateService
     ): ContinuationService {
         return ContinuationService(

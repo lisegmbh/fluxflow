@@ -40,7 +40,7 @@ class WorkflowServiceImpl(
 
     override fun getAll(): List<Workflow<*>> {
         return persistence.findAll()
-            .map { 
+            .map {
                 activationService.activate<Any?>(it)
             }
     }
@@ -96,7 +96,7 @@ class WorkflowServiceImpl(
             ?: throw WorkflowNotFoundException(identifierToDelete)
 
         val workflowToDelete = activationService.activate<Any?>(workflowDataToDelete)
-        
+
         persistence.delete(identifierToDelete)
         stepService.deleteAllForWorkflow(identifierToDelete)
         jobService.deleteAllForWorkflow(identifierToDelete)
@@ -108,8 +108,12 @@ class WorkflowServiceImpl(
         )
     }
 
-    @Deprecated("This method was never intended to be part of the public API and should only be used internally. It will be removed or replaced in an upcoming version.")
-    override fun replace(identifierToDelete: WorkflowIdentifier) {
+    /**
+     * Deletes the workflow with the given identifier and all of its related steps.
+     * In contrast to the [delete] function, it does not delete jobs nor does it publish a [WorkflowDeletedEvent].
+     * @param identifierToDelete the id of the workflow to delete
+     */
+    internal fun removeSilently(identifierToDelete: WorkflowIdentifier) {
         persistence.delete(identifierToDelete)
         stepService.deleteAllForWorkflow(identifierToDelete)
     }

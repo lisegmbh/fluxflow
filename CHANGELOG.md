@@ -26,10 +26,12 @@ Jobs and job definitions now support adding metadata using annotations.
 
 ### Fixed
 1. Changes to the step and workflow are now persisted before publishing events. [Issue #47](https://github.com/lisegmbh/fluxflow/issues/47)
-2. Persisting and publishing of step and workflow updates are now skipped, if the element didn't actually change. Can be disabled by setting `fluxflow.change-detection.step` or `fluxflow.change-detection.workflow` to `false`. [Issue #49](https://github.com/lisegmbh/fluxflow/issues/49)
+2. Persisting and publishing of step and workflow updates are now skipped if the element didn't actually change. Can be disabled by setting `fluxflow.change-detection.step` or `fluxflow.change-detection.workflow` to `false`. [Issue #49](https://github.com/lisegmbh/fluxflow/issues/49)
 
 ### Removed
 1. Removed experimental and broken `de.lise.fluxflow:memorycache` module. [Issue #94](https://github.com/lisegmbh/fluxflow/issues/94)
+2. The `WorkflowService.replace` function has been removed as it leaked internal functionality. [Issue #10](https://github.com/lisegmbh/fluxflow/issues/10)
+
 ## [0.0.1] - 2024-01-24
 
 ### Added
