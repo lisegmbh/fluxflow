@@ -23,5 +23,3 @@ include("testing")
 
 include("query")
 include("validation")
-
-include("memorycache")
