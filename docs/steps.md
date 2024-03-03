@@ -394,137 +394,69 @@ using return values](#step_action_continuation).
 
 Step definitions can have an arbitrary set of key-value pairs, that can
 be used to provide additional context. Metadata is considered to be
-static information on a step or its definition. As such, it can not be
-modified.
+static information on a step or its definition.
 
 Step definition metadata is exposed using `Step.definition.metadata`.
 This property holds a map that is never null and contains a mapping for
 arbitrary keys to some values. A value associated with a key is
 guaranteed to always be non-null.
 
-#### Convention-based metadata
-
-The actual metadata is automatically obtained from annotations that have
-been applied to a step’s definition class. Assume there is the following
-annotation.
-
-**Basic metadata annotation**
-
-    @Target(AnnotationTarget.CLASS)
-    @Retention(AnnotationRetention.RUNTIME)
-    annotation class DisplayName(
-        val name: String
-    )
-
-This can easily be applied to a step definition by annotating the step
-definition class.
-
-**Applying a metadata annotation to a step definition**
-
-    @Step
-    @DisplayName("Complete order")
-    class CompleterOrderStep {
-        @Action
-        fun complete() {
-            // do actual work
-        }
-    }
-
-This will produce the following metadata that will be present within the
-`Step.definition.metadata`.
-
-<table>
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><p><strong>Key</strong></p></td>
-<td style="text-align: left;"><p>Value</p></td>
-</tr>
-<tr class="even">
-<td
-style="text-align: left;"><p><strong><code>displayName</code></strong></p></td>
-<td style="text-align: left;"><p><code>Complete order</code></p></td>
-</tr>
-</tbody>
-</table>
-
 #### Customizing metadata entries
+The metadata will automatically be obtained from annotations that have
+been applied to a step’s definition.
+All annotations that shall be used as a metadata source must themselves be meta-annotated with `@Metadata`.
 
 By default, metadata keys are implicitly obtained using the logic
-described by the followign listing.
+described by the following listing.
 
 Implicit logic for obtaining metadata key-values
 
 If the applied annotation has
 
-1.  no property → `key`: the annotation type’s name; `value`: static
-    value of `true`
+1.  no property
+    1. `key`: the key as specified within the `@Metadata` annotation; 
+    2. `value`: static value of `true`
+2.  a single property
+    1. `key`: the key as specified within the `@Metadata` annotation; 
+    2. `value`: the property’s value
+3.  more than one property
+    1. `key`: the key as specified within the `@Metadata` annotation + `"."` + the property’s name;
+    2. `value`: the property’s value
 
-2.  a single property → `key`: the annotation type’s name; `value`: the
-    property’s value
+**Creation and usage of a metadata annotation**
+```kotlin
+import de.lise.fluxflow.stereotyped.metadata.Metadata
 
-3.  more than one property → `key`: the annotation type’s name + `"."` +
-    the property’s name; `value`: the property’s value
+@Metadata("displayName")
+annotation class DisplayName(
+    val name: String
+)
 
-In order to improve readability, the first character of obtained type
-and property names will be converted to lowercase, resulting in a
-camel-cased key.
-
-It is possible to modify this implicit behavior, by meta-annotating the
-annotation with `@Metadata`. Building on the previous example, modifying
-the generated metadata key is demonstrated by the exmaple shown below.
-
-**Modifying metadata keys**
-
-    @Metadata("userReadableTitle")
-    annotation class DisplayName(
-        val name: String
-    )
-
-    @DisplayName("Complete order")
-    class CompleteOrderStep {
-        // actual step implementation
-    }
-
-The generated metadata is now going to contain the following entries.
-
-<table>
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><p><strong>Key</strong></p></td>
-<td style="text-align: left;"><p>Value</p></td>
-</tr>
-<tr class="even">
-<td
-style="text-align: left;"><p><strong><code>userReadableTitle</code></strong></p></td>
-<td style="text-align: left;"><p><code>Complete order</code></p></td>
-</tr>
-</tbody>
-</table>
-
-In order to apply the `@Metadata` annotation to an annotation’s
-property, use `@get:Metadata`.
+@DisplayName("Complete order")
+class CompleteOrderStep {
+    // actual step implementation
+}
+```
+    
+It is also possible to customize the property name that will be used in case of annotations having
+multiple properties.
+To do so, the `@Metadata` meta-annotation can be applied to the annotation’s property using `@get:Metadata`.
 
 **Example of applying `@Metadata` to properties**
 
-    annotation class DisplayName(
-        @get:Metadata("userReadableDisplayName")
-        val name: String
-    )
-
-The common logic that is used to obtain the key-value pairs (as
-described above) also applies if either the annotation name or one of
-its properties is overwritten.
-
-However, if at least on property is annotated with `@Metadata`, all
+```kotlin
+@Metadata("displayName")
+annotation class DisplayName(
+    @get:Metadata("long")
+    val longName: String,
+    @get:Metadata("short")
+    val shortName: String
+)
+```
+If at least on property is annotated with `@Metadata`, all
 other unannotated properties will be ignored.
+
+## Actions
 
 A step can define on or more actions. An action hereby represents
 functionality, that can be invoked on that step. As such, actions are
