@@ -18,7 +18,7 @@
 > **This guide serves to set clear expectations for everyone involved with the project so that we can improve it together while also creating a welcoming space for everyone to participate. Following these guidelines will help ensure a positive experience for contributors and maintainers.**
 
 ## :book: Code of Conduct
-Please review our [Code of Conduct](https://github.com/lisegmbh/fluxflow/.github/blob/main/CODE_OF_CONDUCT.md).
+Please review our [Code of Conduct](https://github.com/lisegmbh/fluxflow/blob/develop/CODE_OF_CONDUCT.md).
 It is in effect at all times.
 We expect it to be honored by everyone who contributes to this project.
 
@@ -29,7 +29,7 @@ If you are not up-to-date, see if updating fixes your issue first.
 
 ### :lock: Reporting Security Issues
 
-Review our [Security Policy](https://github.com/lisegmbh/fluxflow/.github/blob/main/SECURITY.md). **Do not** file a public issue for security vulnerabilities.
+Review our [Security Policy](https://github.com/lisegmbh/fluxflow/blob/develop/SECURITY.md). **Do not** file a public issue for security vulnerabilities.
 
 ### :beetle: Bug Reports and Other Issues
 
