@@ -1,25 +1,25 @@
 rootProject.name = "fluxflow"
 
 // Flux Flow
-include("api")
-include("stereotyped")
+include("core:api")
+include("core:stereotyped")
 
-include("engine")
-include("reflection")
+include("core:engine")
+include("core:reflection")
 
-include("persistence")
-include("test-persistence")
-include("mongo")
+include("core:persistence")
+include("core:test-persistence")
+include("springboot:springboot-mongo")
 
-include("scheduling")
-include("test-scheduling")
-include("springboot-quartz")
+include("core:scheduling")
+include("core:test-scheduling")
+include("springboot:springboot-quartz")
 
-include("springboot")
-include("springboot-web")
-include("springboot-in-memory-persistence")
-include("springboot-test-scheduling")
-include("testing")
+include("springboot:springboot")
+include("springboot:springboot-web")
+include("springboot:springboot-in-memory-persistence")
+include("springboot:springboot-test-scheduling")
+include("springboot:springboot-testing")
 
-include("query")
-include("validation")
+include("core:query")
+include("core:validation")
