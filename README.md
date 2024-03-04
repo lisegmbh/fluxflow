@@ -22,9 +22,10 @@ Nevertheless,
 the core functionality doesn't depend on Spring and might also be used standalone or with any another framework.
 
 
-## Further reading
+## Quick links
 - [💡 Getting started](https://docs.fluxflow.cloud/en/latest/getting-started/getting-started/)
 - [📚 Documentation](https://docs.fluxflow.cloud)
+- [📜 Changelog](CHANGELOG.md)
 - [📦 Maven Central](https://search.maven.org/search?q=g:de.lise.fluxflow)
 
 ## Sample
