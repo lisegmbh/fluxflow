@@ -162,29 +162,45 @@ open class BasicConfiguration {
     }
    
     @Bean
-    open fun workflowService(
+    open fun workflowQueryService(
         persistence: WorkflowPersistence,
-        eventService: EventService,
-        stepService: StepServiceImpl,
-        jobService: JobServiceImpl,
         activationService: WorkflowActivationService
     ): WorkflowQueryServiceImpl {
         return WorkflowQueryServiceImpl(
             persistence,
-            eventService,
-            stepService,
-            jobService,
             activationService
         )
     }
-    
+
+    @Bean
+    open fun workflowRemovalService(
+        persistence: WorkflowPersistence,
+        activationService: WorkflowActivationService,
+        stepService: StepServiceImpl,
+        jobService: JobServiceImpl,
+        eventService: EventService
+    ): WorkflowRemovalServiceImpl {
+        return WorkflowRemovalServiceImpl(
+            persistence,
+            activationService,
+            stepService,
+            jobService,
+            eventService
+        )
+    }
+
     @Bean
     open fun workflowStarterService(
+        persistence: WorkflowPersistence,
         workflowService: WorkflowQueryServiceImpl,
+        workflowActivationService: WorkflowActivationService,
+        eventService: EventService
     ): WorkflowStarterService {
         return WorkflowStarterServiceImpl(
-            workflowService,
-            continuationService!!
+            persistence,
+            workflowActivationService,
+            continuationService!!,
+            eventService
         )
     }
 
@@ -353,7 +369,8 @@ open class BasicConfiguration {
         continuationHistoryService: ContinuationHistoryServiceImpl,
         workflowStarterService: WorkflowStarterService,
         workflowService: WorkflowQueryServiceImpl,
-        workflowUpdateService: WorkflowUpdateService
+        workflowUpdateService: WorkflowUpdateService,
+        workflowRemovalService: WorkflowRemovalServiceImpl
     ): ContinuationService {
         return ContinuationService(
             stepServiceImpl,
@@ -362,7 +379,8 @@ open class BasicConfiguration {
             continuationHistoryService,
             workflowStarterService,
             workflowService,
-            workflowUpdateService
+            workflowUpdateService,
+            workflowRemovalService
         )
     }
 

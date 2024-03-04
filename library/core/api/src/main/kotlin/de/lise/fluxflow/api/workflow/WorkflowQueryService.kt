@@ -5,10 +5,11 @@ import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
 
 /**
- * The [WorkflowQueryService] provides access to all existing workflows.
+ * The [WorkflowQueryService] provides functionalities to get and query for existing workflows.
  *
  * In order to manipulate a workflow's state, use the [WorkflowUpdateService].
  * To start a new workflow, use the [WorkflowStarterService].
+ * To remove a workflow, use the [WorkflowRemovalService].
  *
  * @see WorkflowUpdateService
  * @see WorkflowStarterService
@@ -60,13 +61,4 @@ interface WorkflowQueryService {
      * @return the workflow with the given identifier
      */
     fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>
-
-    /**
-     * Deletes the workflow with the given identifier and all of its related steps and jobs.
-     *
-     * Nota that you do **not** need to cancel any scheduled jobs, as this is done automatically by FluxFlow.
-     *
-     * @param identifierToDelete the id of the workflow to delete
-     */
-    fun delete(identifierToDelete: WorkflowIdentifier)
 }

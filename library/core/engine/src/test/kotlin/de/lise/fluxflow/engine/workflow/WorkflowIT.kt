@@ -3,6 +3,7 @@ package de.lise.fluxflow.engine.workflow
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
 import de.lise.fluxflow.api.workflow.WorkflowQueryService
+import de.lise.fluxflow.api.workflow.WorkflowRemovalService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
 import org.assertj.core.api.Assertions.assertThat
@@ -17,6 +18,9 @@ class WorkflowIT {
 
     @Autowired
     var workflowStarterService: WorkflowStarterService? = null
+
+    @Autowired
+    var workflowRemovalService: WorkflowRemovalService? = null
     
     @Autowired
     var workflowQueryService: WorkflowQueryService? = null
@@ -30,7 +34,7 @@ class WorkflowIT {
         )
 
         // Act
-        workflowQueryService!!.delete(workflow.identifier)
+        workflowRemovalService!!.delete(workflow.identifier)
 
         // Assert
         assertTrue(workflowQueryService!!.getAll().none { it.identifier == workflow.identifier })
@@ -44,7 +48,7 @@ class WorkflowIT {
         )
 
         // Act
-        workflowQueryService!!.delete(workflow.identifier)
+        workflowRemovalService!!.delete(workflow.identifier)
 
         //Assert
         assertThrows<WorkflowNotFoundException> { workflowQueryService!!.get<Any>(workflow.identifier) }
@@ -76,4 +80,3 @@ class WorkflowIT {
     }
 }
 
-class WorkflowITTestModel
