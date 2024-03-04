@@ -7,7 +7,7 @@ import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
-import de.lise.fluxflow.engine.workflow.WorkflowServiceImpl
+import de.lise.fluxflow.engine.workflow.WorkflowQueryServiceImpl
 import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
@@ -28,7 +28,7 @@ class JobSchedulingCallbackTest {
             null,
             null,
         )
-        val workflowService = mock<WorkflowServiceImpl> {
+        val workflowService = mock<WorkflowQueryServiceImpl> {
             on { get<Any>(any()) }.doReturn(mock {})
         }
         val workflowUpdateService = mock<WorkflowUpdateService> {}
@@ -73,7 +73,7 @@ class JobSchedulingCallbackTest {
             null,
             null,
         )
-        val workflowService = mock<WorkflowServiceImpl> {
+        val workflowService = mock<WorkflowQueryServiceImpl> {
             on { get<Any>(any()) }.doReturn(mock {})
         }
         val workflowUpdateService = mock<WorkflowUpdateService> {}
@@ -123,7 +123,7 @@ class JobSchedulingCallbackTest {
         val workflow = mock<Workflow<ModifiableWorkflowData>> {
             on { model }.doReturn(modifiableWorkflowData)
         }
-        val workflowService = mock<WorkflowServiceImpl> {
+        val workflowService = mock<WorkflowQueryServiceImpl> {
             on { get<Any>(any()) }.doReturn(workflow as Workflow<Any>)
         }
         val workflowUpdateService = mock<WorkflowUpdateService> {}

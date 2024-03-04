@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.*
 
-class WorkflowServiceImplTest {
+class WorkflowQueryServiceImplTest {
 
     private fun mockWorkflowService(
         workflowPersistence: WorkflowPersistence = mock<WorkflowPersistence>(),
@@ -25,8 +25,8 @@ class WorkflowServiceImplTest {
         activationService: WorkflowActivationService = mock<WorkflowActivationService> {
             on { activate<Any?>(any()) } doReturn mock<Workflow<Any?>> {}
         }
-    ): WorkflowServiceImpl {
-        return WorkflowServiceImpl(
+    ): WorkflowQueryServiceImpl {
+        return WorkflowQueryServiceImpl(
             workflowPersistence,
             eventService,
             stepService,

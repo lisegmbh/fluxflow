@@ -7,7 +7,7 @@ import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepService
-import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
@@ -168,8 +168,8 @@ open class BasicConfiguration {
         stepService: StepServiceImpl,
         jobService: JobServiceImpl,
         activationService: WorkflowActivationService
-    ): WorkflowServiceImpl {
-        return WorkflowServiceImpl(
+    ): WorkflowQueryServiceImpl {
+        return WorkflowQueryServiceImpl(
             persistence,
             eventService,
             stepService,
@@ -180,7 +180,7 @@ open class BasicConfiguration {
     
     @Bean
     open fun workflowStarterService(
-        workflowService: WorkflowServiceImpl,
+        workflowService: WorkflowQueryServiceImpl,
     ): WorkflowStarterService {
         return WorkflowStarterServiceImpl(
             workflowService,
@@ -352,7 +352,7 @@ open class BasicConfiguration {
         jobService: JobService,
         continuationHistoryService: ContinuationHistoryServiceImpl,
         workflowStarterService: WorkflowStarterService,
-        workflowService: WorkflowServiceImpl,
+        workflowService: WorkflowQueryServiceImpl,
         workflowUpdateService: WorkflowUpdateService
     ): ContinuationService {
         return ContinuationService(
@@ -414,13 +414,13 @@ open class BasicConfiguration {
     @Bean
     open fun jobSchedulingCallback(
         schedulingService: SchedulingService,
-        workflowService: WorkflowService,
+        workflowQueryService: WorkflowQueryService,
         workflowUpdateService: WorkflowUpdateService,
         jobService: JobServiceImpl,
         continuationService: ContinuationService,
     ): SchedulingCallback? {
         val callback = JobSchedulingCallback(
-            workflowService,
+            workflowQueryService,
             workflowUpdateService,
             jobService,
             continuationService,

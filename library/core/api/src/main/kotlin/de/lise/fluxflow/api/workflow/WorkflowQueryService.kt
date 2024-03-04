@@ -5,7 +5,7 @@ import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
 
 /**
- * The [WorkflowService] provides access to all existing workflows.
+ * The [WorkflowQueryService] provides access to all existing workflows.
  *
  * In order to manipulate a workflow's state, use the [WorkflowUpdateService].
  * To start a new workflow, use the [WorkflowStarterService].
@@ -13,7 +13,7 @@ import kotlin.reflect.KClass
  * @see WorkflowUpdateService
  * @see WorkflowStarterService
  */
-interface WorkflowService {
+interface WorkflowQueryService {
     /**
      * Returns all workflows.
      *

@@ -8,7 +8,7 @@ import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 
 class WorkflowStarterServiceImpl(
-    private val workflowService: WorkflowServiceImpl,
+    private val workflowService: WorkflowQueryServiceImpl,
     private val continuationService: ContinuationService
 ) : WorkflowStarterService {
     override fun <TWorkflowModel, TContinuation> start(

@@ -4,7 +4,7 @@ import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
-import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.api.workflow.query.filter.WorkflowFilter
 import de.lise.fluxflow.api.workflow.query.sort.WorkflowSort
@@ -20,13 +20,13 @@ import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
 
 
-class WorkflowServiceImpl(
+class WorkflowQueryServiceImpl(
     private val persistence: WorkflowPersistence,
     private val eventService: EventService,
     private val stepService: StepServiceImpl,
     private val jobService: JobServiceImpl,
     private val activationService: WorkflowActivationService
-) : WorkflowService {
+) : WorkflowQueryService {
     fun <TWorkflowModel> create(
         workflowModel: TWorkflowModel,
         forcedId: WorkflowIdentifier?
