@@ -11,6 +11,7 @@ extra_css:
   - style.css
 nav:
   - Home: index.md
+  - Getting started: getting-started/getting-started.md
   - API Objects:
     - Workflows:
       - Basics: workflow/basics.md
