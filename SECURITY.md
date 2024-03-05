@@ -15,7 +15,7 @@ We gladly accept and appreciate any responsible disclosure of security vulnerabi
 
 **Please do**
 - contact us directly via [security@lise.de](mailto:security@lise.de).
-- provide as with a detailed description of the vulnerability and the steps to reproduce it.
+- provide us with a detailed description of the vulnerability and the steps to reproduce it.
 - state your contact information for further communication.
 
 **Please do not**
