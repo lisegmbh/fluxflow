@@ -7,9 +7,7 @@ import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepService
-import de.lise.fluxflow.api.workflow.WorkflowQueryService
-import de.lise.fluxflow.api.workflow.WorkflowStarterService
-import de.lise.fluxflow.api.workflow.WorkflowUpdateService
+import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
@@ -201,6 +199,21 @@ open class BasicConfiguration {
             workflowActivationService,
             continuationService!!,
             eventService
+        )
+    }
+
+    @Bean
+    open fun workflowService(
+        workflowStarterService: WorkflowStarterService,
+        workflowQueryService: WorkflowQueryService,
+        workflowUpdateService: WorkflowUpdateService,
+        workflowRemovalService: WorkflowRemovalService
+    ): WorkflowService {
+        return WorkflowServiceImpl(
+            workflowStarterService,
+            workflowQueryService,
+            workflowUpdateService,
+            workflowRemovalService
         )
     }
 
