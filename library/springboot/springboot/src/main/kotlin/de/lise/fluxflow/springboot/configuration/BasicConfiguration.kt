@@ -145,6 +145,7 @@ open class BasicConfiguration {
     }
 
     @Bean
+    @Primary
     open fun workflowUpdateService(
         persistence: WorkflowPersistence,
         changeDetector: ChangeDetector<WorkflowData>,
@@ -160,6 +161,7 @@ open class BasicConfiguration {
     }
    
     @Bean
+    @Primary
     open fun workflowQueryService(
         persistence: WorkflowPersistence,
         activationService: WorkflowActivationService
@@ -171,6 +173,7 @@ open class BasicConfiguration {
     }
 
     @Bean
+    @Primary
     open fun workflowRemovalService(
         persistence: WorkflowPersistence,
         activationService: WorkflowActivationService,
@@ -188,6 +191,7 @@ open class BasicConfiguration {
     }
 
     @Bean
+    @Primary
     open fun workflowStarterService(
         persistence: WorkflowPersistence,
         workflowService: WorkflowQueryServiceImpl,
