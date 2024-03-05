@@ -1,7 +1,7 @@
 package de.lise.fluxflow.engine
 
 import de.lise.fluxflow.api.step.StepService
-import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -15,7 +15,7 @@ class FluxFlowIT {
     var stepService: StepService? = null
 
     @Autowired
-    var workflowService: WorkflowService? = null
+    var workflowQueryService: WorkflowQueryService? = null
 
     @Test
     fun `stepService can be injected`() {
@@ -24,6 +24,6 @@ class FluxFlowIT {
 
     @Test
     fun `workflowService can be injected`() {
-        assertThat(workflowService).isNotNull
+        assertThat(workflowQueryService).isNotNull
     }
 }

@@ -7,9 +7,7 @@ import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepService
-import de.lise.fluxflow.api.workflow.WorkflowService
-import de.lise.fluxflow.api.workflow.WorkflowStarterService
-import de.lise.fluxflow.api.workflow.WorkflowUpdateService
+import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
@@ -147,6 +145,7 @@ open class BasicConfiguration {
     }
 
     @Bean
+    @Primary
     open fun workflowUpdateService(
         persistence: WorkflowPersistence,
         changeDetector: ChangeDetector<WorkflowData>,
@@ -162,29 +161,63 @@ open class BasicConfiguration {
     }
    
     @Bean
-    open fun workflowService(
+    @Primary
+    open fun workflowQueryService(
         persistence: WorkflowPersistence,
-        eventService: EventService,
-        stepService: StepServiceImpl,
-        jobService: JobServiceImpl,
         activationService: WorkflowActivationService
-    ): WorkflowServiceImpl {
-        return WorkflowServiceImpl(
+    ): WorkflowQueryServiceImpl {
+        return WorkflowQueryServiceImpl(
             persistence,
-            eventService,
-            stepService,
-            jobService,
             activationService
         )
     }
-    
+
     @Bean
+    @Primary
+    open fun workflowRemovalService(
+        persistence: WorkflowPersistence,
+        activationService: WorkflowActivationService,
+        stepService: StepServiceImpl,
+        jobService: JobServiceImpl,
+        eventService: EventService
+    ): WorkflowRemovalServiceImpl {
+        return WorkflowRemovalServiceImpl(
+            persistence,
+            activationService,
+            stepService,
+            jobService,
+            eventService
+        )
+    }
+
+    @Bean
+    @Primary
     open fun workflowStarterService(
-        workflowService: WorkflowServiceImpl,
+        persistence: WorkflowPersistence,
+        workflowService: WorkflowQueryServiceImpl,
+        workflowActivationService: WorkflowActivationService,
+        eventService: EventService
     ): WorkflowStarterService {
         return WorkflowStarterServiceImpl(
-            workflowService,
-            continuationService!!
+            persistence,
+            workflowActivationService,
+            continuationService!!,
+            eventService
+        )
+    }
+
+    @Bean
+    open fun workflowService(
+        workflowStarterService: WorkflowStarterService,
+        workflowQueryService: WorkflowQueryService,
+        workflowUpdateService: WorkflowUpdateService,
+        workflowRemovalService: WorkflowRemovalService
+    ): WorkflowService {
+        return WorkflowServiceImpl(
+            workflowStarterService,
+            workflowQueryService,
+            workflowUpdateService,
+            workflowRemovalService
         )
     }
 
@@ -352,8 +385,9 @@ open class BasicConfiguration {
         jobService: JobService,
         continuationHistoryService: ContinuationHistoryServiceImpl,
         workflowStarterService: WorkflowStarterService,
-        workflowService: WorkflowServiceImpl,
-        workflowUpdateService: WorkflowUpdateService
+        workflowService: WorkflowQueryServiceImpl,
+        workflowUpdateService: WorkflowUpdateService,
+        workflowRemovalService: WorkflowRemovalServiceImpl
     ): ContinuationService {
         return ContinuationService(
             stepServiceImpl,
@@ -362,7 +396,8 @@ open class BasicConfiguration {
             continuationHistoryService,
             workflowStarterService,
             workflowService,
-            workflowUpdateService
+            workflowUpdateService,
+            workflowRemovalService
         )
     }
 
@@ -414,13 +449,13 @@ open class BasicConfiguration {
     @Bean
     open fun jobSchedulingCallback(
         schedulingService: SchedulingService,
-        workflowService: WorkflowService,
+        workflowQueryService: WorkflowQueryService,
         workflowUpdateService: WorkflowUpdateService,
         jobService: JobServiceImpl,
         continuationService: ContinuationService,
     ): SchedulingCallback? {
         val callback = JobSchedulingCallback(
-            workflowService,
+            workflowQueryService,
             workflowUpdateService,
             jobService,
             continuationService,

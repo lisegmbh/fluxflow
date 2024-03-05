@@ -2,7 +2,7 @@ package de.lise.fluxflow.engine.workflow
 
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.workflow.Workflow
-import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
@@ -16,7 +16,7 @@ class WorkflowListenerIT {
     @Autowired
     var workflowStarterService: WorkflowStarterService? = null
     @Autowired
-    var workflowService: WorkflowService? = null
+    var workflowQueryService: WorkflowQueryService? = null
     @Autowired
     var workflowUpdateService: WorkflowUpdateService? = null
 
@@ -140,10 +140,10 @@ class WorkflowListenerIT {
             oldModel,
             Continuation.none()
         )
-        val loadedWorkflow = workflowService!!.get<WorkflowModelWithListener>(createdWorkflow.identifier)
+        val loadedWorkflow = workflowQueryService!!.get<WorkflowModelWithListener>(createdWorkflow.identifier)
         customizer(loadedWorkflow.model)
         workflowUpdateService?.saveChanges(loadedWorkflow)
-        return workflowService!!.get(loadedWorkflow.identifier)
+        return workflowQueryService!!.get(loadedWorkflow.identifier)
     }
 }
 

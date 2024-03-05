@@ -4,7 +4,7 @@ import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
-import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.scheduling.SchedulingCallback
@@ -12,7 +12,7 @@ import de.lise.fluxflow.scheduling.SchedulingReference
 import org.slf4j.LoggerFactory
 
 class JobSchedulingCallback(
-    private val workflowService: WorkflowService,
+    private val workflowQueryService: WorkflowQueryService,
     private val workflowUpdateService: WorkflowUpdateService,
     private val jobService: JobServiceImpl,
     private val continuationService: ContinuationService
@@ -29,7 +29,7 @@ class JobSchedulingCallback(
         )
         
         val workflow = ref.alreadyLoadedJob?.workflow ?: try {
-            workflowService.get<Any?>(ref.workflowIdentifier)
+            workflowQueryService.get<Any?>(ref.workflowIdentifier)
         } catch (e: WorkflowNotFoundException) {
             Logger.warn(
                 "The workflow \"{}\" that owned job \"{}\" seems to be lost. Skipping job execution.",

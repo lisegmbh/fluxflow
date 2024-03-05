@@ -21,6 +21,11 @@ Jobs and job definitions now support adding metadata using annotations.
 3. `AnyOfFilter`, `InMemoryAnyOfFilter` and `MongoAnyOfFilter` have been renamed to `[...]InFilter` and deprecated aliases have been added to maintain API compatibility. The `Filter` interface now also exposes a `Filter.in` function.
 4. The `Filter.in` and `Filer.anyOf` are now accepting a more general `Collection<TModel>` parameter. Additionally, there is an overload that directly accepts the more sensible `Set<TModel>`. [Issue #101](https://github.com/lisegmbh/fluxflow/issues/101)
 5. Packages depending on or extending Spring Boot functionalities are now consistently prefixed with `springboot-`. [Issue #38](https://github.com/lisegmbh/fluxflow/issues/38) 
+6. The `WorkflowService` is now a composition of all CRUD-related services. [Issue #109](https://github.com/lisegmbh/fluxflow/issues/109)
+   - create: `WorkflowStarterService`
+   - read: `WorkflowQueryService`
+   - update: `WorkflowUpdateService`
+   - delete: `WorkflowRemovalService` 
 
 ### Deprecated
 1. `Workflow.id` has been renamed to `Workflow.identifier`. The `id` property remains as an alias and is deprecated.

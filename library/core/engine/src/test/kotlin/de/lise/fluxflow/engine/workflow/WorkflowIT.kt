@@ -2,7 +2,8 @@ package de.lise.fluxflow.engine.workflow
 
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
-import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
+import de.lise.fluxflow.api.workflow.WorkflowRemovalService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
 import org.assertj.core.api.Assertions.assertThat
@@ -17,9 +18,12 @@ class WorkflowIT {
 
     @Autowired
     var workflowStarterService: WorkflowStarterService? = null
+
+    @Autowired
+    var workflowRemovalService: WorkflowRemovalService? = null
     
     @Autowired
-    var workflowService: WorkflowService? = null
+    var workflowQueryService: WorkflowQueryService? = null
 
     @Test
     fun `deleted workflows should stop from being returned by search method`() {
@@ -30,10 +34,10 @@ class WorkflowIT {
         )
 
         // Act
-        workflowService!!.delete(workflow.identifier)
+        workflowRemovalService!!.delete(workflow.identifier)
 
         // Assert
-        assertTrue(workflowService!!.getAll().none { it.identifier == workflow.identifier })
+        assertTrue(workflowQueryService!!.getAll().none { it.identifier == workflow.identifier })
     }
 
     @Test
@@ -44,10 +48,10 @@ class WorkflowIT {
         )
 
         // Act
-        workflowService!!.delete(workflow.identifier)
+        workflowRemovalService!!.delete(workflow.identifier)
 
         //Assert
-        assertThrows<WorkflowNotFoundException> { workflowService!!.get<Any>(workflow.identifier) }
+        assertThrows<WorkflowNotFoundException> { workflowQueryService!!.get<Any>(workflow.identifier) }
     }
 
     @Test
@@ -63,8 +67,8 @@ class WorkflowIT {
         )
 
         // Act
-        val testModelWorkflows = workflowService!!.getAll(WorkflowITTestModel::class)
-        val stringModelWorkflows = workflowService!!.getAll(String::class)
+        val testModelWorkflows = workflowQueryService!!.getAll(WorkflowITTestModel::class)
+        val stringModelWorkflows = workflowQueryService!!.getAll(String::class)
 
         // Assert
         assertThat(testModelWorkflows.map { it.identifier })
@@ -76,4 +80,3 @@ class WorkflowIT {
     }
 }
 
-class WorkflowITTestModel

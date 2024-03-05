@@ -15,7 +15,8 @@ import de.lise.fluxflow.api.workflow.continuation.WorkflowContinuation
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
 import de.lise.fluxflow.engine.step.StepActivationService
 import de.lise.fluxflow.engine.step.StepServiceImpl
-import de.lise.fluxflow.engine.workflow.WorkflowServiceImpl
+import de.lise.fluxflow.engine.workflow.WorkflowQueryServiceImpl
+import de.lise.fluxflow.engine.workflow.WorkflowRemovalServiceImpl
 
 open class ContinuationService(
     private val stepService: StepServiceImpl,
@@ -23,8 +24,9 @@ open class ContinuationService(
     private val jobService: JobService,
     private val continuationHistoryService: ContinuationHistoryServiceImpl,
     private val workflowStarterService: WorkflowStarterService,
-    private val workflowService: WorkflowServiceImpl,
-    private val workflowUpdateService: WorkflowUpdateService
+    private val workflowService: WorkflowQueryServiceImpl,
+    private val workflowUpdateService: WorkflowUpdateService,
+    private val workflowRemovalServiceImpl: WorkflowRemovalServiceImpl
 ) {
     /**
      * Executes the given continuation.
@@ -116,7 +118,7 @@ open class ContinuationService(
     ): ContinuationCommit {
         if (continuation.forkBehavior == ForkBehavior.Replace) {
             val oldId = workflow.identifier
-            workflowService.removeSilently(oldId)
+            workflowRemovalServiceImpl.removeSilently(oldId)
             workflowStarterService.start(
                 continuation.model,
                 continuation.initialWorkflowContinuation,
@@ -130,7 +132,7 @@ open class ContinuationService(
                 null
             )
             if (continuation.forkBehavior == ForkBehavior.Remove) {
-                workflowService.delete(workflow.identifier)
+                workflowRemovalServiceImpl.delete(workflow.identifier)
             }
         }
         return ContinuationCommit.Nop

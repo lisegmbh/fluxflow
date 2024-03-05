@@ -34,6 +34,7 @@ class ContinuationServiceTest {
             continuationHistoryServiceImpl,
             mock {},
             mock {},
+            mock {},
             mock {}
         )
         val workflowId = mock<WorkflowIdentifier> { }

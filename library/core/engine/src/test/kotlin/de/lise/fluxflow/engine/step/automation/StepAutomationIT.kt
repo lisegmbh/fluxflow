@@ -5,7 +5,7 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.StepService
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.ActionService
-import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.engine.step.TestStep
 import de.lise.fluxflow.engine.step.TestStepWithAutomation
@@ -22,7 +22,7 @@ class StepAutomationIT {
     var workflowStarterService: WorkflowStarterService? = null
     
     @Autowired
-    var workflowService: WorkflowService? = null
+    var workflowQueryService: WorkflowQueryService? = null
     
     @Autowired
     var stepService: StepService? = null
@@ -165,7 +165,7 @@ class StepAutomationIT {
         )
         
         // Assert
-        val result = workflowService!!.get<TestWorkflowModelForModifyingAutomationFunctions>(startedWorkflow.identifier)
+        val result = workflowQueryService!!.get<TestWorkflowModelForModifyingAutomationFunctions>(startedWorkflow.identifier)
         assertThat(result.model.hasBeenChanged).isTrue()
     }
     
