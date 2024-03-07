@@ -2,6 +2,7 @@ package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.step.StepDefinition
+import de.lise.fluxflow.api.step.StepKind
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.reflection.activation.BasicTypeActivator
@@ -14,7 +15,7 @@ import de.lise.fluxflow.reflection.activation.parameter.ValueMatcher
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 
 class StepActivation<TWorkflowModel>(
-    private val classLoader: ClassLoader,
+    private val stepTypeResolver: StepTypeResolver,
     private val stepDefinitionBuilder: StepDefinitionBuilder,
     iocProvider: IocProvider,
     workflow: Workflow<TWorkflowModel>,
@@ -42,7 +43,7 @@ class StepActivation<TWorkflowModel>(
     )
 
     fun activate(): StepDefinition {
-        val type = Class.forName(stepData.kind, true, classLoader).kotlin
+        val type = stepTypeResolver.resolveType(StepKind(stepData.kind))
         return when (
             val activatedObject = typeActivator.findActivation(type)?.activate()
         ) {

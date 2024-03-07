@@ -17,9 +17,7 @@ import de.lise.fluxflow.engine.job.JobSchedulingCallback
 import de.lise.fluxflow.engine.job.JobServiceImpl
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.engine.state.DefaultChangeDetector
-import de.lise.fluxflow.engine.step.StepActivationService
-import de.lise.fluxflow.engine.step.StepActivationServiceImpl
-import de.lise.fluxflow.engine.step.StepServiceImpl
+import de.lise.fluxflow.engine.step.*
 import de.lise.fluxflow.engine.step.action.ActionServiceImpl
 import de.lise.fluxflow.engine.step.data.StepDataServiceImpl
 import de.lise.fluxflow.engine.step.validation.ValidationService
@@ -344,12 +342,22 @@ open class BasicConfiguration {
     open fun stepActivationService(
         iocProvider: IocProvider,
         stepDefinitionBuilder: StepDefinitionBuilder,
-        classLoaderProvider: ClassLoaderProvider
+        stepTypeResolver: StepTypeResolver
     ): StepActivationService {
         return StepActivationServiceImpl(
             iocProvider,
             stepDefinitionBuilder,
-            classLoaderProvider
+            stepTypeResolver
+        )
+    }
+    
+    @Bean
+    open fun stepTypeResolver(
+        classLoaderProvider: ClassLoaderProvider
+    ): StepTypeResolver {
+        return StepTypeResolverImpl(
+            classLoaderProvider.provide(),
+            // TODO Build cache
         )
     }
 

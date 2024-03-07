@@ -7,14 +7,13 @@ import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.api.workflow.Workflow
-import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 
 class StepActivationServiceImpl(
     private val iocProvider: IocProvider,
     private val stepDefinitionBuilder: StepDefinitionBuilder,
-    private val classLoaderProvider: ClassLoaderProvider,
+    private val stepTypeResolver: StepTypeResolver
 ) : StepActivationService {
     override fun <TWorkflowModel> activate(workflow: Workflow<TWorkflowModel>, stepData: StepData): Step {
         val step = activeStepDefinition(workflow, stepData).createStep(
@@ -49,7 +48,7 @@ class StepActivationServiceImpl(
         stepData: StepData
     ): StepDefinition {
         return StepActivation(
-            classLoaderProvider.provide(),
+            stepTypeResolver,
             stepDefinitionBuilder,
             iocProvider,
             workflow,
