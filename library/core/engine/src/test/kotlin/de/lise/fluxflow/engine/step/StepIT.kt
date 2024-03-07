@@ -11,6 +11,7 @@ import de.lise.fluxflow.api.step.query.filter.StepKindFilter
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.ActionService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
+import de.lise.fluxflow.engine.IntegrationTestConfig
 import de.lise.fluxflow.query.filter.Filter
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
 import org.assertj.core.api.Assertions.assertThat
@@ -18,7 +19,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
-@SpringBootTest(classes = [TestingConfiguration::class])
+@SpringBootTest(
+    classes = [
+        TestingConfiguration::class,
+        IntegrationTestConfig::class
+    ]
+)
 class StepIT {
     @Autowired
     var workflowStarterService: WorkflowStarterService? = null
