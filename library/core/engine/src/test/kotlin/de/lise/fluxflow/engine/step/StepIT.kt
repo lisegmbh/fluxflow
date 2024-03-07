@@ -157,4 +157,19 @@ class StepIT {
         ))
     }
     
+    @Test
+    fun `activating steps having a custom kind should succeed`() {
+        // Arrange
+        val stepDefinition = TestStepWithCustomKind()
+        val workflow = workflowStarterService!!.start(
+            Any(),
+            Continuation.step(stepDefinition)
+        )
+        
+        // Act
+        val step = stepService!!.findSteps(workflow).first()
+        
+        // Assert
+        assertThat(step).isNotNull
+    }
 }
