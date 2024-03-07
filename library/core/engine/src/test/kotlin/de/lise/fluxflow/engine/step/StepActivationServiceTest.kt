@@ -126,10 +126,9 @@ class StepActivationServiceTest {
                 mock {},
                 mock {},
                 mutableMapOf()
-            )
-        ) {
-            stepType.java.classLoader
-        }
+            ),
+            StepTypeResolverImpl(stepType.java.classLoader)
+        )
 
         return Pair(activationService, testStepData)
     }

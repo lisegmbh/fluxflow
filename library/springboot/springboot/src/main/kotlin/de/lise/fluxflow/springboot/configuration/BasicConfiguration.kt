@@ -17,9 +17,7 @@ import de.lise.fluxflow.engine.job.JobSchedulingCallback
 import de.lise.fluxflow.engine.job.JobServiceImpl
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.engine.state.DefaultChangeDetector
-import de.lise.fluxflow.engine.step.StepActivationService
-import de.lise.fluxflow.engine.step.StepActivationServiceImpl
-import de.lise.fluxflow.engine.step.StepServiceImpl
+import de.lise.fluxflow.engine.step.*
 import de.lise.fluxflow.engine.step.action.ActionServiceImpl
 import de.lise.fluxflow.engine.step.data.StepDataServiceImpl
 import de.lise.fluxflow.engine.step.validation.ValidationService
@@ -35,6 +33,7 @@ import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
 import de.lise.fluxflow.scheduling.SchedulingCallback
 import de.lise.fluxflow.scheduling.SchedulingService
+import de.lise.fluxflow.springboot.activation.StepKindMapBuilder
 import de.lise.fluxflow.springboot.activation.parameter.SpringValueExpressionParameterResolver
 import de.lise.fluxflow.springboot.bootstrapping.SpringBootstrapper
 import de.lise.fluxflow.springboot.expression.SpringSelectorExpressionParser
@@ -344,12 +343,34 @@ open class BasicConfiguration {
     open fun stepActivationService(
         iocProvider: IocProvider,
         stepDefinitionBuilder: StepDefinitionBuilder,
-        classLoaderProvider: ClassLoaderProvider
+        stepTypeResolver: StepTypeResolver
     ): StepActivationService {
         return StepActivationServiceImpl(
             iocProvider,
             stepDefinitionBuilder,
-            classLoaderProvider
+            stepTypeResolver
+        )
+    }
+    
+    @Bean
+    open fun stepKindMapBuilder(
+        context: ApplicationContext,
+        classLoaderProvider: ClassLoaderProvider
+    ): StepKindMapBuilder {
+        return StepKindMapBuilder(
+            context,
+            classLoaderProvider.provide()
+        )
+    }
+    
+    @Bean
+    open fun stepTypeResolver(
+        classLoaderProvider: ClassLoaderProvider,
+        stepKindMapBuilder: StepKindMapBuilder
+    ): StepTypeResolver {
+        return StepTypeResolverImpl(
+            classLoaderProvider.provide(),
+            stepKindMapBuilder.build()
         )
     }
 
