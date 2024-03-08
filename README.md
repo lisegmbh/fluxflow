@@ -92,3 +92,4 @@ dependencies {
 - [Dominik "Pipo" Alexander](https://github.com/DerPipo)
 - [Jagadish Singh](https://github.com/jagadish-singh-lise)
 - [Marcel Singer](https://github.com/masinger)
+- [Ömer Ciblak](https://github.com/oemer-ciblak)
