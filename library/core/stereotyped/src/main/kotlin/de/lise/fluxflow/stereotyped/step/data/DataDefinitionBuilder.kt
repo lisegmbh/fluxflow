@@ -3,6 +3,7 @@ package de.lise.fluxflow.stereotyped.step.data
 import de.lise.fluxflow.api.job.continuation.JobContinuation
 import de.lise.fluxflow.api.step.stateful.data.DataDefinition
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
+import de.lise.fluxflow.api.step.stateful.data.ModificationPolicy
 import de.lise.fluxflow.reflection.ReflectionUtils
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
@@ -74,6 +75,11 @@ class DataDefinitionBuilder(
         prop: KProperty1<TObject, TProp>
     ): (element: TObject) -> DataDefinition<TProp?> {
         val kind = DataKindInspector.getDataKind(prop)
+        val modificationPolicy = prop.annotations
+            .find { it is Data }
+            ?.let { it as Data }
+            ?.modificationPolicy
+            ?: ModificationPolicy.InheritSetting
 
         val valueType = ReflectionUtils.findReturnType(prop)
         val modifiable = prop is KMutableProperty1<TObject, TProp> && prop.setter.visibility == KVisibility.PUBLIC
@@ -103,6 +109,7 @@ class DataDefinitionBuilder(
                     persistenceType,
                     dataListenerDefinitions.map { it(obj)  },
                     validations?.build(obj),
+                    modificationPolicy,
                     obj,
                     { instance -> prop.get(instance) },
                     { instance, newVal -> modifiableProperty.set(instance, newVal) }
@@ -117,6 +124,7 @@ class DataDefinitionBuilder(
                 persistenceType,
                 dataListenerDefinitions.map { it(instance) },
                 validations?.build(instance),
+                modificationPolicy,
                 instance,
                 { prop.get(it) }
             )

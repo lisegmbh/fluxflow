@@ -1,10 +1,8 @@
 package de.lise.fluxflow.stereotyped.step.data
 
 import de.lise.fluxflow.api.step.Step
+import de.lise.fluxflow.api.step.stateful.data.*
 import de.lise.fluxflow.api.step.stateful.data.Data
-import de.lise.fluxflow.api.step.stateful.data.DataDefinition
-import de.lise.fluxflow.api.step.stateful.data.DataKind
-import de.lise.fluxflow.api.step.stateful.data.DataListenerDefinition
 import de.lise.fluxflow.api.step.stateful.data.validation.DataValidationDefinition
 import java.lang.reflect.Type
 
@@ -14,6 +12,7 @@ class ReflectedDataDefinition<TInstance, TModel>(
     override val isCalculatedValue: Boolean,
     override val updateListeners: List<DataListenerDefinition<TModel>>,
     override val validation: DataValidationDefinition?,
+    override val modificationPolicy: ModificationPolicy,
     private val instance: TInstance,
     private val propertyGetter: PropertyGetter<TInstance, TModel>,
     private val propertySetter: PropertySetter<TInstance, TModel>? = null,

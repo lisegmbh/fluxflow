@@ -23,5 +23,10 @@ interface DataDefinition<T> {
      * Is `null`, if validation is not required for the data.
      */
     val validation: DataValidationDefinition?
+
+    /**
+     * Controls if inactive data can be modified.
+     */
+    val modificationPolicy: ModificationPolicy
     fun createData(step: Step): Data<T>
 }

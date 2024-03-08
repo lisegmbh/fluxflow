@@ -4,20 +4,14 @@ import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.step.InvalidStepStateException
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.Step
-import de.lise.fluxflow.api.step.stateful.data.Data
-import de.lise.fluxflow.api.step.stateful.data.DataDefinition
-import de.lise.fluxflow.api.step.stateful.data.ModifiableData
-import de.lise.fluxflow.api.step.stateful.data.UnmodifiableDataException
+import de.lise.fluxflow.api.step.stateful.data.*
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.step.StepServiceImpl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
-import org.mockito.kotlin.any
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.inOrder
-import org.mockito.kotlin.mock
+import org.mockito.kotlin.*
 
 class StepDataServiceImplTest {
 
@@ -30,7 +24,7 @@ class StepDataServiceImplTest {
     ): StepDataServiceImpl {
         return StepDataServiceImpl(
             stepServiceImpl ?: mock<StepServiceImpl> {},
-            workflowUpdateService ?: mock<WorkflowUpdateService>{},
+            workflowUpdateService ?: mock<WorkflowUpdateService> {},
             eventService ?: mock<EventService> {},
             allowInactiveModification,
             mock<ContinuationService> {}
@@ -44,8 +38,12 @@ class StepDataServiceImplTest {
         val stepMock = mock<Step> {
             on { status } doReturn Status.Completed
         }
+        val stepDataDefinitionMock = mock<DataDefinition<String>> {
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
+        }
         val data = mock<Data<String>> {
             on { step } doReturn stepMock
+            on { definition } doReturn stepDataDefinitionMock
         }
 
 
@@ -62,8 +60,12 @@ class StepDataServiceImplTest {
         val stepMock = mock<Step> {
             on { status } doReturn Status.Canceled
         }
+        val stepDataDefinitionMock = mock<DataDefinition<String>> {
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
+        }
         val data = mock<Data<String>> {
             on { step } doReturn stepMock
+            on { definition } doReturn stepDataDefinitionMock
         }
 
         // Act & Assert
@@ -81,6 +83,7 @@ class StepDataServiceImplTest {
         }
         val dataDefinition = mock<DataDefinition<String>> {
             on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
         }
         val data = mock<ModifiableData<String>> {
             on { step } doReturn stepMock
@@ -102,6 +105,7 @@ class StepDataServiceImplTest {
         }
         val dataDefinition = mock<DataDefinition<String>> {
             on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
         }
         val data = mock<ModifiableData<String>> {
             on { step } doReturn stepMock
@@ -124,6 +128,7 @@ class StepDataServiceImplTest {
         }
         val dataDefinition = mock<DataDefinition<String>> {
             on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
         }
         val data = mock<Data<String>> {
             on { step } doReturn stepMock
@@ -139,7 +144,7 @@ class StepDataServiceImplTest {
     @Test
     fun `setValue should persist changes before publishing the StepDateEvent`() {
         // Arrange
-        val stepServiceImpl = mock<StepServiceImpl>{}
+        val stepServiceImpl = mock<StepServiceImpl> {}
         val eventService = mock<EventService> {}
         val dataService = defaultService(
             false,
@@ -151,6 +156,7 @@ class StepDataServiceImplTest {
         }
         val dataDefinition = mock<DataDefinition<String>> {
             on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
         }
         val data = mock<ModifiableData<String>> {
             on { step } doReturn stepMock
@@ -168,5 +174,64 @@ class StepDataServiceImplTest {
 
         executionOrder.verify(stepServiceImpl).saveChanges(any<Step>())
         executionOrder.verify(eventService).publish(any())
+    }
+
+    @Test
+    fun `setValue should persist changes when step data modification policy is set to allow`() {
+        // Arrange
+        val stepServiceImpl = mock<StepServiceImpl> {}
+        val eventService = mock<EventService> {}
+        val dataService = defaultService(
+            false,
+            eventService = eventService,
+            stepServiceImpl = stepServiceImpl
+        )
+        val stepMock = mock<Step> {
+            on { status } doReturn Status.Completed
+        }
+        val dataDefinition = mock<DataDefinition<String>> {
+            on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.AllowInactiveModification
+        }
+        val data = mock<ModifiableData<String>> {
+            on { step } doReturn stepMock
+            on { definition } doReturn dataDefinition
+        }
+
+        // Act
+        dataService.setValue(data, "Test")
+
+        // Assert
+        verify(stepServiceImpl, times(1)).saveChanges(any<Step>())
+    }
+
+    @Test
+    fun `setValue should not persist changes when step data modification policy is set to prevent`() {
+        // Arrange
+        val stepServiceImpl = mock<StepServiceImpl> {}
+        val eventService = mock<EventService> {}
+        val dataService = defaultService(
+            false,
+            eventService = eventService,
+            stepServiceImpl = stepServiceImpl
+        )
+        val stepMock = mock<Step> {
+            on { status } doReturn Status.Completed
+        }
+        val dataDefinition = mock<DataDefinition<String>> {
+            on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.PreventInactiveModification
+        }
+        val data = mock<ModifiableData<String>> {
+            on { step } doReturn stepMock
+            on { definition } doReturn dataDefinition
+        }
+
+        // Act & Assert
+        assertThrows<InvalidStepStateException> {
+            dataService.setValue(data, "Test")
+        }
+
+        verify(stepServiceImpl, never()).saveChanges(any<Step>())
     }
 }

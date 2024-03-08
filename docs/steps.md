@@ -232,6 +232,18 @@ dynamically values or to react to modifications.
 
     }
 
+#### Inactive Modifications
+By default, changes to step data are not allowed when the step is no longer active.
+There is a global setting `fluxflow.data.allow-inactive-modification` to allow changes to inactive step data.
+Furthermore, the global setting can also be overwritten for each StepData using the property `modificationPolicy` in the `@Data` annotation.
+
+```kotlin
+class SubmitPizzaOrderStep(
+    @Data(modificationPolicy = ModificationPolicy.AllowInactiveModification)
+    var mailAddress: String?
+)
+```
+
 #### Listen for changes
 
 Sometimes it is required to react whenever a certain value changes. The
