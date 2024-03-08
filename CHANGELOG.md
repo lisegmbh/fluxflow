@@ -14,6 +14,9 @@ model listeners are declared by creating a function within the workflow model an
 [Issue #70](https://github.com/lisegmbh/fluxflow/issues/70)
 2. **Job(definition) metadata**<br/>
 Jobs and job definitions now support adding metadata using annotations.
+3. **Step data modification policy**<br />
+A step data modification policy can be used to control the modification behaviour on inactive steps. The policy can be accessed by the step data definition.
+[Issue #90](https://github.com/lisegmbh/fluxflow/issues/90)
 
 ### Changed
 1. Harmonized Spring Boot dependencies.
