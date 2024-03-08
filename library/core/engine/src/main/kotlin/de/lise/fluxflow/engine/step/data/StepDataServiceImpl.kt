@@ -18,7 +18,7 @@ class StepDataServiceImpl(
     private val stepServiceImpl: StepServiceImpl,
     private val workflowUpdateService: WorkflowUpdateService,
     private val eventService: EventService,
-    private val allowInactiveModification: Boolean,
+    private val globalAllowInactiveModification: Boolean,
     private val continuationService: ContinuationService
 ) : StepDataService {
     override fun getData(step: Step): List<Data<*>> {
@@ -35,7 +35,7 @@ class StepDataServiceImpl(
     }
 
     override fun <T> setValue(data: Data<T>, value: T) {
-        if (!allowInactiveModification) {
+        if (modificationRequiresActiveStep(data)) {
             when (data.step.status) {
                 Status.Canceled -> throw InvalidStepStateException("Unable to invoke action on canceled step '${data.step.identifier}'")
                 Status.Completed -> throw InvalidStepStateException("Unable to invoke action on completed step '${data.step.identifier}'")
@@ -71,5 +71,13 @@ class StepDataServiceImpl(
             Listeners should not expect that their changes will be persisted implicitly.
          */
         eventService.publish(StepDataEvent(data, oldValue, value))
+    }
+
+    private fun modificationRequiresActiveStep(data: Data<*>): Boolean {
+        return when  (data.definition.modificationPolicy) {
+            ModificationPolicy.AllowInactiveModification -> false
+            ModificationPolicy.PreventInactiveModification -> true
+            ModificationPolicy.InheritSetting -> !globalAllowInactiveModification
+        }
     }
 }
