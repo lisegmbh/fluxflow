@@ -75,7 +75,11 @@ class DataDefinitionBuilder(
         prop: KProperty1<TObject, TProp>
     ): (element: TObject) -> DataDefinition<TProp?> {
         val kind = DataKindInspector.getDataKind(prop)
-        val modificationPolicy = ModificationPolicy.InheritSetting
+        val modificationPolicy = prop.annotations
+            .find { it is Data }
+            ?.let { it as Data }
+            ?.modificationPolicy
+            ?: ModificationPolicy.InheritSetting
 
         val valueType = ReflectionUtils.findReturnType(prop)
         val modifiable = prop is KMutableProperty1<TObject, TProp> && prop.setter.visibility == KVisibility.PUBLIC
