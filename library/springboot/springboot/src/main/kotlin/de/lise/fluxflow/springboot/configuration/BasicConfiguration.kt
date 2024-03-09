@@ -252,11 +252,13 @@ open class BasicConfiguration {
     @Bean
     open fun dataBuilder(
         dataListenerDefinitionBuilder: DataListenerDefinitionBuilder,
-        validationBuilder: ValidationBuilder
+        validationBuilder: ValidationBuilder,
+        metadataBuilder: MetadataBuilder
     ): DataDefinitionBuilder {
         return DataDefinitionBuilder(
             dataListenerDefinitionBuilder,
-            validationBuilder
+            validationBuilder,
+            metadataBuilder
         )
     }
 

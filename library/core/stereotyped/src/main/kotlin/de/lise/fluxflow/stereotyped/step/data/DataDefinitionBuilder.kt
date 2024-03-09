@@ -5,13 +5,14 @@ import de.lise.fluxflow.api.step.stateful.data.DataDefinition
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.api.step.stateful.data.ModificationPolicy
 import de.lise.fluxflow.reflection.ReflectionUtils
+import de.lise.fluxflow.reflection.property.findAnnotationEverywhere
 import de.lise.fluxflow.stereotyped.job.Job
+import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
-import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.jvm.javaField
@@ -21,7 +22,8 @@ import kotlin.reflect.jvm.javaField
  */
 class DataDefinitionBuilder(
     private val dataListenerDefinitionBuilder: DataListenerDefinitionBuilder,
-    private val validationBuilder: ValidationBuilder
+    private val validationBuilder: ValidationBuilder,
+    private val metadataBuilder: MetadataBuilder
 ) {
     /**
      * Checks if the given property should be interpreted as a [DataDefinition].
@@ -56,7 +58,7 @@ class DataDefinitionBuilder(
     private fun <TObject, TProp : Any> getIsCalculatedValue(
         prop: KProperty1<TObject, TProp>
     ): Boolean {
-        val persistenceType = prop.findAnnotation<Data>()?.persistenceType
+        val persistenceType = prop.findAnnotationEverywhere<Data>()?.persistenceType
             ?: PersistenceType.Auto
 
         when (persistenceType) {
@@ -75,31 +77,24 @@ class DataDefinitionBuilder(
         prop: KProperty1<TObject, TProp>
     ): (element: TObject) -> DataDefinition<TProp?> {
         val kind = DataKindInspector.getDataKind(prop)
-        val modificationPolicy = prop.annotations
-            .find { it is Data }
-            ?.let { it as Data }
+        val modificationPolicy = prop.findAnnotationEverywhere<Data>()
             ?.modificationPolicy
             ?: ModificationPolicy.InheritSetting
 
         val valueType = ReflectionUtils.findReturnType(prop)
         val modifiable = prop is KMutableProperty1<TObject, TProp> && prop.setter.visibility == KVisibility.PUBLIC
-
         val persistenceType = getIsCalculatedValue(prop)
-
-
         val dataListenerDefinitions = dataListenerDefinitionBuilder.build<TObject, TProp?>(
             kind,
             valueType,
             instanceType
         )
-
         val validations = validationBuilder.buildValidations(
             kind,
             instanceType,
             prop,
         )
-
-        val metadata = emptyMap<String, Any>() // TODO: Implement metadata
+        val metadata = metadataBuilder.build(prop)
 
         if (modifiable) {
             @Suppress("UNCHECKED_CAST")
