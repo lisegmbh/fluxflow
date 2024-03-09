@@ -9,6 +9,7 @@ import java.lang.reflect.Type
 class ReflectedDataDefinition<TInstance, TModel>(
     override val kind: DataKind,
     override val type: Type,
+    override val metadata: Map<String, Any>,
     override val isCalculatedValue: Boolean,
     override val updateListeners: List<DataListenerDefinition<TModel>>,
     override val validation: DataValidationDefinition?,

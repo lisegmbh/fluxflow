@@ -99,6 +99,8 @@ class DataDefinitionBuilder(
             prop,
         )
 
+        val metadata = emptyMap<String, Any>() // TODO: Implement metadata
+
         if (modifiable) {
             @Suppress("UNCHECKED_CAST")
             val modifiableProperty = prop as KMutableProperty1<TObject, TProp?>
@@ -106,6 +108,7 @@ class DataDefinitionBuilder(
                 ReflectedDataDefinition(
                     kind,
                     valueType,
+                    metadata,
                     persistenceType,
                     dataListenerDefinitions.map { it(obj)  },
                     validations?.build(obj),
@@ -121,6 +124,7 @@ class DataDefinitionBuilder(
             ReflectedDataDefinition(
                 kind,
                 valueType,
+                metadata,
                 persistenceType,
                 dataListenerDefinitions.map { it(instance) },
                 validations?.build(instance),

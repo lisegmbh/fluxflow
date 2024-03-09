@@ -7,6 +7,12 @@ import java.lang.reflect.Type
 interface DataDefinition<T> {
     val kind: DataKind
     val type: Type
+
+    /**
+     * A simple key-value map providing additional metadata about this data definition and data that are going to be produced by it.
+     */
+    val metadata: Map<String, Any>
+
     /**
      * Indicates if the data represented by this definition, will be dynamically calculated.
      * If this is set to true, the engine does not attempt to restore a previously persisted value.
