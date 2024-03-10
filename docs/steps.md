@@ -402,6 +402,39 @@ dependency injection.
 For more details regarding continuations, see [Continuing the workflow
 using return values](#step_action_continuation).
 
+#### Adding metadata to step definitions
+Step data can also carry metadata. 
+As data is always tied to a specific step, it doesn't have any state on its own.
+Consequently, metadata is always static and only present on the `DataDefinition`.
+
+Metadata can be applied in the same way as it is done for other workflow elements.
+More details can be found in the [step's metadata section](#definition-of-metadata).
+
+```kotlin
+import de.lise.fluxflow.stereotyped.metadata.Metadata
+import de.lise.fluxflow.stereotyped.step.Step
+
+@Metadata("displayName")
+annotation class DisplayName(val value: String)
+
+@Step
+class EnterContactDetails {
+    @DisplayName("Given name")
+    var firstname: String = ""
+}
+```
+
+**Caution**: Be careful when applying annotations to properties defined by Kotlin's default constructor as they are by default applied to the corresponding constructor parameter.
+
+```kotlin
+@Step
+class EnterContactDetails(
+    @property:DisplayName("Given name")
+    var firstname: String = ""
+)
+```
+
+
 ### Definition of metadata
 
 Step definitions can have an arbitrary set of key-value pairs, that can
