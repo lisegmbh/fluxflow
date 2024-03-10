@@ -4,6 +4,7 @@ import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.data.Data
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.stereotyped.job.Job
+import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -19,7 +20,8 @@ class DataDefinitionBuilderTest {
         // Arrange
         val dataDefinitionBuilder = DataDefinitionBuilder(
             listenerDefinitionBuilder,
-            mock<ValidationBuilder> {}
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
         )
 
         // Act
@@ -128,7 +130,8 @@ class DataDefinitionBuilderTest {
         // Arrange
         val dataDefinitionBuilder = DataDefinitionBuilder(
             listenerDefinitionBuilder,
-            mock<ValidationBuilder> {}
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
         )
 
         // Act
@@ -143,7 +146,8 @@ class DataDefinitionBuilderTest {
         // Arrange
         val dataDefinitionBuilder = DataDefinitionBuilder(
             listenerDefinitionBuilder,
-            mock<ValidationBuilder> {}
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
         )
 
         // Act
@@ -161,7 +165,8 @@ class DataDefinitionBuilderTest {
         // Arrange
         val dataDefinitionBuilder = DataDefinitionBuilder(
             listenerDefinitionBuilder,
-            mock<ValidationBuilder> {}
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
         )
 
         // Act
@@ -177,7 +182,8 @@ class DataDefinitionBuilderTest {
     ): Data<TProp> {
         val dataDefinitionBuilder = DataDefinitionBuilder(
             listenerDefinitionBuilder,
-            mock<ValidationBuilder> {}
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
         )
         val step = mock<Step> {}
 

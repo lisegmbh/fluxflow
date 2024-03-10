@@ -121,6 +121,7 @@ class StepActivationServiceTest {
                 ),
                 DataDefinitionBuilder(
                     mock {},
+                    mock {},
                     mock {}
                 ),
                 mock {},

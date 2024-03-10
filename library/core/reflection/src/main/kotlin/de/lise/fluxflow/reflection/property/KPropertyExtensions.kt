@@ -9,3 +9,11 @@ inline fun <reified TAnnotation : Annotation> KProperty1<*, *>.findAnnotationEve
         ?: this.getter.findAnnotation()
         ?: this.javaField?.getAnnotation(TAnnotation::class.java)
 }
+
+fun KProperty1<*, *>.findAnnotationsEverywhere(): List<Annotation> {
+    return listOfNotNull(
+        this.annotations,
+        this.getter.annotations,
+        this.javaField?.annotations?.toList()
+    ).flatten()
+}

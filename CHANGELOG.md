@@ -17,6 +17,9 @@ Jobs and job definitions now support adding metadata using annotations.
 3. **Step data modification policy**<br />
 A step data modification policy can be used to control the modification behaviour on inactive steps. The policy can be accessed by the step data definition.
 [Issue #90](https://github.com/lisegmbh/fluxflow/issues/90)
+4. **Step data metadata**<br />
+Step data can now also be annotated with metadata.
+   The metadata can be accessed via the step data definition. [Issue #50](https://github.com/lisegmbh/fluxflow/issues/50)
 
 ### Changed
 1. Harmonized Spring Boot dependencies.

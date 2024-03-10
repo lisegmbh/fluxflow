@@ -1,8 +1,7 @@
 package de.lise.fluxflow.stereotyped.metadata
 
 import de.lise.fluxflow.reflection.property.findAnnotationEverywhere
-import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
-import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
+import de.lise.fluxflow.reflection.property.findAnnotationsEverywhere
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty1
@@ -15,7 +14,8 @@ import kotlin.reflect.full.memberProperties
  */
 class MetadataBuilder(
     private val typeMetadataCache: MutableMap<KClass<*>, Map<String, Any>> = mutableMapOf(),
-    private val functionMetadataCache: MutableMap<KFunction<*>, Map<String, Any>> = mutableMapOf()
+    private val functionMetadataCache: MutableMap<KFunction<*>, Map<String, Any>> = mutableMapOf(),
+    private val propMetadataCache: MutableMap<KProperty1<*, *>, Map<String, Any>> = mutableMapOf()
 ) {
     /**
      * Builds the metadata map based on the annotations that are present on the supplied [type].
@@ -40,13 +40,23 @@ class MetadataBuilder(
             createMetadata(function)
         }
     }
-    
+
+    fun build(prop: KProperty1<*, *>): Map<String, Any> {
+        return propMetadataCache.getOrPut(prop) {
+            createMetadata(prop)
+        }
+    }
+
+    private fun createMetadata(prop: KProperty1<*, *>): Map<String, Any> {
+        return prop.findAnnotationsEverywhere()
+            .filter { !isIgnoredAnnotation(it) }
+            .flatMap { toMetadata(it).entries }
+            .associate { it.key to it.value }
+    }
+
     private fun createMetadata(function: KFunction<*>): Map<String, Any> {
         return function.annotations
-            .filter { 
-                !AutomationDefinitionBuilder.isAutomationAnnotation(it)
-                        && !ActionDefinitionBuilder.isActionAnnotation(it)
-            }
+            .filter { !isIgnoredAnnotation(it) }
             .flatMap { toMetadata(it).entries }
             .associate { it.key to it.value }
     }
@@ -59,10 +69,7 @@ class MetadataBuilder(
 
     private fun <T : Any> createMetadata(type: KClass<T>): Map<String, Any> {
         return type.annotations
-            .filter {
-                // The Step annotation should not be treated as metadata
-                !isIgnoredAnnotation(it)
-            }
+            .filter { !isIgnoredAnnotation(it) }
             .flatMap { toMetadata(it).entries }
             .associate { it.key to it.value }
     }
