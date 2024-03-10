@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Fixed
+### Removed
+
+## [0.1.0] - 2024-03-10
+### Added
 1. **Model listeners**<br/>
 A model listener can be used to act upon changes to a workflow's model.
 Similar to data listeners,

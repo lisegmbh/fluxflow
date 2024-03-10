@@ -74,13 +74,13 @@ class CreateVacationRequestStep(
 ```kotlin
 dependencies {
   // Base dependencies
-  implementation("de.lise.fluxflow:springboot:0.0.1")
+  implementation("de.lise.fluxflow:springboot:0.1.0")
   
   // Persistence options
   // a) In-Memory: no persistence between executions; can be used for testing or experiments 
-  implementation("de.lise.fluxflow:springboot-in-memory-persistence:0.0.1")
+  implementation("de.lise.fluxflow:springboot-in-memory-persistence:0.1.0")
   // b) MongoDB
-  implementation("de.lise.fluxflow:mongo:0.0.1")
+  implementation("de.lise.fluxflow:mongo:0.1.0")
   
   // ... your other Spring Boot dependencies
   // e.g. implementation("org.springframework.boot:spring-boot-starter-web")
