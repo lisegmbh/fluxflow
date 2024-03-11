@@ -1,9 +1,8 @@
-# <img src="docs/assets/condensed-400.png" width="200" alt="FluxFlow">
+# <img src="docs/assets/condensed-400.png" width="170" alt="FluxFlow"> <br /> FluxFlow
 
 [![Maven Central](https://img.shields.io/maven-central/v/de.lise.fluxflow/springboot.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22de.lise.fluxflow%22%20AND%20a:%22springboot%22)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) 
-[![Build Status](https://build.lise.de/buildStatus/icon?job=Hessen+Mobil%2Ffluxflow%2Fdevelop)](https://build.lise.de/job/Hessen%20Mobil/job/fluxflow/job/develop/) 
-
+[![Build Status](https://build.lise.de/buildStatus/icon?job=Hessen+Mobil%2Ffluxflow%2Fdevelop)](https://build.lise.de/job/Hessen%20Mobil/job/fluxflow/job/develop/)
 
 A flexible workflow engine that helps to create and orchestrate business processes using domain code.
 The fundamental idea behind FluxFlow is to provide a "lightweight"
@@ -20,7 +19,6 @@ the logic isn't spread across various (hard to test) artifacts like *.bpmn files
 FluxFlow works best with Spring Boot, providing dependency injection and support for persistence.
 Nevertheless,
 the core functionality doesn't depend on Spring and might also be used standalone or with any another framework.
-
 
 ## Quick links
 - [💡 Getting started](https://docs.fluxflow.cloud/en/latest/getting-started/getting-started/)
