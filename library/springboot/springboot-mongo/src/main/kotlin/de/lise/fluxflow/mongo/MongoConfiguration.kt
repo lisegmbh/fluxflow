@@ -8,12 +8,15 @@ import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersis
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
 import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
+import de.lise.fluxflow.mongo.migration.MigrationMongoPersistence
+import de.lise.fluxflow.mongo.migration.MigrationRepository
 import de.lise.fluxflow.mongo.step.StepMongoPersistence
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistence
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -53,6 +56,17 @@ open class MongoConfiguration {
     ): JobPersistence {
         return JobMongoPersistence(
             jobRepository
+        )
+    }
+
+    @Bean
+    open fun migrationPersistence(
+        migrationRepository: MigrationRepository,
+        mongoTemplate: MongoTemplate
+    ): MigrationPersistence {
+        return MigrationMongoPersistence(
+            migrationRepository,
+            mongoTemplate
         )
     }
     
