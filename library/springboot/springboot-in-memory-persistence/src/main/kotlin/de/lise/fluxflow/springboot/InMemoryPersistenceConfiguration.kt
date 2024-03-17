@@ -1,5 +1,6 @@
 package de.lise.fluxflow.springboot
 
+import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
@@ -7,8 +8,9 @@ import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.test.persistence.TestIdGenerator
 import de.lise.fluxflow.test.persistence.continuation.history.ContinuationRecordTestPersistence
-import de.lise.fluxflow.test.persistence.migration.MigrationTestPersistence
 import de.lise.fluxflow.test.persistence.job.JobTestPersistence
+import de.lise.fluxflow.test.persistence.migration.InMemoryMigrationProvider
+import de.lise.fluxflow.test.persistence.migration.MigrationTestPersistence
 import de.lise.fluxflow.test.persistence.step.StepTestPersistence
 import de.lise.fluxflow.test.persistence.workflow.WorkflowTestPersistence
 import org.springframework.context.annotation.Bean
@@ -54,5 +56,10 @@ open class InMemoryPersistenceConfiguration {
         idGenerator: TestIdGenerator
     ): MigrationPersistence {
         return MigrationTestPersistence(idGenerator)
+    }
+
+    @Bean
+    open fun inMemoryMigrationProvider(): MigrationProvider {
+        return InMemoryMigrationProvider()
     }
 }
