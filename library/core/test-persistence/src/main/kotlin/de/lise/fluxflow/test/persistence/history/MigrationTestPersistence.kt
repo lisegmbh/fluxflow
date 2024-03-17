@@ -22,4 +22,8 @@ class MigrationTestPersistence(
         entities[migrationToPersist.id!!] = migrationToPersist
         return migrationToPersist
     }
+
+    override fun find(key: String): MigrationData? {
+        return entities.values.firstOrNull { it.key == key }
+    }
 }
