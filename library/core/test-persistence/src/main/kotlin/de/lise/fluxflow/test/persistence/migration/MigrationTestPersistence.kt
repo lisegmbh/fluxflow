@@ -1,4 +1,4 @@
-package de.lise.fluxflow.test.persistence.history
+package de.lise.fluxflow.test.persistence.migration
 
 import de.lise.fluxflow.persistence.migration.DuplicateMigrationException
 import de.lise.fluxflow.persistence.migration.MigrationData
