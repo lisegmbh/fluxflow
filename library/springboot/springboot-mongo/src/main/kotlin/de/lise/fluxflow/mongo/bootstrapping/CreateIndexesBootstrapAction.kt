@@ -1,10 +1,10 @@
 package de.lise.fluxflow.mongo.bootstrapping
 
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
+import de.lise.fluxflow.mongo.migration.MigrationDocument
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import org.springframework.data.mongodb.core.MongoTemplate
-
 
 class CreateIndexesBootstrapAction(
     mongoTemplate: MongoTemplate
@@ -50,6 +50,12 @@ class CreateIndexesBootstrapAction(
             "idx_continuation_record_target",
             false,
             ContinuationRecordDocument::targetObject
+        )
+
+        ensureIndex<MigrationDocument>(
+            "idx_migration_key",
+            true,
+            MigrationDocument::key
         )
     }
 }
