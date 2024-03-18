@@ -12,10 +12,8 @@ import kotlin.reflect.KClass
 open class TypeRenameMigration(
     val originalName: String,
     val newName: String,
+    override val key: MigrationKey = MigrationKey("rename-${originalName}-to-${newName}")
 ) : Migration {
-    override val key: MigrationKey
-        get() = MigrationKey("rename-${originalName}-to-${newName}")
-
     /**
      * Creates a new [TypeRenameMigration].
      * @param originalName the original name as used before applying the migration.
