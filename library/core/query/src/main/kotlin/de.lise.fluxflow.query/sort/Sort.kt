@@ -39,6 +39,22 @@ interface Sort<TModel> {
         ): Sort<TObject> {
             return PropertySort(property, sortForProperty)
         }
+
+        /**
+         * Creates a new [Sort] for a nullable property of a model.
+         * @param property The property to sort for.
+         * @param sortForProperty The sort for the property.
+         * @return A new [Sort] for the nullable property of the model with the given sort.
+         */
+        fun <TObject, TProperty> nullableProperty(
+            property: KProperty1<TObject, TProperty?>,
+            sortForProperty: Sort<TProperty>
+        ): Sort<TObject> {
+            return PropertySort(
+                property as KProperty1<TObject, TProperty>,
+                sortForProperty
+            )
+        }
     }
 }
 
