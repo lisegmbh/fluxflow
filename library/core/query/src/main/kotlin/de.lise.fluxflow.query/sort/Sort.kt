@@ -7,11 +7,6 @@ import kotlin.reflect.KProperty1
  * @param TModel The type of the model to sort.
  */
 interface Sort<TModel> {
-    /**
-     * The direction of the sort.
-     */
-    val direction: Direction
-
     companion object {
         /**
          * @return A new [Sort] with the direction [Direction.Ascending].
@@ -57,4 +52,3 @@ interface Sort<TModel> {
         }
     }
 }
-
