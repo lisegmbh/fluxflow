@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+1. **Optional sort property**<br/>
+   Enhanced Sort Functionality to Handle Nullable Properties. The Sort interface now includes a nullableProperty function that allows nullable properties to be used for sorting. [Issue #135](https://github.com/lisegmbh/fluxflow/issues/135)
+
 ### Changed
 ### Deprecated
 ### Fixed
