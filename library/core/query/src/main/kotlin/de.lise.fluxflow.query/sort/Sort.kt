@@ -7,6 +7,16 @@ import kotlin.reflect.KProperty1
  * @param TModel The type of the model to sort.
  */
 interface Sort<TModel> {
+    /**
+     * The direction of the sort.
+     */
+    @Deprecated("Will be removed from the general interface as it is irrelevant for some implementations.")
+    val direction: Direction
+        get() {
+            return Direction.Ascending
+        }
+
+
     companion object {
         /**
          * @return A new [Sort] with the direction [Direction.Ascending].
@@ -74,5 +84,5 @@ interface Sort<TModel> {
  * @see Sort.ofType
  */
 fun <TGeneral, TSpecific : TGeneral> Sort<TSpecific>.assume(): Sort<TGeneral> {
-    return OfTypeSort<TGeneral, TSpecific>(this)
+    return OfTypeSort(this)
 }
