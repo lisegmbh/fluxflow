@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.step
 
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.mongo.generic.TypeSpec
+import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.generic.toGenericMap
 import de.lise.fluxflow.mongo.generic.toTypeSafeData
 import de.lise.fluxflow.mongo.generic.withData
@@ -16,8 +17,11 @@ data class StepDocument(
     val workflowId: String,
     val kind: String,
     val version: String?,
+    @Deprecated("Use .dataEntries")
     val data: Map<String, Any?>,
+    @Deprecated("Use .dataEntries")
     val dataTypeMap: Map<String, TypeSpec>,
+    val dataEntries: TypedRecords<Any?>?,
     val metadata: Map<String, Any>,
     val metadataTypeMap: Map<String, TypeSpec>,
     val status: Status
@@ -41,13 +45,15 @@ data class StepDocument(
         version,
         data,
         data.toGenericMap().mapValues { it.value.spec },
+        TypedRecords.fromData(data),
         metadata,
         metadata.toGenericMap().mapValues { it.value.spec },
         status
     )
 
     private val typeSafeData: Map<String, Any?>
-        get() = dataTypeMap.withData(data).toTypeSafeData()
+        get() = dataEntries?.toTypeSafeData() ?:
+            dataTypeMap.withData(data).toTypeSafeData()
 
     private val typeSafeMetadata: Map<String, Any>
         get() = metadataTypeMap.withData(metadata).toTypeSafeData()
