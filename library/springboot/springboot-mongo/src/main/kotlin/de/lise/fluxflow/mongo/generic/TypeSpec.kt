@@ -1,8 +1,11 @@
 package de.lise.fluxflow.mongo.generic
 
+import de.lise.fluxflow.mongo.generic.record.RecordContext
+import de.lise.fluxflow.mongo.generic.record.TypeRecord
+
 interface TypeSpec {
     fun assertType(value: Any?): Any?
-
+    fun toRecord(context: RecordContext): TypeRecord
     companion object {
         fun fromValue(value: Any?): TypeSpec {
             if (value == null) {
