@@ -1,9 +1,6 @@
 package de.lise.fluxflow.query.inmemory.sort
 
-import de.lise.fluxflow.query.sort.DefaultSort
-import de.lise.fluxflow.query.sort.PropertySort
-import de.lise.fluxflow.query.sort.Sort
-import de.lise.fluxflow.query.sort.UnsupportedSortException
+import de.lise.fluxflow.query.sort.*
 
 interface InMemorySort<TModel> {
     fun toComparator(): Comparator<TModel>
@@ -17,7 +14,7 @@ interface InMemorySort<TModel> {
                     sort.property,
                     toTestSort(sort.sortForProperty) as InMemorySort<Any?>
                 )
-
+                is OfTypeSort<TModel, *> -> toTestSort(sort.sort) as InMemorySort<TModel>
                 else -> throw UnsupportedSortException(sort)
             }
         }
