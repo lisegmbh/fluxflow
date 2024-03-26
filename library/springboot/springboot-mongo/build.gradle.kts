@@ -10,4 +10,5 @@ dependencies {
     implementation(project(":core:api"))
     implementation(project(":core:persistence"))
     implementation(project(":core:reflection"))
+    implementation(project(":core:migration"))
 }

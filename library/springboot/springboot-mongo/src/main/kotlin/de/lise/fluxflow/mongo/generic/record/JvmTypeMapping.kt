@@ -3,7 +3,7 @@ package de.lise.fluxflow.mongo.generic.record
 import java.util.*
 
 data class JvmTypeMapping(
-    val entries: MutableMap<String, String>
+    val entries: MutableMap<String, String> = emptyMap<String, String>().toMutableMap()
 ) : RecordContext {
     override fun registerType(typeName: TypeName): TypeReference {
         return entries.computeIfAbsent(typeName.value) {
