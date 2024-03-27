@@ -22,8 +22,11 @@ data class StepDocument(
     @Deprecated("Use .dataEntries")
     val dataTypeMap: Map<String, TypeSpec>,
     val dataEntries: TypedRecords<Any?>?,
+    @Deprecated("Use .metadataEntries")
     val metadata: Map<String, Any>,
+    @Deprecated("Use .metadataEntries")
     val metadataTypeMap: Map<String, TypeSpec>,
+    val metadataEntries: TypedRecords<Any>?,
     val status: Status
 ) {
     /**
@@ -38,7 +41,7 @@ data class StepDocument(
         data: Map<String, Any?>,
         metadata: Map<String, Any>,
         status: Status
-    ): this(
+    ) : this(
         id,
         workflowId,
         kind,
@@ -48,17 +51,20 @@ data class StepDocument(
         TypedRecords.fromData(data),
         metadata,
         metadata.toGenericMap().mapValues { it.value.spec },
+        TypedRecords.fromData(metadata),
         status
     )
 
     private val typeSafeData: Map<String, Any?>
-        get() = dataEntries?.toTypeSafeData() ?:
-            dataTypeMap.withData(data).toTypeSafeData()
+        get() = dataEntries?.toTypeSafeData()
+            ?: dataTypeMap.withData(data).toTypeSafeData()
 
     private val typeSafeMetadata: Map<String, Any>
-        get() = metadataTypeMap.withData(metadata).toTypeSafeData()
-            .filterValues { it != null }
-            .mapValues { it.value!! }
+        get() = metadataEntries?.toTypeSafeData()
+            ?: metadataTypeMap
+                .withData(metadata)
+                .toTypeSafeData()
+                .mapValues { it.value!! }
 
     fun toStepData(): StepData {
         return StepData(
