@@ -13,7 +13,10 @@ data class TypedRecords<TValue>(
         return types.mapValues { it.value.toTypeSpec(jvmTypes) }
             .withData(values)
             .toTypeSafeData()
-            .mapValues { it as TValue }
+            .mapValues {
+                @Suppress("UNCHECKED_CAST")
+                it.value as TValue
+            }
     }
 
     companion object {

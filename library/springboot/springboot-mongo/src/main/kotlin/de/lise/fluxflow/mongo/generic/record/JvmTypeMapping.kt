@@ -3,23 +3,35 @@ package de.lise.fluxflow.mongo.generic.record
 import java.util.*
 
 data class JvmTypeMapping(
-    val entries: MutableMap<String, String> = emptyMap<String, String>().toMutableMap()
+    val entries: MutableList<TypeRecordEntry> = mutableListOf()
 ) : RecordContext {
     override fun registerType(typeName: TypeName): TypeReference {
-        return entries.computeIfAbsent(typeName.value) {
-            synchronized(entries) {
-                var reference: String
-                do {
-                    reference = UUID.randomUUID().toString()
-                } while (entries.any { it.value == reference })
-                reference
+        synchronized(entries) {
+            val existing = entries.firstOrNull { it.type == typeName.value }
+            if (existing != null) {
+                return TypeReference(existing.reference)
             }
-        }.let { TypeReference(it) }
+
+            var reference: String
+            do {
+                reference = UUID.randomUUID().toString()
+            } while (entries.any { it.reference == reference })
+
+            entries.add(
+                TypeRecordEntry(
+                    typeName.value,
+                    reference
+                )
+            )
+            return TypeReference(reference)
+        }
     }
 
     override fun getType(reference: TypeReference): TypeName {
-        return entries.entries.first {
-            it.value == reference.value
-        }.let { TypeName(it.key) }
+        return entries.first {
+            it.reference == reference.value
+        }.let {
+            TypeName(it.type)
+        }
     }
 }
