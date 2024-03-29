@@ -421,7 +421,6 @@ open class BasicConfiguration {
             jobService,
             continuationHistoryService,
             workflowStarterService,
-            workflowService,
             workflowUpdateService,
             workflowRemovalService
         )

@@ -15,7 +15,6 @@ import de.lise.fluxflow.api.workflow.continuation.WorkflowContinuation
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
 import de.lise.fluxflow.engine.step.StepActivationService
 import de.lise.fluxflow.engine.step.StepServiceImpl
-import de.lise.fluxflow.engine.workflow.WorkflowQueryServiceImpl
 import de.lise.fluxflow.engine.workflow.WorkflowRemovalServiceImpl
 
 open class ContinuationService(
@@ -24,7 +23,6 @@ open class ContinuationService(
     private val jobService: JobService,
     private val continuationHistoryService: ContinuationHistoryServiceImpl,
     private val workflowStarterService: WorkflowStarterService,
-    private val workflowService: WorkflowQueryServiceImpl,
     private val workflowUpdateService: WorkflowUpdateService,
     private val workflowRemovalServiceImpl: WorkflowRemovalServiceImpl
 ) {
