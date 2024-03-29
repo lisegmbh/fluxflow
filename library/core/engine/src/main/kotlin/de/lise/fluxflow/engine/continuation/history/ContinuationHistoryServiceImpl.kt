@@ -72,4 +72,8 @@ class ContinuationHistoryServiceImpl(
 
         return stepService.findStep(currentStep.workflow, StepIdentifier(ref.originatingObject!!.objectId))
     }
+
+    override fun deleteAllForWorkflow(identifierToDelete: WorkflowIdentifier) {
+        continuationRecordPersistence.deleteAllForWorkflow(identifierToDelete)
+    }
 }

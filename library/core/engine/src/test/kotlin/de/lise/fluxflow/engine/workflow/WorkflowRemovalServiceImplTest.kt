@@ -1,5 +1,6 @@
 package de.lise.fluxflow.engine.workflow
 
+import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowEvent
 import de.lise.fluxflow.api.workflow.Workflow
@@ -98,7 +99,8 @@ class WorkflowRemovalServiceImplTest {
         jobService: JobServiceImpl = mock<JobServiceImpl>(),
         activationService: WorkflowActivationService = mock<WorkflowActivationService> {
             on { activate<Any?>(any()) } doReturn mock<Workflow<Any?>> {}
-        }
+        },
+        continuationHistoryService: ContinuationHistoryService = mock<ContinuationHistoryService>(),
     ): WorkflowRemovalServiceImpl {
         return WorkflowRemovalServiceImpl(
             workflowPersistence,
@@ -106,6 +108,7 @@ class WorkflowRemovalServiceImplTest {
             stepService,
             jobService,
             eventService,
+            continuationHistoryService,
         )
     }
 

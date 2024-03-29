@@ -1,6 +1,7 @@
 package de.lise.fluxflow.springboot.configuration
 
 import de.lise.fluxflow.api.bootstrapping.BootstrapAction
+import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
@@ -178,14 +179,16 @@ open class BasicConfiguration {
         activationService: WorkflowActivationService,
         stepService: StepServiceImpl,
         jobService: JobServiceImpl,
-        eventService: EventService
+        eventService: EventService,
+        continuationHistoryService: ContinuationHistoryService,
     ): WorkflowRemovalServiceImpl {
         return WorkflowRemovalServiceImpl(
             persistence,
             activationService,
             stepService,
             jobService,
-            eventService
+            eventService,
+            continuationHistoryService,
         )
     }
 

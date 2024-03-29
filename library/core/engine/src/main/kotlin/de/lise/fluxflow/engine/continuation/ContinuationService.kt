@@ -118,7 +118,8 @@ open class ContinuationService(
     ): ContinuationCommit {
         if (continuation.forkBehavior == ForkBehavior.Replace) {
             val oldId = workflow.identifier
-            workflowRemovalServiceImpl.removeSilently(oldId)
+
+            workflowRemovalServiceImpl.removeSilently(oldId, continuation.replacementScope)
             workflowStarterService.start(
                 continuation.model,
                 continuation.initialWorkflowContinuation,

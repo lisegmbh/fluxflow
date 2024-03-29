@@ -1,5 +1,6 @@
 package de.lise.fluxflow.test.persistence.continuation.history
 
+import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.continuation.history.query.ContinuationRecordDataQuery
@@ -45,5 +46,13 @@ class ContinuationRecordTestPersistence(
             allResults,
             query.page
         )
+    }
+
+    override fun deleteAllForWorkflow(identifierToDelete: WorkflowIdentifier) {
+        persistence.all().filter {
+            it.workflowId == identifierToDelete.value
+        }.forEach {
+            persistence.remove(it.id!!)
+        }
     }
 }
