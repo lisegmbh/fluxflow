@@ -7,6 +7,7 @@ import de.lise.fluxflow.api.step.continuation.StepContinuation
 import de.lise.fluxflow.api.validation.ValidationBehavior
 import de.lise.fluxflow.api.workflow.continuation.ForkBehavior
 import de.lise.fluxflow.api.workflow.continuation.WorkflowContinuation
+import de.lise.fluxflow.api.workflow.WorkflowElement
 import java.time.Instant
 import kotlin.reflect.KClass
 
@@ -176,7 +177,8 @@ interface Continuation<out T> {
         fun <TWorkflowModel, TContinuation> workflow(
             workflowModel: TWorkflowModel,
             initialWorkflowContinuation: Continuation<TContinuation>,
-            forkBehavior: ForkBehavior = ForkBehavior.Fork
+            forkBehavior: ForkBehavior = ForkBehavior.Fork,
+            replacementScope: Set<WorkflowElement> = emptySet()
         ): WorkflowContinuation<TWorkflowModel, TContinuation> {
             return WorkflowContinuation(
                 initialWorkflowContinuation,
@@ -184,7 +186,8 @@ interface Continuation<out T> {
                 StatusBehavior.Complete,
                 ValidationBehavior.Default,
                 forkBehavior,
-                validationGroups = emptySet()
+                validationGroups = emptySet(),
+                replacementScope
             )
         }
     }
