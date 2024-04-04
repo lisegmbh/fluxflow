@@ -975,7 +975,7 @@ No WorkflowDeletedEvent will be emitted.
 Additionally, the replacement scope can be set. 
 The scope defines which workflow elements will be replaced.
 By default, no workflow elements will be replaced.
-The scope can be set using the `withReplaceScope` function or the `replaceScope` parameter of the `Continuation.workflow` function.
+The scope can be set using the `withReplacementScope` function or the `replaceScope` parameter of the `Continuation.workflow` function.
 
 The following scopes are available:
 
