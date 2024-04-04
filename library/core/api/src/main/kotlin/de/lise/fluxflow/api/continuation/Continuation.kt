@@ -1,5 +1,6 @@
 package de.lise.fluxflow.api.continuation
 
+import de.lise.fluxflow.api.WorkflowObjectKind
 import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.continuation.JobCancellationContinuation
 import de.lise.fluxflow.api.job.continuation.JobContinuation
@@ -7,7 +8,6 @@ import de.lise.fluxflow.api.step.continuation.StepContinuation
 import de.lise.fluxflow.api.validation.ValidationBehavior
 import de.lise.fluxflow.api.workflow.continuation.ForkBehavior
 import de.lise.fluxflow.api.workflow.continuation.WorkflowContinuation
-import de.lise.fluxflow.api.workflow.WorkflowElement
 import java.time.Instant
 import kotlin.reflect.KClass
 
@@ -178,7 +178,7 @@ interface Continuation<out T> {
             workflowModel: TWorkflowModel,
             initialWorkflowContinuation: Continuation<TContinuation>,
             forkBehavior: ForkBehavior = ForkBehavior.Fork,
-            replacementScope: Set<WorkflowElement> = emptySet()
+            replacementScope: Set<WorkflowObjectKind> = emptySet()
         ): WorkflowContinuation<TWorkflowModel, TContinuation> {
             return WorkflowContinuation(
                 initialWorkflowContinuation,

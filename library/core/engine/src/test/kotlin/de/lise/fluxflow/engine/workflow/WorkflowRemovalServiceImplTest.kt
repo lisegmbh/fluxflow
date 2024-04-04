@@ -1,10 +1,10 @@
 package de.lise.fluxflow.engine.workflow
 
+import de.lise.fluxflow.api.WorkflowObjectKind
 import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowEvent
 import de.lise.fluxflow.api.workflow.Workflow
-import de.lise.fluxflow.api.workflow.WorkflowElement
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
 import de.lise.fluxflow.engine.event.workflow.WorkflowDeletedEvent
@@ -130,7 +130,7 @@ class WorkflowRemovalServiceImplTest {
         // Act
         workflowService.removeSilently(
             workflowIdentifier,
-            WorkflowElement.entries.toSet(),
+            WorkflowObjectKind.entries.toSet(),
         )
 
         // Assert

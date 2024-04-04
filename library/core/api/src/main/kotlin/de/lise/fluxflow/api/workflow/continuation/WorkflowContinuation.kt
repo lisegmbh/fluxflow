@@ -1,10 +1,10 @@
 package de.lise.fluxflow.api.workflow.continuation
 
+import de.lise.fluxflow.api.WorkflowObjectKind
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.continuation.ContinuationType
 import de.lise.fluxflow.api.continuation.StatusBehavior
 import de.lise.fluxflow.api.validation.ValidationBehavior
-import de.lise.fluxflow.api.workflow.WorkflowElement
 import kotlin.reflect.KClass
 
 data class WorkflowContinuation<TWorkflowModel, out TContinuation>(
@@ -17,7 +17,7 @@ data class WorkflowContinuation<TWorkflowModel, out TContinuation>(
     /**
      * The scope of the workflow elements that should be replaced by this continuation when the fork behavior is set to [ForkBehavior.Replace].
      */
-    val replacementScope: Set<WorkflowElement> = emptySet()
+    val replacementScope: Set<WorkflowObjectKind> = emptySet()
 ): Continuation<TWorkflowModel> {
     override val type: ContinuationType = ContinuationType.Workflow
     
@@ -39,7 +39,7 @@ data class WorkflowContinuation<TWorkflowModel, out TContinuation>(
         )
     }
 
-    fun withReplacementScope(replacementScope: Set<WorkflowElement>): WorkflowContinuation<TWorkflowModel, TContinuation> {
+    fun withReplacementScope(replacementScope: Set<WorkflowObjectKind>): WorkflowContinuation<TWorkflowModel, TContinuation> {
         return this.copy(
             replacementScope = replacementScope
         )
