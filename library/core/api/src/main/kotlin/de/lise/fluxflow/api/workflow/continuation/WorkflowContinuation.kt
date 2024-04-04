@@ -45,6 +45,12 @@ data class WorkflowContinuation<TWorkflowModel, out TContinuation>(
         )
     }
 
+    fun withReplacementScope(vararg replacementScope: WorkflowObjectKind): WorkflowContinuation<TWorkflowModel, TContinuation> {
+        return this.copy(
+            replacementScope = replacementScope.toSet()
+        )
+    }
+
     override fun withValidationGroups(groups: Set<KClass<*>>): Continuation<TWorkflowModel> {
         return this.copy(
             validationGroups = groups
