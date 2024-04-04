@@ -942,7 +942,7 @@ the new workflow started or replaced, depending on the specified `ForkBehavior`.
 
 ##### Fork behavior
 
-By default, the current workflow is continued normally (`Forkbehaviour.Fork`). The other options are to remove the current workflow (`ForkBehavior.Remove`) or to replace it with the new one (`ForkBehavior.Replace`). This can either
+By default, the current workflow is continued normally (`ForkBehavior.Fork`). The other options are to remove the current workflow (`ForkBehavior.Remove`) or to replace it with the new one (`ForkBehavior.Replace`). This can either
 be specified explicitly or changed, using on of the following methods.
 
     fun submit(): Continuation<*> {
