@@ -1,5 +1,7 @@
 package de.lise.fluxflow.engine.workflow
 
+import de.lise.fluxflow.api.WorkflowObjectKind
+import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowEvent
 import de.lise.fluxflow.api.workflow.Workflow
@@ -91,6 +93,52 @@ class WorkflowRemovalServiceImplTest {
         verify(jobServiceMock).deleteAllForWorkflow(workflowIdentifier)
     }
 
+    @Test
+    fun `removeSilently should delete the workflow without publishing a WorkflowDeletedEvent`() {
+        // Arrange
+        val workflowIdentifier = WorkflowIdentifier("workflowIdentifier")
+        val workflowPersistenceMock = workflowPersistenceMockForIdentifier(workflowIdentifier)
+        val eventServiceMock = mock<EventService>()
+        val workflowService = mockWorkflowService(
+            workflowPersistence = workflowPersistenceMock,
+            eventService = eventServiceMock,
+        )
+
+        // Act
+        workflowService.removeSilently(workflowIdentifier, emptySet())
+
+        // Assert
+        verify(eventServiceMock, never()).publish(any())
+        verify(workflowPersistenceMock).delete(workflowIdentifier)
+    }
+
+    @Test
+    fun `removeSilently should delete all associated elements based on the removal scope`() {
+        // Arrange
+        val workflowIdentifier = WorkflowIdentifier("workflowIdentifier")
+        val workflowPersistenceMock = workflowPersistenceMockForIdentifier(workflowIdentifier)
+        val stepServiceMock = mock<StepServiceImpl>()
+        val continuationHistoryServiceMock = mock<ContinuationHistoryService>()
+        val jobServiceMock = mock<JobServiceImpl>()
+        val workflowService = mockWorkflowService(
+            workflowPersistence = workflowPersistenceMock,
+            stepService = stepServiceMock,
+            jobService = jobServiceMock,
+            continuationHistoryService = continuationHistoryServiceMock,
+        )
+
+        // Act
+        workflowService.removeSilently(
+            workflowIdentifier,
+            WorkflowObjectKind.entries.toSet(),
+        )
+
+        // Assert
+        verify(stepServiceMock).deleteAllForWorkflow(workflowIdentifier)
+        verify(jobServiceMock).deleteAllForWorkflow(workflowIdentifier)
+        verify(continuationHistoryServiceMock).deleteAllForWorkflow(workflowIdentifier)
+    }
+
     private fun mockWorkflowService(
         workflowPersistence: WorkflowPersistence = mock<WorkflowPersistence>(),
         eventService: EventService = mock<EventService>(),
@@ -98,7 +146,8 @@ class WorkflowRemovalServiceImplTest {
         jobService: JobServiceImpl = mock<JobServiceImpl>(),
         activationService: WorkflowActivationService = mock<WorkflowActivationService> {
             on { activate<Any?>(any()) } doReturn mock<Workflow<Any?>> {}
-        }
+        },
+        continuationHistoryService: ContinuationHistoryService = mock<ContinuationHistoryService>(),
     ): WorkflowRemovalServiceImpl {
         return WorkflowRemovalServiceImpl(
             workflowPersistence,
@@ -106,6 +155,7 @@ class WorkflowRemovalServiceImplTest {
             stepService,
             jobService,
             eventService,
+            continuationHistoryService,
         )
     }
 

@@ -12,5 +12,10 @@ enum class WorkflowObjectKind {
     /**
      * The workflow object is a [de.lise.fluxflow.api.job.Job]. 
      */
-    Job
+    Job,
+
+    /**
+     * The workflow object is a [de.lise.fluxflow.api.continuation.ContinuationRecord].
+     */
+    ContinuationRecord;
 }

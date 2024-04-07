@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Enhanced Sort Functionality to Handle Nullable Properties. The Sort interface now includes a nullableProperty function that allows nullable properties to be used for sorting. [Issue #135](https://github.com/lisegmbh/fluxflow/issues/135)
 
 ### Changed
+1. **Configurable replacement scope for workflow continuations**<br/>
+   The `Continuation.workflow` function now supports a `replacementScope` parameter that defines which workflow elements should be replaced.
+   The default value is an empty scope, which means that only the workflow itself is replaced. 
+
+   Previously, the standard behavior of a workflow replacement continuation was to replace the steps and jobs of the workflow. [Issue #99](https://github.com/lisegmbh/fluxflow/issues/99)
 ### Deprecated
 ### Fixed
 ### Removed

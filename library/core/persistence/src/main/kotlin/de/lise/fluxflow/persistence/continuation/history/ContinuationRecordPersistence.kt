@@ -1,5 +1,6 @@
 package de.lise.fluxflow.persistence.continuation.history
 
+import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.continuation.history.query.ContinuationRecordDataQuery
 import de.lise.fluxflow.query.pagination.Page
 
@@ -12,4 +13,5 @@ interface ContinuationRecordPersistence {
      */
     fun create(continuationRecord: ContinuationRecordData): ContinuationRecordData
     fun findAll(query: ContinuationRecordDataQuery): Page<ContinuationRecordData>
+    fun deleteAllForWorkflow(identifierToDelete: WorkflowIdentifier)
 }

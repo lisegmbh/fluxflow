@@ -1,5 +1,6 @@
 package de.lise.fluxflow.api.continuation
 
+import de.lise.fluxflow.api.WorkflowObjectKind
 import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.continuation.JobCancellationContinuation
 import de.lise.fluxflow.api.job.continuation.JobContinuation
@@ -176,7 +177,8 @@ interface Continuation<out T> {
         fun <TWorkflowModel, TContinuation> workflow(
             workflowModel: TWorkflowModel,
             initialWorkflowContinuation: Continuation<TContinuation>,
-            forkBehavior: ForkBehavior = ForkBehavior.Fork
+            forkBehavior: ForkBehavior = ForkBehavior.Fork,
+            replacementScope: Set<WorkflowObjectKind> = emptySet()
         ): WorkflowContinuation<TWorkflowModel, TContinuation> {
             return WorkflowContinuation(
                 initialWorkflowContinuation,
@@ -184,7 +186,8 @@ interface Continuation<out T> {
                 StatusBehavior.Complete,
                 ValidationBehavior.Default,
                 forkBehavior,
-                validationGroups = emptySet()
+                validationGroups = emptySet(),
+                replacementScope
             )
         }
     }

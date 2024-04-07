@@ -916,8 +916,8 @@ the continuation’s status behavior.
 #### Workflow continuation
 
 A "workflow continuation" can be used to start an entirely new workflow.
-The current workflow can either be continued normally or be removed once
-the new workflow started, depending on the specified `ForkBehavior`.
+The current workflow can either be continued normally, be removed once
+the new workflow started or replaced, depending on the specified `ForkBehavior`.
 
     class SubmitPizzaOrderStep {
         fun submit(): Continuation<*> {
@@ -940,7 +940,9 @@ the new workflow started, depending on the specified `ForkBehavior`.
 -   Starts the `AskForFeedbackStep` within a new workflow having its own
     workflow model (`CustomerFeedback`).
 
-By default, the current workflow is continued normally. This can either
+##### Fork behavior
+
+By default, the current workflow is continued normally (`ForkBehavior.Fork`). The other options are to remove the current workflow (`ForkBehavior.Remove`) or to replace it with the new one (`ForkBehavior.Replace`). This can either
 be specified explicitly or changed, using on of the following methods.
 
     fun submit(): Continuation<*> {
@@ -957,8 +959,49 @@ be specified explicitly or changed, using on of the following methods.
         val explicitRemoveFromBuilder = Continuation.workflow(workflowModel, initialStep)
             .withForkBehavior(ForkBehavior.Remove)
 
+        val exlicitReplace = Continuation.workflow(workflowModel, initialStep, ForkBehavior.Replace)
+        val explicitReplaceFromBuilder = Continuation.workflow(workflowModel, initialStep)
+            .withForkBehavior(ForkBehavior.Replace)
+
         return defaultBehavior
     }
+
+###### Replace
+
+The current workflow will be replaced by the new one. 
+This means that new workflow will get the current workflow's identifier and the current workflow will be removed.
+No WorkflowDeletedEvent will be emitted.
+
+Additionally, the replacement scope can be set. 
+The scope defines which workflow elements will be replaced.
+By default, no workflow elements will be replaced.
+The scope can be set using the `withReplacementScope` function or the `replaceScope` parameter of the `Continuation.workflow` function.
+
+The following scopes are available:
+
+- `WorkflowElement.Step`: All steps of the current workflow will be replaced.
+- `WorkflowElement.Job`: All jobs of the current workflow will be replaced.
+- `WorkflowElement.ContinuationRecord`: All continuation records of the current workflow will be replaced.
+
+```kotlin
+fun submit(): Continuation<*> {
+    val workflowModel = CustomerFeedback()
+    val initialStep = Continuation.step(AskForFeedbackStep(workflowModel))
+
+    val replaceWorkflow = Continuation.workflow(
+        workflowModel,
+        initialStep,
+        ForkBehavior.Replace,
+        setOf(
+            WorkflowElement.Step,
+            WorkflowElement.Job,
+            WorkflowElement.ContinuationRecord,
+        )
+    )
+
+    return replaceWorkflow
+}
+```
 
 ### Non-completing actions
 
