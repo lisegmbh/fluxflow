@@ -4,7 +4,7 @@ dependencies {
     implementation("org.springframework.data:spring-data-mongodb")
     implementation("org.springframework.boot:spring-boot-autoconfigure")
 
-    implementation("org.mongodb:mongodb-driver-sync:5.0.0")
+    implementation("org.mongodb:mongodb-driver-sync:5.0.1")
 
 
     implementation(project(":core:api"))
