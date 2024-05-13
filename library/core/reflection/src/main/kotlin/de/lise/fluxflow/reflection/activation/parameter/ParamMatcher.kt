@@ -1,11 +1,15 @@
 package de.lise.fluxflow.reflection.activation.parameter
 
 import de.lise.fluxflow.reflection.ReflectionUtils
-import de.lise.fluxflow.reflection.toKClass
+import org.apache.commons.lang3.reflect.TypeUtils
 import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
+import kotlin.reflect.KType
+import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSuperclassOf
+import kotlin.reflect.full.isSupertypeOf
+import kotlin.reflect.jvm.javaType
 
 fun interface ParamMatcher {
     fun matches(functionParam: FunctionParameter<*>): Boolean
@@ -56,16 +60,30 @@ fun interface ParamMatcher {
         }
 
         @JvmStatic
+        fun isAssignableFrom(actualType: KType): ParamMatcher {
+            return ParamMatcher {
+                val formalType = it.param.type
+                return@ParamMatcher formalType.isSupertypeOf(actualType)
+            }
+        }
+        
+        
+        @JvmStatic
         fun isAssignableFrom(actualType: KClass<*>): ParamMatcher {
             return ParamMatcher {
                 val formalType = ReflectionUtils.getParameterClass(it.param)?: return@ParamMatcher false
                 return@ParamMatcher formalType.isSuperclassOf(actualType)
             }
+            return isAssignableFrom(actualType.createType())
         }
+        
 
         @JvmStatic
         fun isAssignableFrom(actualType: Type): ParamMatcher {
-            return isAssignableFrom(actualType.toKClass()!!)
+            return ParamMatcher { 
+                val formalType = it.param.type.javaType
+                return@ParamMatcher TypeUtils.isAssignable(actualType, formalType)
+            }
         }
 
         @JvmStatic
