@@ -65,9 +65,8 @@ class JakartaDataValidationBuilder(
         
         return directConstraints + nestedValidationConstraints
     }
-    
-    
-    override fun <TInstance : Any, TProp : Any> buildValidations(
+
+    override fun <TInstance : Any, TProp : Any?> buildValidations(
         dataKind: DataKind,
         instanceType: KClass<out TInstance>,
         prop: KProperty1<TInstance, TProp>,
