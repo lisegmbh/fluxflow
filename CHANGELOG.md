@@ -18,7 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Previously, the standard behavior of a workflow replacement continuation was to replace the steps and jobs of the workflow. [Issue #99](https://github.com/lisegmbh/fluxflow/issues/99)
 ### Deprecated
 ### Fixed
+1. **NPE within ParamMatcher.isAssignable**<br/>
+   The `NullPointerException` that has been thrown within
+   `ParamMatcher.isAssignable` when passing in a generic type has been fixed.
+   [Issue #158](https://github.com/lisegmbh/fluxflow/issues/158)
 ### Removed
+1. Removed the unused `Type.toKClass()` extension function from `de.lise.fluxflow.reflection`.
 
 ## [0.1.0] - 2024-03-10
 ### Added
