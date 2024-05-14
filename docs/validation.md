@@ -1,12 +1,13 @@
+# Validation
 FluxFlow allows data validation using the standard Jakarta Bean
 Validation (formerly `javax.validation`).
 
-# Getting started
+## Getting started
 
 Validation must be enabled separately by providing an implementation for
 the `jakarta.validation.Validator`.
 
-## Adding a Bean Validation implementation
+### Adding a Bean Validation implementation
 
 If you don’t already have a compatible implementation on your class
 path, you need to add it. In order to do so, you would usually declare
@@ -26,7 +27,7 @@ available.
 -   Be sure to set the desired
     [version](https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator)
 
-## Register the validator
+### Register the validator
 
 In order for FluxFlow to pick up the Bean Validator, you need to
 register it to the dependency injection container. When using Spring,
@@ -48,7 +49,8 @@ within a `@Configuration`.
         }
     }
 
-# Adding validation constraints
+
+## Adding validation constraints
 
 Validation is currently supported for step data. To define new
 validation constraints, the regular Jakarta annotations are used. Simply
@@ -93,7 +95,7 @@ to do so will cause a `ValidationConfigurationException` to be thrown.
 If complex step data types (e.g., objects, lists, maps) are used, the
 `@Valid` annotation must be applied to the step data property.
 
-# Executing validation
+## Executing validation
 
 During a workflow’s execution, there are two times when validation rules
 can be evaluated.
@@ -105,7 +107,7 @@ can be evaluated.
 You may control the actual behavior using global settings, the `@Action`
 annotation or the returned continuation.
 
-## Default validation behavior
+### Default validation behavior
 
 By default, FluxFlow will apply the following validation behavior.
 
@@ -118,7 +120,7 @@ These defaults make sure that an action does not operate on invalid data
 and does not itself invalidate them right before a step will become
 completed.
 
-## Skip default validation before actions
+### Skip default validation before actions
 
 You can set the `fluxflow.action.validate-before` application setting to
 `false` (e.g. within your application.yml). This will effectively
@@ -129,7 +131,7 @@ If you do not specify this setting yourself, `true` will be assumed.
 The global setting will not affect actions, which explicitly specify a
 custom validation behavior.
 
-## Skip or force validation before specific actions
+### Skip or force validation before specific actions
 
 The validation that is done before an action is invoked, can also be set
 explicitly using the `@Action` annotation.
@@ -176,7 +178,7 @@ invoked**
 -   Use the default behavior, which is controlled by the [global
     setting](#validation_execution_global_setting).
 
-## Skip or force validation after specific actions
+### Skip or force validation after specific actions
 
 Similar to the [pre-execution validation](#validation_execution_before),
 post-execution behavior can be customized as well. This is done by
@@ -226,7 +228,7 @@ applying a custom validation behavior to the returned continuation
     complete the current step. As the step within the example does so, a
     validation error is going to be thrown.
 
-# Catching validation errors
+## Catching validation errors
 
 Whenever a validation fails, a `DataValidationException` will be thrown.
 You may catch this exception and consult the `issues` property regarding
