@@ -1,4 +1,5 @@
 # Validation
+
 FluxFlow allows data validation using the standard Jakarta Bean
 Validation (formerly `javax.validation`).
 
@@ -24,8 +25,8 @@ available.
 
     implementation("org.hibernate.validator:hibernate-validator:<CURRENT VERSION>") // 
 
--   Be sure to set the desired
-    [version](https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator)
+- Be sure to set the desired
+  [version](https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator)
 
 ### Register the validator
 
@@ -48,7 +49,6 @@ within a `@Configuration`.
             return LocalValidatorFactoryBean()
         }
     }
-
 
 ## Adding validation constraints
 
@@ -82,10 +82,10 @@ add them to your data definitions and you are all set.
         // ...
     }
 
--   Can be applied to properties (as long as they have a backing field).
+- Can be applied to properties (as long as they have a backing field).
 
--   If they have custom getter/setters, you must explicitly apply them
-    to the property’s getter.
+- If they have custom getter/setters, you must explicitly apply them
+  to the property’s getter.
 
 Validation annotations are currently only supported on fields and
 getters. If you are using Kotlin’s primary constructor properties, you
@@ -100,9 +100,9 @@ If complex step data types (e.g., objects, lists, maps) are used, the
 During a workflow’s execution, there are two times when validation rules
 can be evaluated.
 
-1.  Before a step action is invoked.
+1. Before a step action is invoked.
 
-2.  After a step action ran.
+2. After a step action ran.
 
 You may control the actual behavior using global settings, the `@Action`
 annotation or the returned continuation.
@@ -111,10 +111,10 @@ annotation or the returned continuation.
 
 By default, FluxFlow will apply the following validation behavior.
 
-1.  Validation is always executed before invoking a step action.
+1. Validation is always executed before invoking a step action.
 
-2.  Validation is done a second time, if the action returns a
-    continuation that is going to complete the step.
+2. Validation is done a second time, if the action returns a
+   continuation that is going to complete the step.
 
 These defaults make sure that an action does not operate on invalid data
 and does not itself invalidate them right before a step will become
@@ -167,16 +167,16 @@ invoked**
 
     }
 
--   This will skip the pre-execution validation, which allows the action
-    to fix the offending data. As the action is going to complete the
-    current step, validation will be run after the action ran.
+- This will skip the pre-execution validation, which allows the action
+  to fix the offending data. As the action is going to complete the
+  current step, validation will be run after the action ran.
 
--   This will force the pre-execution validation to be evaluated -
-    regardless of the [global
-    setting](#validation_execution_global_setting).
+- This will force the pre-execution validation to be evaluated -
+  regardless of the [global
+  setting](#validation_execution_global_setting).
 
--   Use the default behavior, which is controlled by the [global
-    setting](#validation_execution_global_setting).
+- Use the default behavior, which is controlled by the [global
+  setting](#validation_execution_global_setting).
 
 ### Skip or force validation after specific actions
 
@@ -199,37 +199,46 @@ applying a custom validation behavior to the returned continuation
         fun completeAnyway(): Continuation<*> {
             firstname = ""
             return Continuation.none()
-                .withValidationBehavior(ValidationBehavior.AllowInvalid) // 
+                .withValidationBehavior(ValidationBehavior.AllowInvalid) // (1)
         }
 
         @Action
         fun completeStrictly(): Continuation<*> {
             firstname = ""
             return Continuation.none()
-                .withValidationBehavior(ValidationBehavior.OnlyValid) // 
+                .withValidationBehavior(ValidationBehavior.OnlyValid) // (2)
         }
 
         @Action
         fun completeMaybe(): Continuation<*> {
             firstname = ""
             return Continuation.none()
-                .withValidationBehavior(ValidationBehavior.Default) // 
+                .withValidationBehavior(ValidationBehavior.Default) // (3)
         }
 
     }
 
--   This will allow the workflow to continue, even if the firstname is
-    obviously invalid.
-
--   This will cause a validation error to be thrown, as the firstname
-    will be obviously blank.
-
--   If validation is performed, will depend on whenever the action will
-    complete the current step. As the step within the example does so, a
-    validation error is going to be thrown.
+1. This will allow the workflow to continue, even if the firstname is
+   obviously invalid.
+2. This will cause a validation error to be thrown, as the firstname
+   will be obviously blank.
+3. Validation will be performed if the action completes the current step.
+   As the step in this example does so, a validation error is going to be thrown.
 
 ## Catching validation errors
 
 Whenever a validation fails, a `DataValidationException` will be thrown.
 You may catch this exception and consult the `issues` property regarding
 further details.
+
+## Accessing validation metadata
+
+The validation constraints applied to any given step data can be obtained from its
+`DataDefinition` by accessing the `DataDefinition.validation` property.
+If there are no validation constraints to be enforced for that step data, the property's value is `null`.
+Within the `DataValidationDefinition` is a listing (called `.constraints`),
+holding all individual constraints applied to the step data.
+
+If a complex type is used for a step data property and if the property is annotated with `@Valid`,
+the nested constraints will be represented by a special `PropertyValidationConstraint` instance.
+This interface extends the baseline `ValidationConstraint` with information on nested validation constraints.
