@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 1. **Optional sort property**<br/>
    Enhanced Sort Functionality to Handle Nullable Properties. The Sort interface now includes a nullableProperty function that allows nullable properties to be used for sorting. [Issue #135](https://github.com/lisegmbh/fluxflow/issues/135)
+2. **Inclusion of nested/recursive validation constraints**<br/>
+   The Jakarta validation now reports validation constraints
+   present on step data property's type, as long as the property is itself annotated with `@Valid`. [Issue #152](https://github.com/lisegmbh/fluxflow/issues/152)
 
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>
