@@ -8,4 +8,15 @@ data class PropertyValidationConstraintImpl(
     override val attributes: Map<String, Any>,
     override val property: String,
     override val constraints: List<DataValidationConstraint>
-) : PropertyValidationConstraint
+) : PropertyValidationConstraint {
+    override fun toString(): String {
+        // This method has been overwritten to avoid a stack overflow on cyclic child constraints,
+        // when calling .toString of child constraints
+        return "PropertyValidationConstraint(" +
+                "name=${name}, " +
+                "attributes=${attributes}, " +
+                "property=${property}, " +
+                "constraints=[..., size=${constraints.size}]" +
+                ")"
+    }
+}

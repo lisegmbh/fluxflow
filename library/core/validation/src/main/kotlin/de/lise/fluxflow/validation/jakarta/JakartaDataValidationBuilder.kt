@@ -21,51 +21,6 @@ class JakartaDataValidationBuilder(
 ) : ValidationBuilder {
     private val validatedTypes = mutableSetOf<KClass<*>>()
 
-    private fun <TInstance : Any, TProp : Any?> buildValidations(
-        instanceType: KClass<out TInstance>,
-        prop: KProperty1<out TInstance, TProp>,
-    ): List<DataValidationConstraint>{
-        val propertyName = prop.name
-        Logger.debug("Building validation for {}.{}", instanceType::qualifiedName, propertyName)
-        val allConstraints = validator.getConstraintsForClass(instanceType.java)
-        val propertyConstraints = allConstraints.getConstraintsForProperty(propertyName) ?: return emptyList()
-        val directConstraints = propertyConstraints.constraintDescriptors.map {
-            Logger.debug(
-                "Found validation constraint \"{}\" for {}.{}",
-                it,
-                instanceType::qualifiedName,
-                propertyName
-            )
-            JakartaDataValidationConstraint(it.annotation?.annotationClass?.simpleName, it.attributes)
-        }
-
-        prop.findAnnotationEverywhere<Valid>() ?: return directConstraints
-        
-        val propertyType = prop.returnType.classifier as? KClass<*> ?: return directConstraints
-        
-        val nestedValidationConstraints = propertyType
-            .memberProperties
-            .associateWith { nestedProp ->
-                buildValidations(
-                    propertyType,
-                    nestedProp
-                )
-            }
-            .filter { 
-                it.value.isNotEmpty()
-            }
-            .map { 
-                PropertyValidationConstraintImpl(
-                    Valid::class.simpleName,
-                    emptyMap(),
-                    it.key.name,
-                    it.value
-                )
-            }
-        
-        return directConstraints + nestedValidationConstraints
-    }
-
     override fun <TInstance : Any, TProp : Any?> buildValidations(
         dataKind: DataKind,
         instanceType: KClass<out TInstance>,
@@ -73,11 +28,13 @@ class JakartaDataValidationBuilder(
     ): ValidationBuilderResult<TInstance>? {
         checkValidationConfiguration(instanceType)
         val propertyName = prop.name
-        
-        return buildValidations(
-            instanceType,
-            prop
-        ).let { 
+
+        val allConstraints = buildValidations(instanceType, prop, mutableMapOf())
+        if (allConstraints.isEmpty()) {
+            return null
+        }
+
+        return allConstraints.let {
             ValidationBuilderResult { _ ->
                 JakartaValidationDefinition(
                     it,
@@ -88,20 +45,72 @@ class JakartaDataValidationBuilder(
             }
         }
     }
-    
+
+    private fun <TInstance : Any, TProp : Any?> buildValidations(
+        instanceType: KClass<out TInstance>,
+        prop: KProperty1<out TInstance, TProp>,
+        recursionCache: MutableMap<KProperty1<*, *>, List<DataValidationConstraint>>
+    ): List<DataValidationConstraint> {
+        val recursiveResult = recursionCache[prop]
+        if (recursiveResult != null) {
+            return recursiveResult
+        }
+        val result = mutableListOf<DataValidationConstraint>()
+        recursionCache[prop] = result
+
+        val propertyName = prop.name
+        Logger.debug("Building validation for {}.{}", instanceType::qualifiedName, propertyName)
+        val allConstraints = validator.getConstraintsForClass(instanceType.java)
+        val propertyConstraints = allConstraints.getConstraintsForProperty(propertyName) ?: return emptyList()
+        result += propertyConstraints.constraintDescriptors.map {
+            Logger.debug(
+                "Found validation constraint \"{}\" for {}.{}",
+                it,
+                instanceType::qualifiedName,
+                propertyName
+            )
+            JakartaDataValidationConstraint(it.annotation?.annotationClass?.simpleName, it.attributes)
+        }
+
+        prop.findAnnotationEverywhere<Valid>() ?: return result
+        val propertyType = prop.returnType.classifier as? KClass<*> ?: return result
+
+        result += propertyType
+            .memberProperties
+            .associateWith { nestedProp ->
+                buildValidations(
+                    propertyType,
+                    nestedProp,
+                    recursionCache
+                )
+            }
+            .filter {
+                it.value.isNotEmpty()
+            }
+            .map {
+                PropertyValidationConstraintImpl(
+                    Valid::class.simpleName,
+                    emptyMap(),
+                    it.key.name,
+                    it.value
+                )
+            }
+        return result
+    }
+
     private fun checkValidationConfiguration(type: KClass<*>) {
-        if(validatedTypes.contains(type)) {
+        if (validatedTypes.contains(type)) {
             // The type has already been checked
             return
         }
-        
-        type.constructors.forEach { constructor -> 
-            constructor.parameters.map { param -> 
-                val invalidAnnotations = param.annotations.filter { annotation -> 
+
+        type.constructors.forEach { constructor ->
+            constructor.parameters.map { param ->
+                val invalidAnnotations = param.annotations.filter { annotation ->
                     // Check if the annotation itself is annotated with @Constraint
-                    annotation.annotationClass.hasAnnotation<Constraint>() 
+                    annotation.annotationClass.hasAnnotation<Constraint>()
                 }
-                if(invalidAnnotations.isNotEmpty()) {
+                if (invalidAnnotations.isNotEmpty()) {
                     throw ValidationConfigurationException(
                         "The parameter \"${param.name}\" of ${type.qualifiedName}'s constructor must not be annotated with validation annotations (${
                             invalidAnnotations.joinToString(", ") { annotation -> "@${annotation.annotationClass.simpleName}" }
@@ -114,12 +123,11 @@ class JakartaDataValidationBuilder(
                 }
             }
         }
-        
+
         validatedTypes.add(type)
     }
 
     private companion object {
         val Logger = LoggerFactory.getLogger(JakartaDataValidationBuilder::class.java)!!
     }
-
 }
