@@ -1,5 +1,5 @@
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.9.24")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.0")
 
     implementation("org.springframework.data:spring-data-mongodb")
     implementation("org.springframework.boot:spring-boot-autoconfigure")
