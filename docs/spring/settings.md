@@ -36,7 +36,39 @@ fluxflow:
     # boolean: If set to false,
     # all MongoDB functionality will be disabled.
     enabled: true
-
+    # Can be used to tweak the default collation settings used when **initially**
+    # creating FluxFlow's MongoDB collections.
+    collation:
+      default: # Will be used if there is no collection-specific setting.
+        # The following keys represent a MongoDB collation document. Refer to
+        # https://www.mongodb.com/docs/manual/reference/collation/#collation-document
+        # for more information.
+        locale: "" # string (required)
+        strength: null # int
+        caseLevel: null # boolean
+        caseFirst: null # string
+        numericOrdering: null # boolean
+        alternate: null # string
+        maxVariable: null # string
+        backwards: null # boolean
+        normalization: null # boolean
+        
+      # Sets the workflow document collation options.
+      # Same model as `fluxflow.mongo.collation.default`, 
+      # which will be used if omitted.
+      workflow: null
+      # Sets the step document collation options.
+      # Same model as `fluxflow.mongo.collation.default`, 
+      # which will be used if omitted.
+      step: null
+      # Sets the job document collation options.
+      # Same model as `fluxflow.mongo.collation.default`, 
+      # which will be used if omitted.
+      job: null
+      # Sets the continuationRecord document collation options.
+      # Same model as `fluxflow.mongo.collation.default`, 
+      # which will be used if omitted.
+      continuationRecord: null
   caching:
     # boolean: If set to true,
     # in-memory caching will be used. The default is only effective
