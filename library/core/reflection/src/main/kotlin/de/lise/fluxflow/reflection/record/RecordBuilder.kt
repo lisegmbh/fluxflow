@@ -1,93 +1,150 @@
 package de.lise.fluxflow.reflection.record
 
-import java.lang.reflect.Constructor
-import java.lang.reflect.Field
-import java.lang.reflect.Method
-import java.lang.reflect.Parameter
+import java.lang.reflect.*
 import java.util.function.Predicate
 
 class RecordBuilder(
-    private val typeFilter: Predicate<Class<*>> = Predicate { _ -> true }
+    private val typeFilter: Predicate<Type> = Predicate { _ -> true }
 ) {
     private val records: MutableMap<String, TypeRecord> = mutableMapOf()
-    private val types: MutableMap<String, Class<*>> = mutableMapOf()
+    private val types: MutableMap<String, Type> = mutableMapOf()
 
     val allRecords: Map<String, TypeRecord>
         get() {
             return records
         }
-    
-    fun getTypeRecord(type: Class<*>): TypeRecord? {
+
+    fun getTypeRecord(type: Type): TypeRecord {
         val reference = buildType(type)
-        return records[reference.name]
-    }
-    
-    fun getTypeRecord(typeReference: TypeReference): TypeRecord? {
-        return records[typeReference.name]
+        return records[reference.name]!!
     }
 
-    fun getType(typeReference: TypeReference): Class<*> {
+    fun getTypeRecord(recordedTypeReference: RecordedTypeReference): TypeRecord {
+        return records[recordedTypeReference.name]!!
+    }
+
+    fun getType(recordedTypeReference: RecordedTypeReference): Type {
+        return types[recordedTypeReference.name]!!
+    }
+
+    fun getType(typeReference: ClassTypeRecord): Type {
         return types[typeReference.name]!!
     }
 
-    fun getType(typeReference: TypeRecord): Class<*> {
-        return types[typeReference.name]!!
-    }
-
-    private fun buildType(type: Class<*>): TypeReference {
-        val qualifiedName = type.canonicalName
-            ?: throw IllegalArgumentException("Can not create records for anonymous type: $type")
-
+    private fun buildType(type: Type): TypeReference {
         if (!typeFilter.test(type)) {
-            return TypeReference(qualifiedName)
+            return IgnoredTypeReference(type.typeName)
         }
-
-        val existing = records[qualifiedName]
+        val existing = records[type.typeName]
         if (existing != null) {
-            return TypeReference(existing.name)
+            return RecordedTypeReference(existing.name)
         }
 
+        return when (type) {
+            is Class<*> -> {
+                buildClassType(type)
+            }
+            is ParameterizedType -> {
+                buildParameterizedType(type)
+            }
+            is TypeVariable<*> -> {
+                buildTypeVariable(type)
+            }
+            is WildcardType -> {
+                buildWildcardType(type)
+            }
+            is GenericArrayType -> {
+                buildGenericArrayType(type)
+            }
+            else -> {
+                throw IllegalArgumentException("Unable to record unknown type: ${type.typeName}")
+            }
+        }
+    }
+
+    private fun buildGenericArrayType(type: GenericArrayType): GenericArrayTypeReference {
+        return GenericArrayTypeReference(
+            type.typeName,
+            buildType(type.genericComponentType)
+        )
+    }
+
+    private fun buildWildcardType(type: WildcardType): WildcardTypeReference {
+        return WildcardTypeReference(
+            type.typeName,
+            type.lowerBounds.map { buildType(it) },
+            type.upperBounds.map { buildType(it) }
+        )
+    }
+
+    private fun buildTypeVariable(type: TypeVariable<*>): TypeVariableReference {
+        return TypeVariableReference(
+            type.name,
+            type.bounds.map { buildType(it) }
+        )
+    }
+
+    private fun buildParameterizedType(type: ParameterizedType): RecordedTypeReference {
+        val typeArguments = mutableListOf<TypeReference>()
+
+        val typeRecord = ParameterizedTypeRecord(
+            type.typeName,
+            typeArguments
+        )
+        records[type.typeName] = typeRecord
+        types[type.typeName] = type
+
+        typeRecord.rawType = buildType(type.rawType)
+        typeArguments.addAll(
+            type.actualTypeArguments.map { buildType(it) }
+        )
+
+        return RecordedTypeReference(type.typeName)
+    }
+
+    private fun buildClassType(classType: Class<*>): RecordedTypeReference {
+        val qualifiedName = classType.typeName
         val methods = mutableListOf<MethodRecord>()
         val interfaces = mutableListOf<TypeReference>()
         val fields = mutableListOf<FieldRecord>()
         val constructors = mutableListOf<ConstructorRecord>()
-        val typeRecord = TypeRecord(
+        val classTypeRecord = ClassTypeRecord(
             qualifiedName,
-            type.modifiers,
-            type.isEnum,
-            type.isInterface,
-            type.isRecord,
-            type.isPrimitive,
-            type.isAnnotation,
-            type.isArray,
+            classType.modifiers ?: 0,
+            classType.isEnum ?: false,
+            classType.isInterface ?: false,
+            classType.isRecord ?: false,
+            classType.isPrimitive ?: false,
+            classType.isAnnotation ?: false,
+            classType.isArray ?: false,
             constructors,
             methods,
             interfaces,
             fields
         )
-        records[qualifiedName] = typeRecord
-        types[qualifiedName] = type
+        records[qualifiedName] = classTypeRecord
+        types[qualifiedName] = classType
 
-        type.superclass?.let {
-            typeRecord.superType = buildType(it)
+        classType.superclass?.let {
+            classTypeRecord.superType = buildType(it)
         }
-        type.componentType?.let {
-            typeRecord.componentType = buildType(it)
+        classType.componentType?.let {
+            classTypeRecord.componentType = buildType(it)
         }
         methods.addAll(
-            type.declaredMethods.map { buildMethod(it) }
+            classType.declaredMethods?.map { buildMethod(it) } ?: emptyList()
         )
         interfaces.addAll(
-            type.interfaces.map { buildType(it) }
+            classType.interfaces?.map { buildType(it) } ?: emptyList()
         )
         fields.addAll(
-            type.declaredFields.map { buildField(it) }
+            classType.declaredFields?.map { buildField(it) } ?: emptyList()
         )
         constructors.addAll(
-            type.constructors.map { buildConstructor(it) }
+            classType.constructors?.map { buildConstructor(it) } ?: emptyList()
         )
+        return RecordedTypeReference(qualifiedName)
 
-        return TypeReference(qualifiedName)
     }
 
     private fun buildConstructor(constructor: Constructor<*>): ConstructorRecord {
@@ -97,8 +154,11 @@ class RecordBuilder(
     }
 
     private fun buildField(field: Field): FieldRecord {
+        val genType = field.genericType
+        System.out.println(genType.typeName)
+        //(field.genericType as ParameterizedType).actualTypeArguments
         return FieldRecord(
-            buildType(field.type),
+            buildType(field.genericType),
             field.name,
             field.modifiers,
             field.isEnumConstant
@@ -121,7 +181,7 @@ class RecordBuilder(
     private fun buildParameter(parameter: Parameter): ParameterRecord {
         return ParameterRecord(
             parameter.name,
-            buildType(parameter.type),
+            buildType(parameter.parameterizedType),
             parameter.modifiers,
             parameter
         )

@@ -1,5 +1,5 @@
 package de.lise.fluxflow.reflection.record
 
-data class TypeReference(
+interface TypeReference {
     val name: String
-)
+}

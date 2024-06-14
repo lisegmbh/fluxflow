@@ -3,6 +3,7 @@ package de.lise.fluxflow.reflection.record
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
+import java.lang.reflect.Type
 import java.util.function.Predicate
 
 
@@ -10,7 +11,7 @@ class RecordBuilderTest {
     @Test
     fun `typeFilter should be called to test if type should be recorded`() {
         // Arrange
-        val filter = mock<Predicate<Class<*>>> {
+        val filter = mock<Predicate<Type>> {
             on { test(any()) } doReturn false
         }
         val recordBuilder = RecordBuilder(
