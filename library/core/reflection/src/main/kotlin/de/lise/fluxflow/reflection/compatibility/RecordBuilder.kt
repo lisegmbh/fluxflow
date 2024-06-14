@@ -1,5 +1,7 @@
 package de.lise.fluxflow.reflection.compatibility
 
+import de.lise.fluxflow.reflection.compatibility.record.*
+import de.lise.fluxflow.reflection.compatibility.reference.*
 import java.lang.reflect.*
 import java.util.function.Predicate
 

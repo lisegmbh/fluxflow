@@ -1,4 +1,6 @@
-package de.lise.fluxflow.reflection.compatibility
+package de.lise.fluxflow.reflection.compatibility.record
+
+import de.lise.fluxflow.reflection.compatibility.reference.TypeReference
 
 data class MethodRecord(
     val name: String,

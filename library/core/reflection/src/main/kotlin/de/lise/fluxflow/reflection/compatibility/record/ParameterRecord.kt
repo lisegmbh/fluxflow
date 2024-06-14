@@ -1,5 +1,6 @@
-package de.lise.fluxflow.reflection.compatibility
+package de.lise.fluxflow.reflection.compatibility.record
 
+import de.lise.fluxflow.reflection.compatibility.reference.TypeReference
 import java.lang.reflect.Parameter
 
 data class ParameterRecord(
