@@ -1,4 +1,4 @@
-package de.lise.fluxflow.reflection.record
+package de.lise.fluxflow.reflection.compatibility
 
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 import org.junit.jupiter.api.Test

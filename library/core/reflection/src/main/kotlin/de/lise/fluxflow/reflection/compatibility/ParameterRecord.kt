@@ -1,4 +1,4 @@
-package de.lise.fluxflow.reflection.record
+package de.lise.fluxflow.reflection.compatibility
 
 import java.lang.reflect.Parameter
 
