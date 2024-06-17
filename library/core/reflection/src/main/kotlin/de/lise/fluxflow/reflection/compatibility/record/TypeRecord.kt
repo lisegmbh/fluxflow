@@ -1,5 +1,5 @@
 package de.lise.fluxflow.reflection.compatibility.record
 
-interface TypeRecord {
-    val name: String
-}
+import de.lise.fluxflow.reflection.compatibility.NamedSymbol
+
+interface TypeRecord : NamedSymbol

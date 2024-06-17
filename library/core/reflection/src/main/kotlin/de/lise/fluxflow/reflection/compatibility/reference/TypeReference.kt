@@ -1,5 +1,5 @@
 package de.lise.fluxflow.reflection.compatibility.reference
 
-interface TypeReference {
-    val name: String
-}
+import de.lise.fluxflow.reflection.compatibility.NamedSymbol
+
+interface TypeReference : NamedSymbol
