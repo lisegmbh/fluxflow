@@ -3,6 +3,7 @@ package de.lise.fluxflow.stereotyped.unwrapping
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepKind
+import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStepDefinition
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -18,6 +19,7 @@ class UnwrapServiceImplTest {
         val statefulStepDefinition = ReflectedStatefulStepDefinition(
             instance,
             StepKind("test"),
+            NoVersion(),
             emptyList(),
             emptyList(),
             emptyMap(),

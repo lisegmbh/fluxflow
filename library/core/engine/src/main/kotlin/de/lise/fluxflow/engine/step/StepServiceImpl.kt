@@ -50,6 +50,7 @@ class StepServiceImpl(
                 step.identifier.value,
                 step.workflow.identifier.value,
                 step.definition.kind.value,
+                step.definition.version.version,
                 fetchData(step),
                 step.status,
                 step.metadata

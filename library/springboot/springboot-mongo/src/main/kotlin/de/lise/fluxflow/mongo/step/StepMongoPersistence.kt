@@ -28,6 +28,7 @@ class StepMongoPersistence(
                 stepData.id,
                 stepData.workflowId,
                 stepData.kind,
+                stepData.version,
                 stepData.data,
                 stepData.metadata,
                 stepData.status,
@@ -74,6 +75,7 @@ class StepMongoPersistence(
                 stepData.id,
                 stepData.workflowId,
                 stepData.kind,
+                stepData.version,
                 stepData.data,
                 stepData.metadata,
                 stepData.status

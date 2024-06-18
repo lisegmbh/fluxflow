@@ -1,6 +1,7 @@
 package de.lise.fluxflow.stereotyped.step
 
 import de.lise.fluxflow.api.step.StepDefinition
+import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
@@ -48,6 +49,7 @@ class StepDefinitionBuilder(
             ReflectedStatefulStepDefinition(
                 instance,
                 kind,
+                NoVersion(), // TODO: Replace with obtained version
                 dataBuilders.map { builder -> builder(instance) },
                 actionBuilders.map { builder -> builder(instance) },
                 metadataBuilder.build(type),
