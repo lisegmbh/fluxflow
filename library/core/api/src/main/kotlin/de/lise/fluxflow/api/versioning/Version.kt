@@ -13,4 +13,14 @@ interface Version {
      * Checks if this version is compatible to the [other] version.
      */
     fun checkCompatibilityTo(other: Version): VersionCompatibility
+
+    companion object {
+        @JvmStatic
+        fun parse(version: String?): Version {
+            if(version == null || version == "") {
+                return NoVersion()
+            }
+            return SimpleVersion(version)
+        }
+    }
 }
