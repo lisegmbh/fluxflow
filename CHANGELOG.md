@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2. **Inclusion of nested/recursive validation constraints**<br/>
    The Jakarta validation now reports validation constraints
    present on step data property's type, as long as the property is itself annotated with `@Valid`. [Issue #152](https://github.com/lisegmbh/fluxflow/issues/152)
+3. **Versioning information for step definitions**<br />
+   Step definitions and steps can now carry versioning information.
+   They can be applied by annotating a step with the new `@Version` annotation.
 
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>
@@ -19,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    The default value is an empty scope, which means that only the workflow itself is replaced. 
 
    Previously, the standard behavior of a workflow replacement continuation was to replace the steps and jobs of the workflow. [Issue #99](https://github.com/lisegmbh/fluxflow/issues/99)
+2. Added an optional `version` property to MongoDB's StepDocument.
+   There is no need for a migration, as the field is optional/nullable.
 ### Deprecated
 ### Fixed
 1. **NPE within ParamMatcher.isAssignable**<br/>
