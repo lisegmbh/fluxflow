@@ -3,11 +3,13 @@ package de.lise.fluxflow.engine.step
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
+import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -17,6 +19,10 @@ import org.mockito.kotlin.mock
 import kotlin.reflect.KClass
 
 class StepActivationServiceTest {
+    private val mockVersionBuilder = mock<VersionBuilder> {
+        on { build(any()) } doReturn NoVersion()
+    }
+
     @Test
     fun `activate should use the workflow's model as a constructor parameter, if the type matches`() {
         // Arrange
@@ -115,6 +121,7 @@ class StepActivationServiceTest {
         val activationService = StepActivationServiceImpl(
             iocProvider,
             StepDefinitionBuilder(
+                mockVersionBuilder,
                 ActionDefinitionBuilder(
                     mock {},
                     mock {},

@@ -3,6 +3,7 @@ package de.lise.fluxflow.stereotyped.step
 import de.lise.fluxflow.api.step.stateful.StatefulStepDefinition
 import de.lise.fluxflow.api.step.stateful.data.DataDefinition
 import de.lise.fluxflow.api.step.stateful.data.DataKind
+import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
@@ -10,6 +11,7 @@ import de.lise.fluxflow.stereotyped.step.automation.Automated
 import de.lise.fluxflow.stereotyped.step.automation.OnCreated
 import de.lise.fluxflow.stereotyped.step.automation.Trigger
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
+import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
@@ -17,10 +19,16 @@ import kotlin.reflect.KProperty1
 
 @Suppress("unused")
 class StepDefinitionBuilderTest {
+
+    private val mockVersionBuilder = mock<VersionBuilder> {
+        on { build(any()) } doReturn NoVersion()
+    }
+
     @Test
     fun `build should not return null`() {
         // Arrange
         val builder = StepDefinitionBuilder(
+            mockVersionBuilder,
             mock {},
             mock {
                 on { buildDataDefinitionFromProperty<Any>(any(), any()) }.doReturn { _ ->
@@ -43,6 +51,7 @@ class StepDefinitionBuilderTest {
     fun `build should return a data object for all properties`() {
         // Arrange
         val builder = StepDefinitionBuilder(
+            mockVersionBuilder,
             mock {},
             mockDataBuilder(),
             mock {},
@@ -62,6 +71,7 @@ class StepDefinitionBuilderTest {
     fun `build should ignore private properties`() {
         // Arrange
         val builder = StepDefinitionBuilder(
+            mockVersionBuilder,
             mock {},
             mockDataBuilder(),
             mock {},
@@ -87,6 +97,7 @@ class StepDefinitionBuilderTest {
     fun `build should ignore properties that are classes with @Job annotation`() {
         // Arrange
         val builder = StepDefinitionBuilder(
+            mockVersionBuilder,
             mock {},
             mockDataBuilder(),
             mock {},
@@ -114,6 +125,7 @@ class StepDefinitionBuilderTest {
         // Arrange
         val actionDefinitionBuilder = mock<ActionDefinitionBuilder> {}
         val builder = StepDefinitionBuilder(
+            mockVersionBuilder,
             actionDefinitionBuilder,
             mockDataBuilder(),
             mock {},
@@ -139,6 +151,7 @@ class StepDefinitionBuilderTest {
             on { build(eq(TestClass::class)) } doReturn testMetadata
         }
         val builder = StepDefinitionBuilder(
+            mockVersionBuilder,
             mock {},
             mockDataBuilder(),
             metadataBuilder,
