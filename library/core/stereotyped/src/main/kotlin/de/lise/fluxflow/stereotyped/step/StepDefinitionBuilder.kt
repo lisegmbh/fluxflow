@@ -1,24 +1,24 @@
 package de.lise.fluxflow.stereotyped.step
 
 import de.lise.fluxflow.api.step.StepDefinition
-import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.automation.Trigger
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
+import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.full.functions
 import kotlin.reflect.full.memberProperties
 
 class StepDefinitionBuilder(
+    private val versionBuilder: VersionBuilder,
     private val actionDefinitionBuilder: ActionDefinitionBuilder,
     private val dataDefinitionBuilder: DataDefinitionBuilder,
     private val metadataBuilder: MetadataBuilder,
     private val automationDefinitionBuilder: AutomationDefinitionBuilder,
     private val cache: MutableMap<KClass<*>, (element: Any) -> StepDefinition> = mutableMapOf()
 ) {
-
     fun <T : Any> build(element: T): StepDefinition {
         val type = element::class
 
@@ -29,6 +29,7 @@ class StepDefinitionBuilder(
 
     private fun <T : Any> createBuilder(type: KClass<out T>): (element: T) -> StepDefinition {
         val kind = StepKindInspector.getStepKind(type)
+        val version = versionBuilder.build(type)
 
         val dataBuilders = type
             .memberProperties
@@ -49,7 +50,7 @@ class StepDefinitionBuilder(
             ReflectedStatefulStepDefinition(
                 instance,
                 kind,
-                NoVersion(), // TODO: Replace with obtained version
+                version,
                 dataBuilders.map { builder -> builder(instance) },
                 actionBuilders.map { builder -> builder(instance) },
                 metadataBuilder.build(type),
@@ -64,5 +65,4 @@ class StepDefinitionBuilder(
             )
         }
     }
-
 }

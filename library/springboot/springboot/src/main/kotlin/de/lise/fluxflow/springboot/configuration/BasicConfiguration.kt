@@ -52,6 +52,7 @@ import de.lise.fluxflow.stereotyped.step.data.DataListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import de.lise.fluxflow.stereotyped.unwrapping.UnwrapService
 import de.lise.fluxflow.stereotyped.unwrapping.UnwrapServiceImpl
+import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import de.lise.fluxflow.stereotyped.workflow.ModelListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.workflow.SelectorExpressionParser
 import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
@@ -280,15 +281,22 @@ open class BasicConfiguration {
     open fun stepMetadataBuilder(): MetadataBuilder {
         return MetadataBuilder()
     }
-    
+
+    @Bean
+    open fun versionBuilder(): VersionBuilder {
+        return VersionBuilder()
+    }
+
     @Bean
     open fun stepDefinitionBuilder(
+        versionBuilder: VersionBuilder,
         actionDefinitionBuilder: ActionDefinitionBuilder,
         dataDefinitionBuilder: DataDefinitionBuilder,
         metadataBuilder: MetadataBuilder,
         automationDefinitionBuilder: AutomationDefinitionBuilder
     ): StepDefinitionBuilder {
         return StepDefinitionBuilder(
+            versionBuilder,
             actionDefinitionBuilder,
             dataDefinitionBuilder,
             metadataBuilder,
