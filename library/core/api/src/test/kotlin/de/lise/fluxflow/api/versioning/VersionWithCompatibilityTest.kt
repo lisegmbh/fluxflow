@@ -33,7 +33,6 @@ class VersionWithCompatibilityTest {
             listOf(
                 mockVersion(VersionCompatibility.Incompatible),
                 mockVersion(VersionCompatibility.Unknown),
-                mockVersion(VersionCompatibility.Unknown),
             )
         )
         val versionWithCompatibleBeingTheBest = VersionWithCompatibility(
@@ -63,7 +62,6 @@ class VersionWithCompatibilityTest {
         val decoratedVersion = mockVersion(VersionCompatibility.Incompatible)
         val knownCompatibleVersions = listOf(
             mockVersion(VersionCompatibility.Incompatible),
-            mockVersion(VersionCompatibility.Incompatible)
         )
         val version = VersionWithCompatibility(decoratedVersion, knownCompatibleVersions)
 
