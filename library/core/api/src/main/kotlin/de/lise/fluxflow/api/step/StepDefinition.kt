@@ -1,6 +1,7 @@
 package de.lise.fluxflow.api.step
 
 import de.lise.fluxflow.api.step.automation.AutomationDefinition
+import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.workflow.Workflow
 
 /**
@@ -9,6 +10,12 @@ import de.lise.fluxflow.api.workflow.Workflow
  */
 interface StepDefinition {
     val kind: StepKind
+
+    /**
+     * This [StepDefinition]'s version.
+     * Incompatible versions are usually caused by breaking changes to a step's definition.
+     */
+    val version: Version
 
     /**
      * A simple key-value map providing additional metadata about this step definition and steps that are going to be produced by it.

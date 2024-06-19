@@ -15,6 +15,7 @@ data class StepDocument(
     @Id var id: String?,
     val workflowId: String,
     val kind: String,
+    val version: String?,
     val data: Map<String, Any?>,
     val dataTypeMap: Map<String, TypeSpec>,
     val metadata: Map<String, Any>,
@@ -29,6 +30,7 @@ data class StepDocument(
         id: String?,
         workflowId: String,
         kind: String,
+        version: String?,
         data: Map<String, Any?>,
         metadata: Map<String, Any>,
         status: Status
@@ -36,6 +38,7 @@ data class StepDocument(
         id,
         workflowId,
         kind,
+        version,
         data,
         data.toGenericMap().mapValues { it.value.spec },
         metadata,
@@ -56,6 +59,7 @@ data class StepDocument(
             id!!,
             workflowId,
             kind,
+            version,
             typeSafeData,
             status,
             typeSafeMetadata

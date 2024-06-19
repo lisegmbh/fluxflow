@@ -107,6 +107,7 @@ class StepActivationServiceTest {
             "step-id",
             "workflow-id",
             stepType.java.canonicalName,
+            "",
             stepData,
             Status.Active,
             stepMetadata

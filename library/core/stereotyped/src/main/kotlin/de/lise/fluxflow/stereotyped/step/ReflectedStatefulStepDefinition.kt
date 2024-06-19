@@ -11,6 +11,7 @@ import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.step.stateful.action.ActionDefinition
 import de.lise.fluxflow.api.step.stateful.data.Data
 import de.lise.fluxflow.api.step.stateful.data.DataDefinition
+import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.workflow.Workflow
 
 /**
@@ -19,6 +20,7 @@ import de.lise.fluxflow.api.workflow.Workflow
 class ReflectedStatefulStepDefinition(
     val instance: Any,
     override val kind: StepKind,
+    override val version: Version,
     override val data: List<DataDefinition<*>>,
     override val actions: List<ActionDefinition>,
     override val metadata: Map<String, Any>,
