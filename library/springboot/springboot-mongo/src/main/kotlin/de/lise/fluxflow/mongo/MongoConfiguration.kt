@@ -19,11 +19,13 @@ import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.core.convert.MongoConverter
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
 
 
@@ -121,5 +123,24 @@ open class MongoConfiguration {
         mongoTemplate: MongoTemplate
     ): BootstrapAction {
         return MigrateJobParameterTypesMapBootstrapAction(mongoTemplate)
+    }
+
+    @Bean
+    @Order(104)
+    open fun migrateToTypeRecordsBootstrapAction(
+        @Value("\${fluxflow.mongo.migrations.typeRecords:fail}")
+        failureAction: PartialFailureAction,
+        stepRepository: StepRepository,
+        jobRepository: JobRepository,
+        mongoTemplate: MongoTemplate,
+        mongoConverter: MongoConverter
+    ): BootstrapAction {
+        return MigrateToTypeRecordsBootstrapAction(
+            failureAction,
+            stepRepository,
+            jobRepository,
+            mongoConverter,
+            mongoTemplate,
+        )
     }
 }

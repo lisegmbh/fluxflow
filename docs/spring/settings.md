@@ -36,6 +36,8 @@ fluxflow:
     # boolean: If set to false,
     # all MongoDB functionality will be disabled.
     enabled: true
+    migrations:
+      typeRecords: fail # fail = prevent startup, warn = warn about failing records
     # Can be used to tweak the default collation settings used when **initially**
     # creating FluxFlow's MongoDB collections.
     collation:
