@@ -6,19 +6,27 @@ import de.lise.fluxflow.mongo.job.JobDocument
 import org.bson.Document
 import org.springframework.data.mongodb.core.MongoTemplate
 
+private const val PARAMETER_TYPE_MAP = "parameterTypeMap"
+
 class MigrateJobParameterTypesMapBootstrapAction(mongoTemplate: MongoTemplate) : MongoBootstrapAction(mongoTemplate) {
     override fun setup() {
         ensureCollection<JobDocument>().updateMany(
-            Filters.eq("parameterTypeMap", null),
+            Filters.and(
+                Filters.or(
+                    Filters.exists(PARAMETER_TYPE_MAP, false),
+                    Filters.eq(PARAMETER_TYPE_MAP, null),
+                ),
+                Filters.exists("parameterEntries", false)
+            ),
             listOf(
                 Updates.set(
-                    "parameterTypeMap",
+                    PARAMETER_TYPE_MAP,
                     Document(mapOf(
                         "\$objectToArray" to "\$parameterTypes"
                     ))
                 ),
                 Updates.set(
-                    "parameterTypeMap",
+                    PARAMETER_TYPE_MAP,
                     Document(mapOf(
                         "\$map" to mapOf(
                             "input" to "\$parameterTypeMap",
@@ -47,7 +55,7 @@ class MigrateJobParameterTypesMapBootstrapAction(mongoTemplate: MongoTemplate) :
                     ))
                 ),
                 Updates.set(
-                    "parameterTypeMap",
+                    PARAMETER_TYPE_MAP,
                     Document(mapOf(
                         "\$arrayToObject" to "\$parameterTypeMap"
                     ))
