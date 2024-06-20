@@ -39,7 +39,7 @@ class MigrateToTypeRecordsBootstrapAction(
             jobRepository.saveAll(migratedJobDocuments)
         } else {
             throw MigrationError(
-                "Migration failed for one or more documents: ${
+                "Type record migration failed for one or more documents (see https://docs.fluxflow.cloud/see/1): ${
                     migrationFailures.joinToString(", ") { 
                         "${it.documentType}/${it.id}" 
                     }
