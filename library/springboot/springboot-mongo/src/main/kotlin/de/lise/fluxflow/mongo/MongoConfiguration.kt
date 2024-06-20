@@ -10,6 +10,7 @@ import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.migration.MigrationMongoPersistence
 import de.lise.fluxflow.mongo.migration.MigrationRepository
+import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
 import de.lise.fluxflow.mongo.step.StepMongoPersistence
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistence
@@ -141,6 +142,15 @@ open class MongoConfiguration {
             jobRepository,
             mongoConverter,
             mongoTemplate,
+        )
+    }
+
+    @Bean
+    open fun mongoMigrationProvider(
+        mongoTemplate: MongoTemplate
+    ): MongoMigrationProvider {
+        return MongoMigrationProvider(
+            mongoTemplate
         )
     }
 }

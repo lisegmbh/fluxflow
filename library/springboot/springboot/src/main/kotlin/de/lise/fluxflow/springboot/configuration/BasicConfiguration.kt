@@ -23,8 +23,12 @@ import de.lise.fluxflow.engine.step.action.ActionServiceImpl
 import de.lise.fluxflow.engine.step.data.StepDataServiceImpl
 import de.lise.fluxflow.engine.step.validation.ValidationService
 import de.lise.fluxflow.engine.workflow.*
+import de.lise.fluxflow.migration.MigrationProvider
+import de.lise.fluxflow.migration.MigrationService
+import de.lise.fluxflow.migration.MigrationServiceImpl
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
@@ -538,4 +542,18 @@ open class BasicConfiguration {
     ): SpringBootstrapper {
         return SpringBootstrapper(bootstrappingService)
     }
+
+    @Bean
+    open fun migrationService(
+        persistence: MigrationPersistence,
+        providers: List<MigrationProvider>,
+        clock: Clock
+    ): MigrationService {
+        return MigrationServiceImpl(
+            persistence,
+            providers,
+            clock
+        )
+    }
+
 }
