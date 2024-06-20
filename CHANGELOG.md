@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Previously, the standard behavior of a workflow replacement continuation was to replace the steps and jobs of the workflow. [Issue #99](https://github.com/lisegmbh/fluxflow/issues/99)
 2. Added an optional `version` property to MongoDB's StepDocument.
    There is no need for a migration, as the field is optional/nullable.
-3. A custom collation can now be specified when ensuring indexes using `MongoBootstrapAction`.  
+3. A custom collation can now be specified when ensuring indexes using `MongoBootstrapAction`.
+4. MongoDB documents now use a different data structure to store map entries and their data types. See [https://docs.fluxflow.cloud/see/1](https://docs.fluxflow.cloud/see/1) for more information. 
 ### Deprecated
 ### Fixed
 1. **NPE within ParamMatcher.isAssignable**<br/>
