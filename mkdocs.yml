@@ -25,6 +25,8 @@ nav:
     - Queries: queries.md
   - Spring:
     - Settings: spring/settings.md
+  - Migration guides:
+    - Unreleased: migrations/unreleased.md
   - Other resources:
     - Sources: https://github.com/lisegmbh/fluxflow
     - Issues: https://github.com/lisegmbh/fluxflow/issues
