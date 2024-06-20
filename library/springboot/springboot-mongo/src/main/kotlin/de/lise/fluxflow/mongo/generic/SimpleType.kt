@@ -1,5 +1,9 @@
 package de.lise.fluxflow.mongo.generic
 
+import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
+import de.lise.fluxflow.mongo.generic.record.RecordContext
+import de.lise.fluxflow.mongo.generic.record.TypeName
+import de.lise.fluxflow.mongo.generic.record.TypeRecord
 import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.util.*
@@ -42,6 +46,12 @@ class SimpleType(val typeName: String) : TypeSpec {
         }
 
         return value
+    }
+
+    override fun toRecord(context: RecordContext): TypeRecord {
+        return JvmTypeRecord(
+            context.registerType(TypeName(typeName))
+        )
     }
 
     private companion object {

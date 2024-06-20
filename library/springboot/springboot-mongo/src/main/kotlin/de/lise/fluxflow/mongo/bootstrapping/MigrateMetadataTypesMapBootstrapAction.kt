@@ -6,51 +6,65 @@ import de.lise.fluxflow.mongo.step.StepDocument
 import org.bson.Document
 import org.springframework.data.mongodb.core.MongoTemplate
 
+private const val METADATA_TYPE_MAP = "metadataTypeMap"
+
 class MigrateMetadataTypesMapBootstrapAction(mongoTemplate: MongoTemplate) : MongoBootstrapAction(mongoTemplate) {
     override fun setup() {
         ensureCollection<StepDocument>().updateMany(
-            Filters.eq("metadataTypeMap", null),
+            Filters.and(
+                Filters.or(
+                    Filters.exists(METADATA_TYPE_MAP, false),
+                    Filters.eq(METADATA_TYPE_MAP, null),
+                ),
+                Filters.exists("metadataEntries", false)
+            ),
             listOf(
                 Updates.set(
-                    "metadataTypeMap",
-                    Document(mapOf(
-                        "\$objectToArray" to "\$metadataTypes"
-                    ))
+                    METADATA_TYPE_MAP,
+                    Document(
+                        mapOf(
+                            "\$objectToArray" to "\$metadataTypes"
+                        )
+                    )
                 ),
                 Updates.set(
-                    "metadataTypeMap",
-                    Document(mapOf(
-                        "\$map" to mapOf(
-                            "input" to "\$metadataTypeMap",
-                            "as" to "p",
-                            "in" to mapOf(
-                                "k" to "\$\$p.k",
-                                "v" to mapOf(
-                                    "\$cond" to mapOf(
-                                        "if" to mapOf(
-                                            "\$eq" to listOf(
-                                                "\$\$p.v",
-                                                null
+                    METADATA_TYPE_MAP,
+                    Document(
+                        mapOf(
+                            "\$map" to mapOf(
+                                "input" to "\$metadataTypeMap",
+                                "as" to "p",
+                                "in" to mapOf(
+                                    "k" to "\$\$p.k",
+                                    "v" to mapOf(
+                                        "\$cond" to mapOf(
+                                            "if" to mapOf(
+                                                "\$eq" to listOf(
+                                                    "\$\$p.v",
+                                                    null
+                                                )
+                                            ),
+                                            "then" to mapOf(
+                                                "_class" to "de.lise.fluxflow.mongo.generic.NullType"
+                                            ),
+                                            "else" to mapOf(
+                                                "_class" to "de.lise.fluxflow.mongo.generic.SimpleType",
+                                                "typeName" to "\$\$p.v"
                                             )
-                                        ),
-                                        "then" to mapOf(
-                                            "_class" to "de.lise.fluxflow.mongo.generic.NullType"
-                                        ),
-                                        "else" to mapOf(
-                                            "_class" to "de.lise.fluxflow.mongo.generic.SimpleType",
-                                            "typeName" to "\$\$p.v"
                                         )
                                     )
                                 )
                             )
                         )
-                    ))
+                    )
                 ),
                 Updates.set(
-                    "metadataTypeMap",
-                    Document(mapOf(
-                        "\$arrayToObject" to "\$metadataTypeMap"
-                    ))
+                    METADATA_TYPE_MAP,
+                    Document(
+                        mapOf(
+                            "\$arrayToObject" to "\$metadataTypeMap"
+                        )
+                    )
                 )
             )
         )
