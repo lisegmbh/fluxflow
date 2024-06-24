@@ -13,12 +13,15 @@ import de.lise.fluxflow.mongo.migration.MigrationRepository
 import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
 import de.lise.fluxflow.mongo.step.StepMongoPersistence
 import de.lise.fluxflow.mongo.step.StepRepository
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionMongoPersistence
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionRepository
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistence
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepPersistence
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -83,6 +86,26 @@ open class MongoConfiguration {
     }
 
     @Bean
+    open fun stepDefinitionPersistence(
+        stepDefinitionRepository: StepDefinitionRepository,
+        mongoTemplate: MongoTemplate
+    ): StepDefinitionPersistence {
+        return StepDefinitionMongoPersistence(
+            stepDefinitionRepository,
+            mongoTemplate
+        )
+    }
+    
+    @Bean
+    open fun mongoMigrationProvider(
+        mongoTemplate: MongoTemplate
+    ): MongoMigrationProvider {
+        return MongoMigrationProvider(
+            mongoTemplate
+        )
+    }
+    
+    @Bean
     @Order(99)
     open fun createCollectionsWithCollationBootstrapper(
         mongoTemplate: MongoTemplate,
@@ -142,15 +165,6 @@ open class MongoConfiguration {
             jobRepository,
             mongoConverter,
             mongoTemplate,
-        )
-    }
-
-    @Bean
-    open fun mongoMigrationProvider(
-        mongoTemplate: MongoTemplate
-    ): MongoMigrationProvider {
-        return MongoMigrationProvider(
-            mongoTemplate
         )
     }
 }

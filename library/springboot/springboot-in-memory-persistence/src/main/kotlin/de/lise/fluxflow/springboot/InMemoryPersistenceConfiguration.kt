@@ -5,6 +5,7 @@ import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersi
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepPersistence
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.test.persistence.TestIdGenerator
 import de.lise.fluxflow.test.persistence.continuation.history.ContinuationRecordTestPersistence
@@ -12,6 +13,7 @@ import de.lise.fluxflow.test.persistence.job.JobTestPersistence
 import de.lise.fluxflow.test.persistence.migration.InMemoryMigrationProvider
 import de.lise.fluxflow.test.persistence.migration.MigrationTestPersistence
 import de.lise.fluxflow.test.persistence.step.StepTestPersistence
+import de.lise.fluxflow.test.persistence.step.definition.StepDefinitionTestPersistence
 import de.lise.fluxflow.test.persistence.workflow.WorkflowTestPersistence
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -61,5 +63,10 @@ open class InMemoryPersistenceConfiguration {
     @Bean
     open fun inMemoryMigrationProvider(): MigrationProvider {
         return InMemoryMigrationProvider()
+    }
+    
+    @Bean
+    open fun inMemoryStepDefinitionPersistence(): StepDefinitionPersistence {
+        return StepDefinitionTestPersistence()
     }
 }
