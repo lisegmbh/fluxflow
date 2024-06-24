@@ -55,7 +55,7 @@ fluxflow:
         maxVariable: null # string
         backwards: null # boolean
         normalization: null # boolean
-        
+
       # Sets the workflow document collation options.
       # Same model as `fluxflow.mongo.collation.default`, 
       # which will be used if omitted.
@@ -72,4 +72,8 @@ fluxflow:
       # Same model as `fluxflow.mongo.collation.default`, 
       # which will be used if omitted.
       continuationRecord: null
+
+  versioning:
+    # Controls if FluxFlow should persist the version of various workflow elements.
+    steps: true # boolean: If true, step definition versions are persisted.
 ```
