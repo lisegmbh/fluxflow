@@ -7,7 +7,10 @@ import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.state.ChangeDetector
+import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
+import de.lise.fluxflow.api.versioning.NoOpVersionRecorder
+import de.lise.fluxflow.api.versioning.VersionRecorder
 import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
@@ -21,6 +24,8 @@ import de.lise.fluxflow.engine.state.DefaultChangeDetector
 import de.lise.fluxflow.engine.step.*
 import de.lise.fluxflow.engine.step.action.ActionServiceImpl
 import de.lise.fluxflow.engine.step.data.StepDataServiceImpl
+import de.lise.fluxflow.engine.step.definition.StepDefinitionService
+import de.lise.fluxflow.engine.step.definition.StepDefinitionVersionRecorder
 import de.lise.fluxflow.engine.step.validation.ValidationService
 import de.lise.fluxflow.engine.workflow.*
 import de.lise.fluxflow.migration.MigrationProvider
@@ -31,6 +36,7 @@ import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
@@ -67,6 +73,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.*
 import org.springframework.expression.spel.standard.SpelExpressionParser
@@ -401,18 +408,51 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun stepDefinitionService(
+        persistence: StepDefinitionPersistence
+    ): StepDefinitionService {
+        return StepDefinitionService(
+            persistence
+        )
+    }
+    
+    @Bean
+    @ConditionalOnProperty(
+        "fluxflow.versioning.steps",
+        havingValue = "true",
+        matchIfMissing = true
+    )
+    open fun stepDefinitionVersionRecorder(
+        stepDefinitionService: StepDefinitionService
+    ): VersionRecorder<StepDefinition> {
+        return StepDefinitionVersionRecorder(stepDefinitionService)  
+    }
+    
+    @Bean
+    @ConditionalOnProperty(
+        "fluxflow.versioning.steps",
+        havingValue = "false",
+        matchIfMissing = false
+    )
+    open fun noOpStepDefinitionVersionRecorder(): VersionRecorder<StepDefinition> {
+        return NoOpVersionRecorder()
+    }
+    
+    @Bean
     open fun stepService(
         persistence: StepPersistence,
         stepActivationService: StepActivationService,
         eventService: EventService,
-        changeDetector: ChangeDetector<StepData>
+        changeDetector: ChangeDetector<StepData>,
+        stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>
     ): StepServiceImpl {
         return StepServiceImpl(
             persistence,
             stepActivationService,
             eventService,
             continuationService!!,
-            changeDetector
+            changeDetector,
+            stepDefinitionVersionRecorder
         )
     }
 
