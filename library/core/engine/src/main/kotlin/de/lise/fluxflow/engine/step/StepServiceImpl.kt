@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.*
 import de.lise.fluxflow.api.step.query.StepQuery
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.versioning.VersionRecorder
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.engine.continuation.ContinuationService
@@ -24,8 +25,11 @@ class StepServiceImpl(
     private val eventService: EventService,
     private val continuationService: ContinuationService,
     private val changeDetector: ChangeDetector<StepData>,
+    private val stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>
 ) : StepService {
     fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
+        stepDefinitionVersionRecorder.record(definition)
+        
         val step = definition.createStep(
             workflow,
             StepIdentifier(persistence.randomId()),
