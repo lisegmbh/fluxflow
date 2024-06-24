@@ -13,12 +13,7 @@ fluxflow:
     # FluxFlow enforces all step data to be valid 
     # before actions can be invoked. 
     validate-before: true
-  data:
-    # boolean: If set to true,
-    # step data can be modified even if the step
-    # itself isn't active anymore.
-    allow-inactive-modification: true
-  
+
   change-detection:
     # boolean: If set to true, 
     # workflow persist operations are skipped if no changes could be detected. 
@@ -26,6 +21,12 @@ fluxflow:
     # boolean: if set to true,
     # step persist operations are skipped if no changes could be detected.
     step: true
+
+  data:
+    # boolean: If set to true,
+    # step data can be modified even if the step
+    # itself isn't active anymore.
+    allow-inactive-modification: true
 
   migration:
     # boolean: If set to true,
@@ -71,9 +72,4 @@ fluxflow:
       # Same model as `fluxflow.mongo.collation.default`, 
       # which will be used if omitted.
       continuationRecord: null
-  caching:
-    # boolean: If set to true,
-    # in-memory caching will be used. The default is only effective
-    # as long as the package (`memorycache`) is on the classpath. 
-    in-memory: true
 ```
