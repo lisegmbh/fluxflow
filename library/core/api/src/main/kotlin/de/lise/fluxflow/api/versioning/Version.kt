@@ -17,7 +17,7 @@ interface Version {
     companion object {
         @JvmStatic
         fun parse(version: String?): Version {
-            if(version == null || version == "") {
+            if(version.isNullOrBlank()) {
                 return NoVersion()
             }
             return SimpleVersion(version)
