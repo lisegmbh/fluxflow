@@ -21,7 +21,7 @@ class ReflectedModifiableData<TInstance, TModel>(
         try {
             propertyAccessor.set(instance, value)
         } catch (ex: Exception) {
-            throw SetPropertyFailedException(
+            throw StepDataAssignmentException(
                 value,
                 definition,
                 step,
