@@ -4,6 +4,7 @@ import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.versioning.NoVersion
+import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
@@ -136,7 +137,8 @@ class StepActivationServiceTest {
                 mock {},
                 mutableMapOf()
             ),
-            StepTypeResolverImpl(stepType.java.classLoader)
+            StepTypeResolverImpl(stepType.java.classLoader),
+            VersionCompatibility.Unknown
         )
 
         return Pair(activationService, testStepData)

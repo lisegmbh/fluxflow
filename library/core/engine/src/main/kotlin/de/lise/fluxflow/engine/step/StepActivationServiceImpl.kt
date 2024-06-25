@@ -6,6 +6,8 @@ import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
+import de.lise.fluxflow.api.versioning.Version
+import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
@@ -13,10 +15,25 @@ import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 class StepActivationServiceImpl(
     private val iocProvider: IocProvider,
     private val stepDefinitionBuilder: StepDefinitionBuilder,
-    private val stepTypeResolver: StepTypeResolver
+    private val stepTypeResolver: StepTypeResolver,
+    private val requiredCompatibility: VersionCompatibility
 ) : StepActivationService {
     override fun <TWorkflowModel> activate(workflow: Workflow<TWorkflowModel>, stepData: StepData): Step {
-        val step = activeStepDefinition(workflow, stepData).createStep(
+        val stepDefinition = activeStepDefinition(workflow, stepData)
+        val persistedVersion = Version.parse(stepData.version)
+        val currentCompatibility = stepDefinition.version.checkCompatibilityTo(persistedVersion)
+
+        if(!requiredCompatibility.isSatisfiedBy(currentCompatibility)) {
+            throw StepActivationException(
+                "The step #${stepData.id} failed activation, because it doesn't satisfy the required version compatibility (" +
+                        "persisted version: ${persistedVersion.version}, " +
+                        "current version: ${stepDefinition.version.version}, " +
+                        "actual compatibility: $currentCompatibility, " +
+                        "required compatibility: $requiredCompatibility)"
+            )
+        }
+
+        val step = stepDefinition.createStep(
             workflow,
             StepIdentifier(stepData.id),
             stepData.status,

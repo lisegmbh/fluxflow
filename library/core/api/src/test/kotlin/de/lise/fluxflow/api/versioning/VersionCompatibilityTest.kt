@@ -23,4 +23,15 @@ class VersionCompatibilityTest {
             VersionCompatibility.Incompatible
         )
     }
+
+    @Test
+    fun `versions should be comparable`() {
+        // Act
+        val compatibleIsBetterThanUnknown = VersionCompatibility.Unknown.isSatisfiedBy(VersionCompatibility.Compatible)
+        val unknownIsBetterThanIncompatible = VersionCompatibility.Incompatible.isSatisfiedBy(VersionCompatibility.Unknown)
+
+        // Assert
+        assertThat(compatibleIsBetterThanUnknown).isTrue()
+        assertThat(unknownIsBetterThanIncompatible).isTrue()
+    }
 }

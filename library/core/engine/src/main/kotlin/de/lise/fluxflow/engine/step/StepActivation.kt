@@ -43,7 +43,16 @@ class StepActivation<TWorkflowModel>(
     )
 
     fun activate(): StepDefinition {
-        val type = stepTypeResolver.resolveType(StepKind(stepData.kind))
+        val type = try {
+            stepTypeResolver.resolveType(StepKind(stepData.kind))
+        }catch (e: ClassNotFoundException) {
+            throw StepActivationException(
+                "Unable to activate step #${stepData.id} with kind '${stepData.kind}', " +
+                        "because it's type could not be resolved/activated.",
+                e
+            )
+        }
+
         return when (
             val activatedObject = typeActivator.findActivation(type)?.activate()
         ) {
