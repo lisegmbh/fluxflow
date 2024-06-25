@@ -3,7 +3,7 @@ package de.lise.fluxflow.api.step.stateful
 /**
  * This exception is thrown whenever a step's state could not be restored/reactivated.
  */
-open class StepActivationException : Exception {
+open class StepActivationException : RuntimeException {
     constructor(message: String, cause: Throwable) : super(
         message,
         cause
