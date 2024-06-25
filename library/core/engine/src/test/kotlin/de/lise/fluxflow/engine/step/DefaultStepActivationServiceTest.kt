@@ -19,7 +19,7 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import kotlin.reflect.KClass
 
-class StepActivationServiceTest {
+class DefaultStepActivationServiceTest {
     private val mockVersionBuilder = mock<VersionBuilder> {
         on { build(any()) } doReturn NoVersion()
     }
@@ -119,7 +119,7 @@ class StepActivationServiceTest {
             Status.Active,
             stepMetadata
         )
-        val activationService = StepActivationServiceImpl(
+        val activationService = DefaultStepActivationService(
             iocProvider,
             StepDefinitionBuilder(
                 mockVersionBuilder,

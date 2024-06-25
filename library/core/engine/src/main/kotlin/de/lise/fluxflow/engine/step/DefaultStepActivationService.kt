@@ -5,6 +5,7 @@ import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.step.stateful.StepActivationException
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.versioning.VersionCompatibility
@@ -12,7 +13,7 @@ import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 
-class StepActivationServiceImpl(
+class DefaultStepActivationService(
     private val iocProvider: IocProvider,
     private val stepDefinitionBuilder: StepDefinitionBuilder,
     private val stepTypeResolver: StepTypeResolver,
