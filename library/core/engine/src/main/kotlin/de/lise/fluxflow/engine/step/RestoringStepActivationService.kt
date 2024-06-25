@@ -60,7 +60,6 @@ class RestoringStepActivationService(
             cause
         )
 
-
         val step = restoredStepDefinition.createStep(
             workflow,
             StepIdentifier(stepData.id),
