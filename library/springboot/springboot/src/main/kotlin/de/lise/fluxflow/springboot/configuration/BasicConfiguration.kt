@@ -10,6 +10,7 @@ import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
 import de.lise.fluxflow.api.versioning.NoOpVersionRecorder
+import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.versioning.VersionRecorder
 import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
@@ -367,12 +368,15 @@ open class BasicConfiguration {
     open fun stepActivationService(
         iocProvider: IocProvider,
         stepDefinitionBuilder: StepDefinitionBuilder,
-        stepTypeResolver: StepTypeResolver
+        stepTypeResolver: StepTypeResolver,
+        @Value("\${fluxflow.versioning.steps.requiredCompatibility:Unknown}")
+        requiredCompatibility: VersionCompatibility
     ): StepActivationService {
         return StepActivationServiceImpl(
             iocProvider,
             stepDefinitionBuilder,
-            stepTypeResolver
+            stepTypeResolver,
+            requiredCompatibility
         )
     }
     
@@ -418,7 +422,7 @@ open class BasicConfiguration {
     
     @Bean
     @ConditionalOnProperty(
-        "fluxflow.versioning.steps",
+        "fluxflow.versioning.steps.recordVersion",
         havingValue = "true",
         matchIfMissing = true
     )
@@ -430,7 +434,7 @@ open class BasicConfiguration {
     
     @Bean
     @ConditionalOnProperty(
-        "fluxflow.versioning.steps",
+        "fluxflow.versioning.steps.recordVersion",
         havingValue = "false",
         matchIfMissing = false
     )

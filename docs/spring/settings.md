@@ -74,6 +74,7 @@ fluxflow:
       continuationRecord: null
 
   versioning:
-    # Controls if FluxFlow should persist the version of various workflow elements.
-    steps: true # boolean: If true, step definition versions are persisted.
+    steps:
+      recordVersion: true # boolean: If true, step definition versions are persisted.
+      requiredCompatibility: Unknown # Compatible, Unknown or Incompatible
 ```
