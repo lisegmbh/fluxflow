@@ -13,7 +13,7 @@ import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 
-class StepActivationServiceImpl(
+class DefaultStepActivationService(
     private val iocProvider: IocProvider,
     private val stepDefinitionBuilder: StepDefinitionBuilder,
     private val stepTypeResolver: StepTypeResolver,

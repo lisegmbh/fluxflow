@@ -372,7 +372,7 @@ open class BasicConfiguration {
         @Value("\${fluxflow.versioning.steps.requiredCompatibility:Unknown}")
         requiredCompatibility: VersionCompatibility
     ): StepActivationService {
-        return StepActivationServiceImpl(
+        return DefaultStepActivationService(
             iocProvider,
             stepDefinitionBuilder,
             stepTypeResolver,
