@@ -18,9 +18,8 @@ Depending on the number of documents to be migrated,
 
 ### Possible errors when migrating old/missing/modified/types
 When the application is started, it will automatically try to migrate all old database entries.
-If there is a failure when migrating any single document,
-the migration is completely aborted and no changes are performed.
-The application startup is then going to be terminated with an exception reading:
+If there is a failure when migrating a document,
+the application startup is going to be terminated with an exception reading:
 
 > Type record migration failed for one or more documents (see https://docs.fluxflow.cloud/see/1): [...]
 
@@ -35,7 +34,7 @@ To fix the issue, a developer can use one of the following approaches:
 3. fix the issue that prevents the type's reactivation (e.g., re-adding missing types)
 
 Another possibility is to explicitly allow FluxFlow to ignore documents that can't be migrated.
-This will skip all affected documents, allowing the migration to complete and the application to start.
+This will skip all affected documents, allowing the application startup to complete.
 In effect, the type activation error is hereby delayed until the affected resource is actually used during execution.
 
 To do so, set `fluxflow.mongo.migrations.typeRecords` to `warn`.
