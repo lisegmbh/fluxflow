@@ -5,6 +5,7 @@ import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.step.stateful.StepActivationException
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.versioning.VersionCompatibility

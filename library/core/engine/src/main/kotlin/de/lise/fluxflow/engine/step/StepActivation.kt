@@ -3,6 +3,7 @@ package de.lise.fluxflow.engine.step
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepKind
+import de.lise.fluxflow.api.step.stateful.StepActivationException
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.reflection.activation.BasicTypeActivator
