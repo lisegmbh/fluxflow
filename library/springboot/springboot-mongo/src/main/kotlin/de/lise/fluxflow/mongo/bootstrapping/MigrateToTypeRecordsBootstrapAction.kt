@@ -30,14 +30,20 @@ class MigrateToTypeRecordsBootstrapAction(
     override fun setup() {
         val migrationFailures = mutableListOf<MigrationFailure>()
 
-        val migratedStepDocuments = migrateStepDocuments(migrationFailures)
-        val migratedJobDocuments = migrateJobDocuments(migrationFailures)
+        val stepBuffer = ActionBuffer<StepDocument>(100) { migratedDocuments ->
+            stepRepository.saveAll(migratedDocuments)
+        }
+        migrateStepDocuments(stepBuffer, migrationFailures)
+        stepBuffer.flush()
 
-        if(migrationFailures.isEmpty()) {
-            // Only persist the migrated documents if there has been no failures
-            stepRepository.saveAll(migratedStepDocuments)
-            jobRepository.saveAll(migratedJobDocuments)
-        } else {
+        val jobBuffer = ActionBuffer<JobDocument>(100) { migratedDocuments ->
+            jobRepository.saveAll(migratedDocuments)
+
+        }
+        migrateJobDocuments(jobBuffer, migrationFailures)
+        jobBuffer.flush()
+
+        if(migrationFailures.isNotEmpty()) {
             throw MigrationError(
                 "Type record migration failed for one or more documents (see https://docs.fluxflow.cloud/see/1): ${
                     migrationFailures.joinToString(", ") { 
@@ -50,60 +56,68 @@ class MigrateToTypeRecordsBootstrapAction(
 
 
     private fun migrateStepDocuments(
+        buffer: ActionBuffer<StepDocument>,
         migrationFailures: MutableList<MigrationFailure>
-    ): List<StepDocument> {
+    ) {
         val stepCollection = ensureCollection<StepDocument>()
-        val stepsToMigrate = stepCollection.find(
+        val cursor = stepCollection.find(
             Filters.or(
                 Filters.not(Filters.exists("dataEntries")),
                 Filters.not(Filters.exists("metadataEntries"))
             ),
-        ).toList()
-            .mapNotNull { document ->
-                try {
-                    mongoConverter.read(StepDocument::class.java, document)
-                } catch (e: Exception) {
-                    handleTypeActivationException("workflow", document, e)?.let { failure ->
-                        migrationFailures.add(failure)
-                    }
+        ).cursor()
 
-                    null
+        while (cursor.hasNext()) {
+            val doc = cursor.next()
+            val stepDocument = try {
+                mongoConverter.read(StepDocument::class.java, doc)
+            } catch (e: Exception) {
+                handleTypeActivationException("workflow", doc, e)?.let { failure ->
+                    migrationFailures.add(failure)
                 }
-            }.map {
+                null
+            }
+            stepDocument?.let {
                 val stepData = it.toStepData()
                 it.copy(
                     dataEntries = TypedRecords.fromData(stepData.data),
                     metadataEntries = TypedRecords.fromData(stepData.metadata)
                 )
+            }?.let {
+                buffer.push(it)
             }
-
-        return stepsToMigrate
+        }
     }
 
-
     private fun migrateJobDocuments(
+        buffer: ActionBuffer<JobDocument>,
         migrationFailures: MutableList<MigrationFailure>
-    ): List<JobDocument> {
+    ) {
         val jobCollection = ensureCollection<JobDocument>()
-        val jobsToMigrate = jobCollection.find(
+
+        val cursor = jobCollection.find(
             Filters.not(Filters.exists("parameterEntries"))
-        ).toList().mapNotNull { document ->
-            try {
-                mongoConverter.read(JobDocument::class.java, document)
-            } catch (e: Exception) {
-                handleTypeActivationException("job", document, e)?.let { failure ->
+        ).cursor()
+
+        while(cursor.hasNext()) {
+            val doc = cursor.next()
+            val jobDocument = try {
+                mongoConverter.read(JobDocument::class.java, doc)
+            }catch (e: Exception) {
+                handleTypeActivationException("job", doc, e)?.let { failure ->
                     migrationFailures.add(failure)
                 }
                 null
             }
-        }.map {
-            val jobData = it.toJobData()
-            it.copy(
-                parameterEntries = TypedRecords.fromData(jobData.parameters)
-            )
+            jobDocument?.let {
+                val jobData = it.toJobData()
+                it.copy(
+                    parameterEntries = TypedRecords.fromData(jobData.parameters)
+                )
+            }?.let {
+                buffer.push(it)
+            }
         }
-
-        return jobsToMigrate
     }
 
 
