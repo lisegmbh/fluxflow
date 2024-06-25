@@ -25,7 +25,7 @@ class SimpleVersionTest {
     }
 
     @Test
-    fun `simple versions should return the provided mismatchCompatibility if the do not match`() {
+    fun `simple versions should return the provided mismatchCompatibility if they do not match`() {
         // Arrange
         val simpleVersionReturningIncompatible = SimpleVersion("test", VersionCompatibility.Incompatible)
         val simpleVersionReturningUnknown = SimpleVersion("test", VersionCompatibility.Unknown)
@@ -43,12 +43,25 @@ class SimpleVersionTest {
     }
 
     @Test
-    fun `simple versions should use Unknown as the default mismatch compatibility`() {
+    fun `simple versions should use Incompatible as the default mismatch compatibility`() {
         // Arrange
         val simpleVersion = SimpleVersion("test")
         val otherVersion = mock<Version> {
             on { version } doReturn "something other than test"
         }
+
+        // Act
+        val result = simpleVersion.checkCompatibilityTo(otherVersion)
+
+        // Assert
+        assertThat(result).isEqualTo(VersionCompatibility.Incompatible)
+    }
+
+    @Test
+    fun `comparing a simple version with a NoVersion should always return Unknown`() {
+        // Arrange
+        val simpleVersion = SimpleVersion("test")
+        val otherVersion = NoVersion()
 
         // Act
         val result = simpleVersion.checkCompatibilityTo(otherVersion)
