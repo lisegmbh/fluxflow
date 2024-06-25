@@ -12,7 +12,9 @@ import jakarta.validation.Valid
 import jakarta.validation.Validator
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KClass
+import kotlin.reflect.KClassifier
 import kotlin.reflect.KProperty1
+import kotlin.reflect.full.createType
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
 
@@ -73,7 +75,15 @@ class JakartaDataValidationBuilder(
         }
 
         prop.findAnnotationEverywhere<Valid>() ?: return result
-        val propertyType = prop.returnType.classifier as? KClass<*> ?: return result
+
+        val propTypeClassifier = prop.returnType.classifier as KClass<*>? ?: return result
+
+        val propertyType: KClass<*> = if (isCollectionType(propTypeClassifier)) {
+            // We need to get the type of the collection elements and not the collection itself
+            prop.returnType.arguments.first().type!!.classifier as? KClass<*> ?: return result
+        } else {
+            propTypeClassifier
+        }
 
         result += propertyType
             .memberProperties
@@ -125,6 +135,18 @@ class JakartaDataValidationBuilder(
         }
 
         validatedTypes.add(type)
+    }
+
+    private fun isCollectionType(classifier: KClassifier): Boolean {
+        val collectionTypes = setOf(
+            Collection::class,
+            List::class,
+            Set::class,
+            Map::class,
+            Array::class
+        )
+
+        return classifier in collectionTypes
     }
 
     private companion object {
