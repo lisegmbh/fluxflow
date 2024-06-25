@@ -33,6 +33,21 @@ class JakartaDataValidationBuilderIT {
     }
 
     @Test
+    fun `validation definitions should include nested validation constraint present on a property's type for collection`() {
+        // Act
+        val validationDefinition = builder.buildValidations(
+            DataKind("test"),
+            TestModel::class,
+            TestModel::testObjects
+        )!!.build(TestModel())
+
+        // Assert
+        assertThat(validationDefinition.constraints).hasOnlyElementsOfType(PropertyValidationConstraintImpl::class.java)
+        val propertyConstraint = validationDefinition.constraints.first() as PropertyValidationConstraint
+        assertThat(propertyConstraint.constraints).hasSize(NestedTestModel.NumberOfValidationsForSimpleTestProp)
+    }
+
+    @Test
     fun `validation definitions should include recursive validation constraint present on nested properties`() {
         // Act
         val validationDefinition = builder.buildValidations(
