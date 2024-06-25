@@ -88,14 +88,14 @@ open class BasicConfiguration {
     @Autowired
     // This needs to be done to avoid the circular dependency between StepServiceImpl and ContinuationService
     private var continuationService: ContinuationService? = null
-    
+
     @Bean
     open fun iocProvider(
         applicationContext: ApplicationContext
     ): IocProvider {
         return SpringIocProvider(applicationContext)
     }
-    
+
     @Bean
     @ConditionalOnMissingBean(Clock::class)
     open fun clock(): Clock {
@@ -123,7 +123,7 @@ open class BasicConfiguration {
     open fun parameterResolver(
         resolvers: List<ParameterResolver>
     ): ParameterResolver {
-        if(resolvers.size == 1) {
+        if (resolvers.size == 1) {
             return resolvers.first()
         }
         return PriorityParameterResolver(
@@ -172,7 +172,7 @@ open class BasicConfiguration {
             activationService
         )
     }
-   
+
     @Bean
     @Primary
     open fun workflowQueryService(
@@ -365,6 +365,24 @@ open class BasicConfiguration {
     }
 
     @Bean
+    @Primary
+    @ConditionalOnProperty(
+        "fluxflow.versioning.steps.automaticRestore",
+        havingValue = "true",
+        matchIfMissing = true
+    )
+    open fun fallbackStepActivationService(
+        activationService: StepActivationService,
+        stepDefinitionService: StepDefinitionService
+    ): StepActivationService {
+        return RestoringStepActivationService(
+            activationService,
+            stepDefinitionService,
+            false
+        )
+    }
+
+    @Bean
     open fun stepActivationService(
         iocProvider: IocProvider,
         stepDefinitionBuilder: StepDefinitionBuilder,
@@ -379,7 +397,7 @@ open class BasicConfiguration {
             requiredCompatibility
         )
     }
-    
+
     @Bean
     open fun stepKindMapBuilder(
         context: ApplicationContext,
@@ -390,7 +408,7 @@ open class BasicConfiguration {
             classLoaderProvider.provide()
         )
     }
-    
+
     @Bean
     open fun stepTypeResolver(
         classLoaderProvider: ClassLoaderProvider,
@@ -419,7 +437,7 @@ open class BasicConfiguration {
             persistence
         )
     }
-    
+
     @Bean
     @ConditionalOnProperty(
         "fluxflow.versioning.steps.recordVersion",
@@ -429,9 +447,9 @@ open class BasicConfiguration {
     open fun stepDefinitionVersionRecorder(
         stepDefinitionService: StepDefinitionService
     ): VersionRecorder<StepDefinition> {
-        return StepDefinitionVersionRecorder(stepDefinitionService)  
+        return StepDefinitionVersionRecorder(stepDefinitionService)
     }
-    
+
     @Bean
     @ConditionalOnProperty(
         "fluxflow.versioning.steps.recordVersion",
@@ -441,7 +459,7 @@ open class BasicConfiguration {
     open fun noOpStepDefinitionVersionRecorder(): VersionRecorder<StepDefinition> {
         return NoOpVersionRecorder()
     }
-    
+
     @Bean
     open fun stepService(
         persistence: StepPersistence,

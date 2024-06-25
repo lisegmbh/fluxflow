@@ -77,4 +77,6 @@ fluxflow:
     steps:
       recordVersion: true # boolean: If true, step definition versions are persisted.
       requiredCompatibility: Unknown # Compatible, Unknown or Incompatible
+      automaticRestore: true # If set to true, FluxFlow tries to fall back to activating
+                             # failed steps using pre-persisted step definitions.
 ```
