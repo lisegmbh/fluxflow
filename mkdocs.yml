@@ -9,6 +9,8 @@ theme:
     - kotlin
 extra_css:
   - style.css
+markdown_extensions:
+  - admonition
 nav:
   - Home: index.md
   - Getting started: getting-started/getting-started.md
@@ -22,6 +24,7 @@ nav:
     - Automation: features/automation.md
     - Injection: features/injection.md
     - Validation: features/validation.md
+    - Versioning: features/versioning.md
     - Queries: features/queries.md
   - Spring:
     - Settings: spring/settings.md
