@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 3. **Versioning information for step definitions**<br />
    Step definitions and steps can now carry versioning information.
    They can be applied by annotating a step with the new `@Version` annotation.
+4. **Compatibility checks and restored versions for steps**<br />
+   FluxFlow can now check if the current step definition is still compatible with the version that has been used to
+   originally create a step to be loaded from persistence.
+   If it is incompatible, a restored/historic version of the affected step can be returned.
+   See [https://docs.fluxflow.cloud/see/2](https://docs.fluxflow.cloud/see/2) for more information.  
+   
 
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>
