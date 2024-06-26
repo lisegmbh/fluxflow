@@ -19,10 +19,10 @@ nav:
     - Steps: steps.md
     - Jobs: jobs.md
   - Features:
-    - Automation: automation.md
-    - Injection: injection.md
-    - Validation: validation.md
-    - Queries: queries.md
+    - Automation: features/automation.md
+    - Injection: features/injection.md
+    - Validation: features/validation.md
+    - Queries: features/queries.md
   - Spring:
     - Settings: spring/settings.md
   - Migration guides:
