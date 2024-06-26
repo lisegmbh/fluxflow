@@ -84,7 +84,7 @@ class EnterContactInformationStep {
 ```
 
 To explicitly specify older but still compatible versions,
-the `compatileVersions` property can be used. 
+the `compatibleVersions` property can be used. 
 
 ```kotlin
 @Step
