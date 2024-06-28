@@ -10,6 +10,7 @@ import org.springframework.data.mongodb.core.query.Criteria
 class StepDocumentFilter(
     val id: MongoFilter<String>?,
     val kind: MongoFilter<String>?,
+    val version: MongoFilter<String>?,
     val status: MongoFilter<Status>?,
     val metadata: MongoFilter<Map<String, Any>>?,
     val workflowId: MongoFilter<String>?
@@ -19,6 +20,7 @@ class StepDocumentFilter(
     ) : this(
         stepDataFilter.id?.let { MongoFilter.fromDomainFilter(it) },
         stepDataFilter.kind?.let { MongoFilter.fromDomainFilter(it) },
+        stepDataFilter.version?.let { MongoFilter.fromDomainFilter(it) },
         stepDataFilter.status?.let { MongoFilter.fromDomainFilter(it) },
         stepDataFilter.metadata?.let { MongoFilter.fromDomainFilter(it) },
         workflowId = null
@@ -32,6 +34,9 @@ class StepDocumentFilter(
         }
         if (kind != null) {
             criteria.add(kind.apply("kind"))
+        }
+        if(version != null) {
+            criteria.add(version.apply("version"))
         }
         if (status != null) {
             criteria.add(status.apply("status"))
