@@ -20,6 +20,13 @@ interface StepPersistence {
     fun create(stepData: StepData): StepData
 
     /**
+     * Searches for all steps matching the given query.
+     * 
+     * @param query The query specifying the steps to be returned.
+     */
+    fun findAll(query: StepDataQuery): Page<StepData>
+
+    /**
      * Returns all steps associated to the given workflow.
      */
     fun findForWorkflow(workflowIdentifier: WorkflowIdentifier): List<StepData>
