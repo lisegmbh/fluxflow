@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.*
 import de.lise.fluxflow.api.step.query.StepQuery
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.versioning.VersionRecorder
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
@@ -25,11 +26,13 @@ class StepServiceImpl(
     private val eventService: EventService,
     private val continuationService: ContinuationService,
     private val changeDetector: ChangeDetector<StepData>,
-    private val stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>
+    private val stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>,
+    private val enableAutomaticVersionUpgrade: Boolean,
+    private val requiredCompatibility: VersionCompatibility
 ) : StepService {
     fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
         stepDefinitionVersionRecorder.record(definition)
-        
+
         val step = definition.createStep(
             workflow,
             StepIdentifier(persistence.randomId()),
@@ -100,13 +103,13 @@ class StepServiceImpl(
             step.identifier
         )!!
         val metadata = stepData.metadata.toMutableMap()
-        if(value == null) {
+        if (value == null) {
             metadata.remove(key)
         } else {
             metadata[key] = value
         }
         return saveChanges(
-            step, 
+            step,
             stepData.copy(
                 metadata = metadata
             )
@@ -145,7 +148,7 @@ class StepServiceImpl(
 
     private fun setState(step: Step, status: Status): Step {
         val stepData = persistence.findForWorkflowAndId(step.workflow.identifier, step.identifier)!!
-        if(step.status == status) {
+        if (step.status == status) {
             return step
         }
         return saveChanges(step, stepData.withState(status))
@@ -153,9 +156,12 @@ class StepServiceImpl(
 
     fun saveChanges(step: Step): Step {
         val oldVersion = persistence.findForWorkflowAndId(step.workflow.identifier, step.identifier)!!
-        val newVersion = oldVersion.withData(fetchData(step))
+        val newVersion = applyVersionUpgrade(
+            step,
+            oldVersion.withData(fetchData(step)),
+        )
 
-        if(!changeDetector.hasChanged(oldVersion, newVersion)) {
+        if (!changeDetector.hasChanged(oldVersion, newVersion)) {
             Logger.debug(
                 "Step '{}' of workflow '{}' will not be persisted, because it didn't change.",
                 step.identifier.value,
@@ -165,6 +171,36 @@ class StepServiceImpl(
         }
 
         return saveChanges(step, newVersion)
+    }
+
+    private fun applyVersionUpgrade(
+        step: Step,
+        data: StepData,
+    ): StepData {
+        if (!enableAutomaticVersionUpgrade) return data
+        if (data.version == step.definition.version.version) return data
+
+        val actualCompatibility = step.definition.version.checkCompatibilityTo(step.version)
+        
+        if(!requiredCompatibility.isSatisfiedBy(actualCompatibility)) {
+            Logger.warn(
+                "Skip updating step #{} from '{}' to '{}', as the compatibility {} doesn't satisfy the required compatibility of {}.",
+                step.identifier.value,
+                step.version.version,
+                step.definition.version.version,
+                actualCompatibility,
+                requiredCompatibility
+            )
+            return data
+        }
+        
+        Logger.info(
+            "Automatically upgrading version of step #{} from '{}' to '{}'.",
+            step.identifier.value,
+            data.version,
+            step.definition.version.version
+        )
+        return data.copy(version = step.definition.version.version)
     }
 
     private fun saveChanges(step: Step, data: StepData): Step {

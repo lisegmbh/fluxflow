@@ -79,4 +79,7 @@ fluxflow:
       requiredCompatibility: Unknown # Compatible, Unknown or Incompatible
       automaticRestore: true # If set to true, FluxFlow tries to fall back to activating
                              # failed steps using pre-persisted step definitions.
+      automaticUpgrade: true # If set to true, FluxFlow 
+                             # automatically updates compatible steps.
+      requiredUpgradeCompatibility: Unknown # # Compatible, Unknown or Incompatible
 ```
