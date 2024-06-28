@@ -178,7 +178,7 @@ class StepServiceImpl(
         data: StepData,
     ): StepData {
         if (!enableAutomaticVersionUpgrade) return data
-        if (data.version !== step.definition.version.version) return data
+        if (data.version == step.definition.version.version) return data
 
         val actualCompatibility = step.definition.version.checkCompatibilityTo(step.version)
         
