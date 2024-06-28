@@ -467,6 +467,7 @@ open class BasicConfiguration {
         eventService: EventService,
         changeDetector: ChangeDetector<StepData>,
         stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>,
+        workflowQueryService: WorkflowQueryService,
         @Value("\${fluxflow.versioning.steps.automaticUpgrade:true}")
         enableAutomaticUpgrade: Boolean,
         @Value("\${fluxflow.versioning.steps.requiredUpgradeCompatibility:Unknown}")
@@ -479,6 +480,7 @@ open class BasicConfiguration {
             continuationService!!,
             changeDetector,
             stepDefinitionVersionRecorder,
+            workflowQueryService,
             enableAutomaticUpgrade,
             requiredUpgradeCompatibility
         )
