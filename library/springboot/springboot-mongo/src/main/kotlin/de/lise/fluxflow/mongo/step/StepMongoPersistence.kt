@@ -46,6 +46,7 @@ class StepMongoPersistence(
             StepDocumentFilter(
                 id = it?.id,
                 kind = it?.kind,
+                version = it?.version,
                 status = it?.status,
                 workflowId = MongoEqualFilter(workflowIdentifier.value),
                 metadata = it?.metadata
