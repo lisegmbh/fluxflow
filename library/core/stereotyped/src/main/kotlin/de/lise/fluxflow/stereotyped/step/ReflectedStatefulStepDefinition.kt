@@ -30,6 +30,7 @@ class ReflectedStatefulStepDefinition(
     override fun createStep(
         workflow: Workflow<*>,
         stepIdentifier: StepIdentifier,
+        version: Version,
         status: Status,
         metadata: Map<String, Any>?
     ): Step {
@@ -42,6 +43,7 @@ class ReflectedStatefulStepDefinition(
 
         val step = StatefulStepImpl(
             stepIdentifier,
+            version,
             this,
             workflow,
             status,

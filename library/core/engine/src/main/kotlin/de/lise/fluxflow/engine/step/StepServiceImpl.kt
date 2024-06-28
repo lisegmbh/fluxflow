@@ -33,6 +33,7 @@ class StepServiceImpl(
         val step = definition.createStep(
             workflow,
             StepIdentifier(persistence.randomId()),
+            definition.version,
             Status.Active,
             definition.metadata
         )

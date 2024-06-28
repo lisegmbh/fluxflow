@@ -44,12 +44,14 @@ class RestoredStepDefinition(
     override fun createStep(
         workflow: Workflow<*>,
         stepIdentifier: StepIdentifier,
+        version: Version,
         status: Status,
         metadata: Map<String, Any>?
     ): RestoredStepImpl {
         val dataList = mutableListOf<RestoredData>()
         val step = RestoredStepImpl(
             stepIdentifier,
+            version,
             this,
             workflow,
             status,

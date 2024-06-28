@@ -100,7 +100,7 @@ class RestoringStepActivationServiceTest {
             on { identifier } doReturn StepIdentifier("id")
         }
         val restoredStepDefinition = mock<StepDefinition> {
-            on { createStep(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()) } doReturn restoredStep
+            on { createStep(anyOrNull(), anyOrNull(), any(), anyOrNull(), anyOrNull()) } doReturn restoredStep
         }
         val stepDefinitionService = mock<StepDefinitionService> {
                 on { createRestoredStepDefinition(any(), any(), any()) } doReturn restoredStepDefinition
@@ -140,7 +140,7 @@ class RestoringStepActivationServiceTest {
             on { identifier } doReturn StepIdentifier("id")
         }
         val restoredStepDefinition = mock<StepDefinition> {
-            on { createStep(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()) } doReturn restoredStep
+            on { createStep(anyOrNull(), anyOrNull(), any(), anyOrNull(), anyOrNull()) } doReturn restoredStep
         }
         val stepDefinitionService = mock<StepDefinitionService> {
             on { createRestoredStepDefinition(any(), any(), any()) } doReturn restoredStepDefinition
