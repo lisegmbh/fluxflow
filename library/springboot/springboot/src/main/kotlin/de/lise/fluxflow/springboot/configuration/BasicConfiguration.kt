@@ -468,7 +468,9 @@ open class BasicConfiguration {
         changeDetector: ChangeDetector<StepData>,
         stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>,
         @Value("\${fluxflow.versioning.steps.automaticUpgrade:true}")
-        enableAutomaticUpgrade: Boolean
+        enableAutomaticUpgrade: Boolean,
+        @Value("\${fluxflow.versioning.steps.requiredUpgradeCompatibility:Unknown}")
+        requiredUpgradeCompatibility: VersionCompatibility
     ): StepServiceImpl {
         return StepServiceImpl(
             persistence,
@@ -477,7 +479,8 @@ open class BasicConfiguration {
             continuationService!!,
             changeDetector,
             stepDefinitionVersionRecorder,
-            enableAutomaticUpgrade
+            enableAutomaticUpgrade,
+            requiredUpgradeCompatibility
         )
     }
 
