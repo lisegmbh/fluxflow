@@ -25,7 +25,8 @@ class StepServiceImpl(
     private val eventService: EventService,
     private val continuationService: ContinuationService,
     private val changeDetector: ChangeDetector<StepData>,
-    private val stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>
+    private val stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>,
+    private val enableAutomaticVersionUpgrade: Boolean
 ) : StepService {
     fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
         stepDefinitionVersionRecorder.record(definition)
@@ -153,7 +154,23 @@ class StepServiceImpl(
 
     fun saveChanges(step: Step): Step {
         val oldVersion = persistence.findForWorkflowAndId(step.workflow.identifier, step.identifier)!!
-        val newVersion = oldVersion.withData(fetchData(step))
+        val newVersion = oldVersion.withData(fetchData(step)).let { 
+            if(enableAutomaticVersionUpgrade) {
+                if(it.version != step.definition.version.version) {
+                    Logger.info(
+                        "Automatically upgrading version of step #{} from '{}' to '{}'.",
+                        step.identifier.value,
+                        it.version,
+                        step.definition.version.version
+                    )
+                    it.copy(version = step.definition.version.version)
+                } else {
+                    it
+                }
+            } else {
+                it
+            }
+        }
 
         if(!changeDetector.hasChanged(oldVersion, newVersion)) {
             Logger.debug(
