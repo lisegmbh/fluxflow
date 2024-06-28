@@ -33,10 +33,11 @@ class DefaultStepActivationService(
                         "required compatibility: $requiredCompatibility)"
             )
         }
-
+        
         val step = stepDefinition.createStep(
             workflow,
             StepIdentifier(stepData.id),
+            persistedVersion,
             stepData.status,
             stepData.metadata
         )

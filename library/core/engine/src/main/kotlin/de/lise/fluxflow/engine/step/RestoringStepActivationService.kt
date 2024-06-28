@@ -60,9 +60,12 @@ class RestoringStepActivationService(
             cause
         )
 
+        val version = Version.parse(stepData.version)
+        
         val step = restoredStepDefinition.createStep(
             workflow,
             StepIdentifier(stepData.id),
+            version,
             stepData.status,
             stepData.metadata
         )

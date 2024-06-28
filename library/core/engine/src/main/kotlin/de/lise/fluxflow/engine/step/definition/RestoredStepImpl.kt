@@ -5,11 +5,13 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.Action
+import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.engine.step.data.RestoredData
 
 class RestoredStepImpl(
     override val identifier: StepIdentifier,
+    override val version: Version,
     override val definition: RestoredStepDefinition,
     override val workflow: Workflow<*>,
     override val status: Status,
