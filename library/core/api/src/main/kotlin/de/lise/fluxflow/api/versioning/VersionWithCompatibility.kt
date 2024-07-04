@@ -6,7 +6,7 @@ package de.lise.fluxflow.api.versioning
  */
 class VersionWithCompatibility(
     private val decoratedVersion: Version,
-    private val compatibleVersions: List<Version>
+    val compatibleVersions: List<Version>
 ) : Version {
     override val version: String
         get() = decoratedVersion.version
