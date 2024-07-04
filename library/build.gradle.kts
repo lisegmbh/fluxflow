@@ -31,7 +31,7 @@ subprojects {
     apply(plugin = "io.spring.dependency-management")
     
     group = "de.lise.fluxflow"
-    version = projVersion ?: "0.2.0-SNAPSHOT-3"
+    version = projVersion ?: "0.2.0-SNAPSHOT-4"
 
     repositories {
         mavenCentral()
