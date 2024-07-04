@@ -8,6 +8,7 @@ data class StepDataEvent(
     val stepData: Data<*>,
     val oldValue: Any?,
     val newValue: Any?,
+    override val context: Any?,
 ) : FlowEvent {
     override val workflow: Workflow<*>
         get() = stepData.step.workflow

@@ -12,4 +12,7 @@ import de.lise.fluxflow.api.workflow.Workflow
  * that the persist operation can be skipped because the workflow didn't really change.
  */
 @Deprecated("This event will not be raised in future versions of FluxFlow and is going to be removed.")
-class BeforeWorkflowUpdateEvent(workflow: Workflow<*>): WorkflowEvent(workflow)
+class BeforeWorkflowUpdateEvent(workflow: Workflow<*>): WorkflowEvent(workflow) {
+    override val context: Any?
+        get() = null
+}
