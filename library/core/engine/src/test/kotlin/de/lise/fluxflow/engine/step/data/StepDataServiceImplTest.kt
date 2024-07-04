@@ -7,7 +7,9 @@ import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.data.*
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
+import de.lise.fluxflow.engine.event.step.data.StepDataEvent
 import de.lise.fluxflow.engine.step.StepServiceImpl
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
@@ -233,5 +235,70 @@ class StepDataServiceImplTest {
         }
 
         verify(stepServiceImpl, never()).saveChanges(any<Step>())
+    }
+
+    @Test
+    fun `setValue should publish a StepDataEvent containing the provided context information`() {
+        // Arrange
+        val stepServiceImpl = mock<StepServiceImpl> {}
+        val eventService = mock<EventService> {}
+        val eventCaptor = argumentCaptor<StepDataEvent>()
+        val dataService = defaultService(
+            false,
+            eventService = eventService,
+            stepServiceImpl = stepServiceImpl
+        )
+        val stepMock = mock<Step> {
+            on { status } doReturn Status.Active
+        }
+        val dataDefinition = mock<DataDefinition<String>> {
+            on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
+        }
+        val data = mock<ModifiableData<String>> {
+            on { step } doReturn stepMock
+            on { definition } doReturn dataDefinition
+        }
+        val testContext = "TestContext"
+
+        // Act
+        dataService.setValue(testContext, data, "Test")
+
+        // Assert
+        verify(eventService, times(1)).publish(eventCaptor.capture())
+        val publishedEvent = eventCaptor.firstValue
+        assertThat(publishedEvent.context).isEqualTo(testContext)
+    }
+
+    @Test
+    fun `setValue should publish a StepDataEvent without context information if none has been provided`() {
+        // Arrange
+        val stepServiceImpl = mock<StepServiceImpl> {}
+        val eventService = mock<EventService> {}
+        val eventCaptor = argumentCaptor<StepDataEvent>()
+        val dataService = defaultService(
+            false,
+            eventService = eventService,
+            stepServiceImpl = stepServiceImpl
+        )
+        val stepMock = mock<Step> {
+            on { status } doReturn Status.Active
+        }
+        val dataDefinition = mock<DataDefinition<String>> {
+            on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
+        }
+        val data = mock<ModifiableData<String>> {
+            on { step } doReturn stepMock
+            on { definition } doReturn dataDefinition
+        }
+
+        // Act
+        dataService.setValue(data, "Test")
+
+        // Assert
+        verify(eventService, times(1)).publish(eventCaptor.capture())
+        val publishedEvent = eventCaptor.firstValue
+        assertThat(publishedEvent.context).isNull()
     }
 }
