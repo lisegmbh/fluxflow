@@ -10,6 +10,9 @@ import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.versioning.VersionRecorder
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
+import de.lise.fluxflow.api.workflow.WorkflowQueryService
+import de.lise.fluxflow.api.workflow.query.filter.WorkflowFilter
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.StepFinalizationSemaphore
 import de.lise.fluxflow.engine.event.step.StepCreatedEvent
@@ -17,6 +20,8 @@ import de.lise.fluxflow.engine.event.step.StepUpdatedEvent
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.query.toDataQuery
+import de.lise.fluxflow.query.Query
+import de.lise.fluxflow.query.filter.Filter
 import de.lise.fluxflow.query.pagination.Page
 import org.slf4j.LoggerFactory
 
@@ -27,8 +32,9 @@ class StepServiceImpl(
     private val continuationService: ContinuationService,
     private val changeDetector: ChangeDetector<StepData>,
     private val stepDefinitionVersionRecorder: VersionRecorder<StepDefinition>,
+    private val workflowQueryService: WorkflowQueryService,
     private val enableAutomaticVersionUpgrade: Boolean,
-    private val requiredCompatibility: VersionCompatibility
+    private val requiredCompatibility: VersionCompatibility,
 ) : StepService {
     fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
         stepDefinitionVersionRecorder.record(definition)
@@ -90,6 +96,28 @@ class StepServiceImpl(
             workflow.identifier,
             query.toDataQuery()
         ).map { stepActivationService.activate(workflow, it) }
+    }
+
+    override fun findSteps(query: StepQuery): Page<Step> {
+        val page = persistence.findAll(query.toDataQuery())
+        val stepsByWorkflow = page.items.groupBy { step -> step.workflowId }
+        val workflows = workflowQueryService.getAll(
+            Query.withFilter(
+                WorkflowFilter<Any?>(
+                    id = Filter.anyOf(stepsByWorkflow.keys),
+                    model = null,
+                    modelType = null
+                )
+            )
+        ).items.associateBy { it.identifier.value }
+
+        return page.map { step ->
+            stepActivationService.activate(
+                workflows[step.workflowId]
+                    ?: throw WorkflowNotFoundException(WorkflowIdentifier(step.workflowId)),
+                step
+            )
+        }
     }
 
     override fun <TWorkflowModel> findStep(workflow: Workflow<TWorkflowModel>, stepIdentifier: StepIdentifier): Step? {
@@ -181,8 +209,8 @@ class StepServiceImpl(
         if (data.version == step.definition.version.version) return data
 
         val actualCompatibility = step.definition.version.checkCompatibilityTo(step.version)
-        
-        if(!requiredCompatibility.isSatisfiedBy(actualCompatibility)) {
+
+        if (!requiredCompatibility.isSatisfiedBy(actualCompatibility)) {
             Logger.warn(
                 "Skip updating step #{} from '{}' to '{}', as the compatibility {} doesn't satisfy the required compatibility of {}.",
                 step.identifier.value,
@@ -193,7 +221,7 @@ class StepServiceImpl(
             )
             return data
         }
-        
+
         Logger.info(
             "Automatically upgrading version of step #{} from '{}' to '{}'.",
             step.identifier.value,
