@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    FluxFlow can now check if the current step definition is still compatible with the version that has been used to
    originally create a step to be loaded from persistence.
    If it is incompatible, a restored/historic version of the affected step can be returned.
-   See [https://docs.fluxflow.cloud/see/2](https://docs.fluxflow.cloud/see/2) for more information.  
+   See [https://docs.fluxflow.cloud/see/2](https://docs.fluxflow.cloud/see/2) for more information.
+5. **Allow passing additional information when updating step data**<br />
+   The `StepDataService` now accepts an additional parameter allowing developers to pass additional context information.
    
 
 ### Changed

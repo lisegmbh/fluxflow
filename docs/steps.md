@@ -1081,6 +1081,59 @@ metadata can be customized.
 
 ## Using steps
 
+### Assigning step data
+A step's data can be modified using the `StepDataService`.
+Please note that the data itself must be modifiable (= implement the `ModifiableData` interface).
+
+```kotlin
+import de.lise.fluxflow.api.step.stateful.data.Data
+import de.lise.fluxflow.api.step.stateful.data.StepDataService
+import java.time.Instant
+
+class ModificationHistoryService(private val stepDataService: StepDataService) {
+    fun assignLastModifiedDate(data: Data<Instant>) {
+        stepDataService.setValue(data, Instant.now())
+    }
+}
+```
+
+The `setValue()` function also accepts an additional context parameter,
+allowing additional information to be passed along.
+This extra information can be obtained by event listeners (see `FlowListener`) using the `FlowEvent.context` property.
+
+```kotlin
+import de.lise.fluxflow.api.step.stateful.data.Data
+import de.lise.fluxflow.api.step.stateful.data.StepDataService
+import java.time.Instant
+
+/**
+ * Provide additional context information
+ */
+class ModificationHistoryService(private val stepDataService: StepDataService) {
+    fun assignLastModifiedDate(data: Data<Instant>, currentUser: User) {
+        stepDataService.setValue(
+            currentUser,    // context information
+            data,           // data to be updated
+            Instant.now()   // value to be assigned
+        )
+    }
+}
+
+/**
+ * Access additional context information
+ */
+class HistoryService: FlowListener {
+    private val logger = LoggerFactory.getLogger(HistoryService::class.java)
+
+    override fun onFlowEvent(event: FlowEvent) {
+        val modifyingUser = event.context as? User
+        if (modifyingUser != null) {
+            logger.debug("Workflow updated by user: {}", modifyingUser)
+        }
+    }
+}
+```
+
 ### Modifying step metadata at runtime
 In order to dynamically modify a step's metadata,
 the `StepService.setMetadata(step: Step, key: String, value: Any?)` function can be used.
