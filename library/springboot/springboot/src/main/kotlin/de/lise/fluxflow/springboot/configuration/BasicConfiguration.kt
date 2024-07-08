@@ -61,8 +61,6 @@ import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
-import de.lise.fluxflow.stereotyped.unwrapping.UnwrapService
-import de.lise.fluxflow.stereotyped.unwrapping.UnwrapServiceImpl
 import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import de.lise.fluxflow.stereotyped.workflow.ModelListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.workflow.SelectorExpressionParser
@@ -335,11 +333,6 @@ open class BasicConfiguration {
             metadataBuilder,
             mutableMapOf(),
         )
-    }
-
-    @Bean
-    open fun unwrapService(): UnwrapService {
-        return UnwrapServiceImpl()
     }
 
     @Bean
