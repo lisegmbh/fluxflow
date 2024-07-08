@@ -12,3 +12,7 @@ updates:
       day: "sunday"
       time: "11:00"
       timezone: "Europe/Berlin"
+    groups:
+      jackson:
+        patterns:
+          - "com.fasterxml.jackson.*"
