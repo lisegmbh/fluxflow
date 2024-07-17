@@ -16,8 +16,6 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.*
 
 class StepDataServiceImplTest {
-
-
     private fun defaultService(
         allowInactiveModification: Boolean,
         eventService: EventService? = null,
