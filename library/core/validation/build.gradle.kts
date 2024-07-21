@@ -9,5 +9,5 @@ dependencies {
     
     // Test
     testImplementation("org.hibernate.validator:hibernate-validator:8.0.1.Final")
-    testImplementation("jakarta.el:jakarta.el-api:6.0.0")
+    testImplementation("jakarta.el:jakarta.el-api:6.0.1")
 }
