@@ -7,6 +7,7 @@ import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.StepActivationException
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
+import de.lise.fluxflow.api.versioning.CompatibilityTester
 import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
@@ -17,12 +18,13 @@ class DefaultStepActivationService(
     private val iocProvider: IocProvider,
     private val stepDefinitionBuilder: StepDefinitionBuilder,
     private val stepTypeResolver: StepTypeResolver,
-    private val requiredCompatibility: VersionCompatibility
+    private val requiredCompatibility: VersionCompatibility,
+    private val compatibilityTester: CompatibilityTester
 ) : StepActivationService {
     override fun <TWorkflowModel> activate(workflow: Workflow<TWorkflowModel>, stepData: StepData): Step {
         val stepDefinition = activeStepDefinition(workflow, stepData)
         val persistedVersion = Version.parse(stepData.version)
-        val currentCompatibility = stepDefinition.version.checkCompatibilityTo(persistedVersion)
+        val currentCompatibility = compatibilityTester.checkCompatibility(persistedVersion, stepDefinition.version)
 
         if(!requiredCompatibility.isSatisfiedBy(currentCompatibility)) {
             throw StepActivationException(

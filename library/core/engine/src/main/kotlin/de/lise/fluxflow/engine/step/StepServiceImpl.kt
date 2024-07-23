@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.*
 import de.lise.fluxflow.api.step.query.StepQuery
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.versioning.CompatibilityTester
 import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.versioning.VersionRecorder
 import de.lise.fluxflow.api.workflow.Workflow
@@ -35,6 +36,7 @@ class StepServiceImpl(
     private val workflowQueryService: WorkflowQueryService,
     private val enableAutomaticVersionUpgrade: Boolean,
     private val requiredCompatibility: VersionCompatibility,
+    private val compatibilityTester: CompatibilityTester
 ) : StepService {
     fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
         stepDefinitionVersionRecorder.record(definition)
@@ -207,9 +209,8 @@ class StepServiceImpl(
     ): StepData {
         if (!enableAutomaticVersionUpgrade) return data
         if (data.version == step.definition.version.version) return data
-
-        val actualCompatibility = step.definition.version.checkCompatibilityTo(step.version)
-
+        
+        val actualCompatibility = compatibilityTester.checkCompatibility(step.version, step.definition.version)
         if (!requiredCompatibility.isSatisfiedBy(actualCompatibility)) {
             Logger.warn(
                 "Skip updating step #{} from '{}' to '{}', as the compatibility {} doesn't satisfy the required compatibility of {}.",

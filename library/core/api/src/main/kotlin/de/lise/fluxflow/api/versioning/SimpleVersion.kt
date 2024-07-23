@@ -16,14 +16,4 @@ package de.lise.fluxflow.api.versioning
 class SimpleVersion(
     override val version: String,
     private val mismatchCompatibility: VersionCompatibility = VersionCompatibility.Incompatible
-) : Version {
-    override fun checkCompatibilityTo(other: Version): VersionCompatibility {
-        if (version == other.version) {
-            return VersionCompatibility.Compatible
-        }
-        if (other is NoVersion) {
-            return VersionCompatibility.Unknown
-        }
-        return mismatchCompatibility
-    }
-}
+) : Version

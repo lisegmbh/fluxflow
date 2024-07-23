@@ -9,9 +9,7 @@ import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
-import de.lise.fluxflow.api.versioning.NoOpVersionRecorder
-import de.lise.fluxflow.api.versioning.VersionCompatibility
-import de.lise.fluxflow.api.versioning.VersionRecorder
+import de.lise.fluxflow.api.versioning.*
 import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
@@ -374,6 +372,11 @@ open class BasicConfiguration {
             false
         )
     }
+    
+    @Bean
+    open fun compatibilityTester(): CompatibilityTester {
+        return DefaultCompatibilityTester()
+    }
 
     @Bean
     open fun stepActivationService(
@@ -381,13 +384,15 @@ open class BasicConfiguration {
         stepDefinitionBuilder: StepDefinitionBuilder,
         stepTypeResolver: StepTypeResolver,
         @Value("\${fluxflow.versioning.steps.requiredCompatibility:Unknown}")
-        requiredCompatibility: VersionCompatibility
+        requiredCompatibility: VersionCompatibility,
+        compatibilityTester: CompatibilityTester
     ): StepActivationService {
         return DefaultStepActivationService(
             iocProvider,
             stepDefinitionBuilder,
             stepTypeResolver,
-            requiredCompatibility
+            requiredCompatibility,
+            compatibilityTester
         )
     }
 
@@ -464,7 +469,8 @@ open class BasicConfiguration {
         @Value("\${fluxflow.versioning.steps.automaticUpgrade:true}")
         enableAutomaticUpgrade: Boolean,
         @Value("\${fluxflow.versioning.steps.requiredUpgradeCompatibility:Unknown}")
-        requiredUpgradeCompatibility: VersionCompatibility
+        requiredUpgradeCompatibility: VersionCompatibility,
+        compatibilityTester: CompatibilityTester
     ): StepServiceImpl {
         return StepServiceImpl(
             persistence,
@@ -475,7 +481,8 @@ open class BasicConfiguration {
             stepDefinitionVersionRecorder,
             workflowQueryService,
             enableAutomaticUpgrade,
-            requiredUpgradeCompatibility
+            requiredUpgradeCompatibility,
+            compatibilityTester
         )
     }
 

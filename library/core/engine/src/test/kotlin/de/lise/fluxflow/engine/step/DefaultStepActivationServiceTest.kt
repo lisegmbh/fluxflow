@@ -3,6 +3,7 @@ package de.lise.fluxflow.engine.step
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.versioning.DefaultCompatibilityTester
 import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
@@ -138,7 +139,8 @@ class DefaultStepActivationServiceTest {
                 mutableMapOf()
             ),
             StepTypeResolverImpl(stepType.java.classLoader),
-            VersionCompatibility.Unknown
+            VersionCompatibility.Unknown,
+            DefaultCompatibilityTester()
         )
 
         return Pair(activationService, testStepData)
