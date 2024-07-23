@@ -21,3 +21,7 @@ ol > .caption::before, ul > .caption::before {
     content: 'Figure ';
     font-weight: bold;
 }
+
+.wy-nav-content {
+    max-width: initial;
+}

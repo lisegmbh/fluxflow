@@ -71,6 +71,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.*
 import org.springframework.expression.spel.standard.SpelExpressionParser
@@ -374,8 +375,16 @@ open class BasicConfiguration {
     }
     
     @Bean
-    open fun compatibilityTester(): CompatibilityTester {
-        return DefaultCompatibilityTester()
+    @ConfigurationProperties("fluxflow.versioning.comparison")
+    open fun compatibilityConfiguration(): CompatibilityConfiguration {
+        return CompatibilityConfiguration()
+    }
+    
+    @Bean
+    open fun compatibilityTester(
+        compatibilityConfiguration: CompatibilityConfiguration
+    ): CompatibilityTester {
+        return DefaultCompatibilityTester(compatibilityConfiguration)
     }
 
     @Bean

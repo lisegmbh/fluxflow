@@ -74,6 +74,11 @@ fluxflow:
       continuationRecord: null
 
   versioning:
+    comparison: # Can be used to tweak the compatibility when comparing different versions
+      bothUnknown: Unknown # The old and new versions are unknown
+      unknownToKnown: Incompatible # The old version is unknown and while the new one is known 
+      knownToUnknown: Unknown # The old version is known, but the new one isn't
+      noExactMatch: Incompatible # Both versions are known, but they do not match
     steps:
       recordVersion: true # boolean: If true, step definition versions are persisted.
       requiredCompatibility: Unknown # Compatible, Unknown or Incompatible
