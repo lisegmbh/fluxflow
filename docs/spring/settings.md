@@ -76,7 +76,7 @@ fluxflow:
   versioning:
     comparison: # Can be used to tweak the compatibility when comparing different versions
       bothUnknown: Unknown # The old and new versions are unknown
-      unknownToKnown: Incompatible # The old version is unknown and while the new one is known 
+      unknownToKnown: Incompatible # The old version is unknown, while the new one is known 
       knownToUnknown: Unknown # The old version is known, but the new one isn't
       noExactMatch: Incompatible # Both versions are known, but they do not match
     steps:
