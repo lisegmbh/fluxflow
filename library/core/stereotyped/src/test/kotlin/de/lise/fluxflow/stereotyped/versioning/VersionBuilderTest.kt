@@ -1,9 +1,6 @@
 package de.lise.fluxflow.stereotyped.versioning
 
-import de.lise.fluxflow.api.versioning.NoVersion
-import de.lise.fluxflow.api.versioning.SimpleVersion
-import de.lise.fluxflow.api.versioning.VersionCompatibility
-import de.lise.fluxflow.api.versioning.VersionWithCompatibility
+import de.lise.fluxflow.api.versioning.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -37,15 +34,16 @@ class VersionBuilderTest {
     fun `build should return a version with compatible versions if they are given`() {
         // Arrange
         val builder = VersionBuilder()
+        val compatibilityTester = DefaultCompatibilityTester()
 
         // Act
         val result = builder.build(StepWithCompatibleVersions::class)
 
         // Assert
         assertThat(result).isInstanceOf(VersionWithCompatibility::class.java)
-        assertThat(result.checkCompatibilityTo(SimpleVersion("0.0.1"))).isEqualTo(VersionCompatibility.Compatible)
-        assertThat(result.checkCompatibilityTo(SimpleVersion("0.0.2"))).isEqualTo(VersionCompatibility.Compatible)
-        assertThat(result.checkCompatibilityTo(SimpleVersion("0.0.3"))).isEqualTo(VersionCompatibility.Compatible)
+        assertThat(compatibilityTester.checkCompatibility(SimpleVersion("0.0.1"), result)).isEqualTo(VersionCompatibility.Compatible)
+        assertThat(compatibilityTester.checkCompatibility(SimpleVersion("0.0.2"), result)).isEqualTo(VersionCompatibility.Compatible)
+        assertThat(compatibilityTester.checkCompatibility(SimpleVersion("0.0.3"), result)).isEqualTo(VersionCompatibility.Compatible)
     }
 
     private class StepWithoutAVersion

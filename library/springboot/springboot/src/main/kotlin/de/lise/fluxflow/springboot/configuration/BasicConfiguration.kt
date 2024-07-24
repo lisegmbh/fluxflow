@@ -9,9 +9,7 @@ import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
-import de.lise.fluxflow.api.versioning.NoOpVersionRecorder
-import de.lise.fluxflow.api.versioning.VersionCompatibility
-import de.lise.fluxflow.api.versioning.VersionRecorder
+import de.lise.fluxflow.api.versioning.*
 import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
@@ -73,6 +71,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.*
 import org.springframework.expression.spel.standard.SpelExpressionParser
@@ -374,6 +373,19 @@ open class BasicConfiguration {
             false
         )
     }
+    
+    @Bean
+    @ConfigurationProperties("fluxflow.versioning.comparison")
+    open fun compatibilityConfiguration(): CompatibilityConfiguration {
+        return CompatibilityConfiguration()
+    }
+    
+    @Bean
+    open fun compatibilityTester(
+        compatibilityConfiguration: CompatibilityConfiguration
+    ): CompatibilityTester {
+        return DefaultCompatibilityTester(compatibilityConfiguration)
+    }
 
     @Bean
     open fun stepActivationService(
@@ -381,13 +393,15 @@ open class BasicConfiguration {
         stepDefinitionBuilder: StepDefinitionBuilder,
         stepTypeResolver: StepTypeResolver,
         @Value("\${fluxflow.versioning.steps.requiredCompatibility:Unknown}")
-        requiredCompatibility: VersionCompatibility
+        requiredCompatibility: VersionCompatibility,
+        compatibilityTester: CompatibilityTester
     ): StepActivationService {
         return DefaultStepActivationService(
             iocProvider,
             stepDefinitionBuilder,
             stepTypeResolver,
-            requiredCompatibility
+            requiredCompatibility,
+            compatibilityTester
         )
     }
 
@@ -464,7 +478,8 @@ open class BasicConfiguration {
         @Value("\${fluxflow.versioning.steps.automaticUpgrade:true}")
         enableAutomaticUpgrade: Boolean,
         @Value("\${fluxflow.versioning.steps.requiredUpgradeCompatibility:Unknown}")
-        requiredUpgradeCompatibility: VersionCompatibility
+        requiredUpgradeCompatibility: VersionCompatibility,
+        compatibilityTester: CompatibilityTester
     ): StepServiceImpl {
         return StepServiceImpl(
             persistence,
@@ -475,7 +490,8 @@ open class BasicConfiguration {
             stepDefinitionVersionRecorder,
             workflowQueryService,
             enableAutomaticUpgrade,
-            requiredUpgradeCompatibility
+            requiredUpgradeCompatibility,
+            compatibilityTester
         )
     }
 

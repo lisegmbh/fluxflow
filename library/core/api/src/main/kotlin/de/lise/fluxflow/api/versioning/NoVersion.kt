@@ -9,11 +9,4 @@ class NoVersion : Version {
      */
     override val version: String
         get() = ""
-
-    /**
-     * Always returns [VersionCompatibility.Unknown].
-     */
-    override fun checkCompatibilityTo(other: Version): VersionCompatibility {
-        return VersionCompatibility.Unknown
-    }
 }
