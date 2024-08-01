@@ -21,7 +21,7 @@ class ContinuationConverterTest {
             ImplicitStatusBehavior.Default,
             true,
             TestInterface::functionReturningAContinuation
-        ).toContinuation(testContinuation)
+        )?.toContinuation(testContinuation)
 
         // Assert
         assertThat(createdContinuation).isSameAs(testContinuation)
@@ -37,7 +37,7 @@ class ContinuationConverterTest {
             ImplicitStatusBehavior.Default,
             true,
             TestInterface::functionReturningVoid
-        ).toContinuation(Unit)
+        )?.toContinuation(Unit)
 
         // Assert
         assertThat(createdContinuation).isInstanceOf(NoContinuation::class.java)
@@ -54,7 +54,7 @@ class ContinuationConverterTest {
             ImplicitStatusBehavior.Default,
             true,
             TestInterface::functionReturningAnythingElse
-        ).toContinuation(testStepValue)
+        )?.toContinuation(testStepValue)
 
         // Assert
         assertThat(createdContinuation).isInstanceOf(StepContinuation::class.java)
@@ -76,17 +76,17 @@ class ContinuationConverterTest {
             ImplicitStatusBehavior.Default,
             true,
             TestInterface::functionReturningAContinuation
-        ).toContinuation(nonPreservingTestContinuation)
+        )?.toContinuation(nonPreservingTestContinuation)
 
         val createdPreservingContinuation = continuationBuilder.createResultConverter(
             ImplicitStatusBehavior.Default,
             true,
             TestInterface::functionReturningAContinuation
-        ).toContinuation(preservingTestContinuation)
+        )?.toContinuation(preservingTestContinuation)
 
         // Assert
-        assertThat(createdNonPreservingContinuation.statusBehavior).isNotEqualTo(StatusBehavior.Preserve)
-        assertThat(createdPreservingContinuation.statusBehavior).isEqualTo(StatusBehavior.Preserve)
+        assertThat(createdNonPreservingContinuation?.statusBehavior).isNotEqualTo(StatusBehavior.Preserve)
+        assertThat(createdPreservingContinuation?.statusBehavior).isEqualTo(StatusBehavior.Preserve)
     }
 
     @Test
@@ -101,17 +101,17 @@ class ContinuationConverterTest {
             ImplicitStatusBehavior.Preserve,
             true,
             TestInterface::functionReturningAContinuation
-        ).toContinuation(nonPreservingTestContinuation)
+        )?.toContinuation(nonPreservingTestContinuation)
 
         val createdPreservingContinuation = continuationBuilder.createResultConverter(
             ImplicitStatusBehavior.Preserve,
             true,
             TestInterface::functionReturningAContinuation
-        ).toContinuation(preservingTestContinuation)
+        )?.toContinuation(preservingTestContinuation)
 
         // Assert
-        assertThat(createdNonPreservingContinuation.statusBehavior).isEqualTo(StatusBehavior.Preserve)
-        assertThat(createdPreservingContinuation.statusBehavior).isEqualTo(StatusBehavior.Preserve)
+        assertThat(createdNonPreservingContinuation?.statusBehavior).isEqualTo(StatusBehavior.Preserve)
+        assertThat(createdPreservingContinuation?.statusBehavior).isEqualTo(StatusBehavior.Preserve)
     }
 
     @Test
@@ -126,17 +126,17 @@ class ContinuationConverterTest {
             ImplicitStatusBehavior.Complete,
             true,
             TestInterface::functionReturningAContinuation
-        ).toContinuation(cancelingTestContinuation)
+        )?.toContinuation(cancelingTestContinuation)
 
         val createdPreservingContinuation = continuationBuilder.createResultConverter(
             ImplicitStatusBehavior.Complete,
             true,
             TestInterface::functionReturningAContinuation
-        ).toContinuation(preservingTestContinuation)
+        )?.toContinuation(preservingTestContinuation)
 
         // Assert
-        assertThat(createdCancelingContinuation.statusBehavior).isEqualTo(StatusBehavior.Complete)
-        assertThat(createdPreservingContinuation.statusBehavior).isEqualTo(StatusBehavior.Complete)
+        assertThat(createdCancelingContinuation?.statusBehavior).isEqualTo(StatusBehavior.Complete)
+        assertThat(createdPreservingContinuation?.statusBehavior).isEqualTo(StatusBehavior.Complete)
     }
 
     class TestStep

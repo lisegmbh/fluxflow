@@ -10,10 +10,10 @@ import kotlin.reflect.typeOf
 
 class ContinuationBuilder {
     fun <T> createResultConverter(
-        implicitStatusBehavior: ImplicitStatusBehavior,
+        implicitStatusBehavior: ImplicitStatusBehavior?,
         forceImplicitBehavior: Boolean,
         function: KFunction<T>
-    ): ContinuationConverter<T> {
+    ): ContinuationConverter<T>? {
         val result = createPlainConverter(function)
         if (!result.isImplicit && !forceImplicitBehavior) {
             return result.converter
@@ -31,6 +31,7 @@ class ContinuationBuilder {
             ImplicitStatusBehavior.Preserve -> ContinuationConverter {
                 plainConverter.toContinuation(it).withStatusBehavior(StatusBehavior.Preserve)
             }
+            else -> null
         }
     }
 

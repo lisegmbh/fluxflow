@@ -1,5 +1,6 @@
 package de.lise.fluxflow.stereotyped.step.automation
 
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.step.automation.AutomationDefinition
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
@@ -48,7 +49,7 @@ class AutomationDefinitionBuilder(
                     { instance },
                     { currentStep },
                 ).resolve()
-                converter.toContinuation(callable.call())
+                converter?.toContinuation(callable.call()) ?: Continuation.none()
             }
         }
 

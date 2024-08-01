@@ -1,5 +1,6 @@
 package de.lise.fluxflow.stereotyped.job
 
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.job.JobDefinition
 import de.lise.fluxflow.api.job.JobKind
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
@@ -63,9 +64,9 @@ class JobDefinitionBuilder(
                     { currentJob }
                 ).resolve()
 
-                continuationConverter.toContinuation(
+                continuationConverter?.toContinuation(
                     payloadFunctionResolution.call()
-                )
+                ) ?: Continuation.none()
             }
         }
     }

@@ -1,5 +1,6 @@
 package de.lise.fluxflow.stereotyped.step.data
 
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.step.stateful.data.DataKind
 import de.lise.fluxflow.api.step.stateful.data.DataListenerDefinition
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
@@ -73,7 +74,7 @@ class DataListenerDefinitionBuilder(
                     { new }
                 ).resolve()
 
-                continuationConverter.toContinuation(callable.call())
+                continuationConverter?.toContinuation(callable.call()) ?: Continuation.none()
             }
         }
     }

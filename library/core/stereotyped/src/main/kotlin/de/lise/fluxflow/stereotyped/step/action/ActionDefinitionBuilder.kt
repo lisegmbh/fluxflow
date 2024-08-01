@@ -1,5 +1,6 @@
 package de.lise.fluxflow.stereotyped.step.action
 
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.step.stateful.action.ActionDefinition
 import de.lise.fluxflow.api.step.stateful.action.ActionKind
@@ -89,7 +90,7 @@ class ActionDefinitionBuilder(
                     { step }
                 )
 
-                converter.toContinuation(callable.call()) }
+                converter?.toContinuation(callable.call()) ?: Continuation.none() }
         }
     }
 
