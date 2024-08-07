@@ -8,6 +8,8 @@ import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
+import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
+import de.lise.fluxflow.stereotyped.continuation.ContinuationConverter
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
@@ -120,12 +122,17 @@ class DefaultStepActivationServiceTest {
             Status.Active,
             stepMetadata
         )
+        val continuationConverter = mock<ContinuationConverter<Any?>> {}
+        val continuationBuilder = mock<ContinuationBuilder> {
+            on { createResultConverter<Any?>(any(), any(), any()) } doReturn continuationConverter 
+        }
+        
         val activationService = DefaultStepActivationService(
             iocProvider,
             StepDefinitionBuilder(
                 mockVersionBuilder,
                 ActionDefinitionBuilder(
-                    mock {},
+                    continuationBuilder,
                     mock {},
                     mock {}
                 ),

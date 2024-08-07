@@ -17,7 +17,9 @@ class ActionDefinitionBuilderTest {
     @Test
     fun `build should use the supplied metadata builder to obtain an action's metadata`() {
         // Arrange
-        val continuationBuilder = mock<ContinuationBuilder> {}
+        val continuationBuilder = mock<ContinuationBuilder> {
+            on { createResultConverter<Any?>(any(), any(), any()) } doReturn mock<ContinuationConverter<Any?>> {}
+        }
         val metadataBuilder = mock<MetadataBuilder> {}
         val actionFunctionResolver = mock<ActionFunctionResolver> {}
         val actionDefinitionBuilder = ActionDefinitionBuilder(
@@ -36,7 +38,9 @@ class ActionDefinitionBuilderTest {
     @Test
     fun `the action definition returned by build should contain the metadata created by the metadata builder`() {
         // Arrange
-        val continuationBuilder = mock<ContinuationBuilder> {}
+        val continuationBuilder = mock<ContinuationBuilder> {
+            on { createResultConverter<Any?>(any(), any(), any()) } doReturn mock<ContinuationConverter<Any?>> {}
+        }
         val actionFunctionResolver = mock<ActionFunctionResolver> {}
         val testMetadata = emptyMap<String, Any>()
         val metadataBuilder = mock<MetadataBuilder> {
