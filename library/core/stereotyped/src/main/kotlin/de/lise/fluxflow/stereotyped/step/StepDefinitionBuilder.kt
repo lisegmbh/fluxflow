@@ -9,7 +9,6 @@ import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
 import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.full.functions
-import kotlin.reflect.full.memberProperties
 
 class StepDefinitionBuilder(
     private val versionBuilder: VersionBuilder,
@@ -31,11 +30,8 @@ class StepDefinitionBuilder(
         val kind = StepKindInspector.getStepKind(type)
         val version = versionBuilder.build(type)
 
-        val dataBuilders = type
-            .memberProperties
-            .filter { dataDefinitionBuilder.isDataProperty(it) }
-            .map { dataDefinitionBuilder.buildDataDefinitionFromProperty(type, it) }
-
+        val dataBuilders = dataDefinitionBuilder.buildDataDefinition(type)
+        
         val hasExplicitActionAnnotation = actionDefinitionBuilder.hasAnnotatedAction(type)
 
         val automationFunctions = type.functions

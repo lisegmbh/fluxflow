@@ -25,9 +25,8 @@ class DataDefinitionBuilderTest {
         )
 
         // Act
-        val builder = dataDefinitionBuilder.buildDataDefinitionFromProperty(
+        val builder = dataDefinitionBuilder.buildDataDefinition(
             TestClass::class,
-            TestClass::readOnlyStringProperty
         )
 
         // Assert
@@ -115,7 +114,7 @@ class DataDefinitionBuilderTest {
     @Test
     fun `build should set isCalculatedValue to true if there is no backing field`() {
         // Arrange
-        val instance = ModifiableTestClassWithOverwrittenIsCalculated("Foo")
+        val instance = TestClassWithCalculatedProperty()
 
         // Act
         val data = createDataObject(instance, TestClassWithCalculatedProperty::calculatedProperty)
@@ -187,12 +186,15 @@ class DataDefinitionBuilderTest {
         )
         val step = mock<Step> {}
 
-        val builder = dataDefinitionBuilder.buildDataDefinitionFromProperty(
-            instance::class,
-            prop
-        )
+        val expectedKind = DataKindInspector.getDataKind(prop)
+        
         @Suppress("UNCHECKED_CAST")
-        return builder(instance).createData(step) as Data<TProp>
+        return dataDefinitionBuilder.buildDataDefinition(
+            instance::class,
+        )
+            .map { it(instance) }
+            .first { expectedKind == it.kind }
+            .createData(step) as Data<TProp>
     }
 
     class TestClass(
