@@ -29,8 +29,7 @@ class DataDefinitionBuilder(
     /**
      * Checks if the given property should be interpreted as a [DataDefinition].
      */
-    @Deprecated(message = "Use buildDataDefinition and check if the result is empty.")
-    fun <TObject : Any> isDataProperty(
+    internal fun <TObject : Any> isDataProperty(
         prop: KProperty1<out TObject, *>
     ): Boolean {
         return prop.visibility == KVisibility.PUBLIC &&

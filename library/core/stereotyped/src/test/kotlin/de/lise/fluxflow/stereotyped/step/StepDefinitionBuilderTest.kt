@@ -124,7 +124,6 @@ class StepDefinitionBuilderTest {
             on { buildDataDefinition<Any>(any()) }.doAnswer { answer ->
                 listOf { _ -> testStepDataDefinition }
             }
-            on { isDataProperty<Any>(any()) }.thenCallRealMethod()
         }
     }
 
