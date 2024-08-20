@@ -15,11 +15,9 @@ import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
-import kotlin.reflect.KProperty1
 
 @Suppress("unused")
 class StepDefinitionBuilderTest {
-
     private val mockVersionBuilder = mock<VersionBuilder> {
         on { build(any()) } doReturn NoVersion()
     }
@@ -31,9 +29,7 @@ class StepDefinitionBuilderTest {
             mockVersionBuilder,
             mock {},
             mock {
-                on { buildDataDefinitionFromProperty<Any>(any(), any()) }.doReturn { _ ->
-                    mock<DataDefinition<Any>> {}
-                }
+                on { buildDataDefinition<Any>(any()) } doReturn emptyList()
             },
             mock {},
             mock {},
@@ -48,12 +44,13 @@ class StepDefinitionBuilderTest {
     }
 
     @Test
-    fun `build should return a data object for all properties`() {
+    fun `build should use the data build to get step data`() {
         // Arrange
+        val dataBuilder = mockDataBuilder()
         val builder = StepDefinitionBuilder(
             mockVersionBuilder,
             mock {},
-            mockDataBuilder(),
+            dataBuilder,
             mock {},
             mock {},
             mutableMapOf(),
@@ -63,61 +60,8 @@ class StepDefinitionBuilderTest {
         val result = builder.build(TestClass("", "")) as StatefulStepDefinition
 
         // Assert
-        assertThat(result.data.map { it.kind.value })
-            .containsExactlyInAnyOrder("readOnlyProp", "modifiableProp")
-    }
-
-    @Test
-    fun `build should ignore private properties`() {
-        // Arrange
-        val builder = StepDefinitionBuilder(
-            mockVersionBuilder,
-            mock {},
-            mockDataBuilder(),
-            mock {},
-            mock {},
-            mutableMapOf()
-        )
-
-        // Act
-        val result = builder.build(
-            TestClassWithPrivate(
-                "public",
-                "private"
-            )
-        ) as StatefulStepDefinition
-
-        // Assert
-        val props = result.data.map { it.kind.value }
-        assertThat(props).doesNotContain("privateField")
-        assertThat(props).containsExactlyInAnyOrder("publicField")
-    }
-
-    @Test
-    fun `build should ignore properties that are classes with @Job annotation`() {
-        // Arrange
-        val builder = StepDefinitionBuilder(
-            mockVersionBuilder,
-            mock {},
-            mockDataBuilder(),
-            mock {},
-            mock {},
-            mutableMapOf()
-        )
-
-        // Act
-        val result = builder.build(
-            TestClassWithJob(
-                "some string",
-                SomeJob()
-            )
-        ) as StatefulStepDefinition
-
-
-        // Assert
-        val props = result.data.map { it.kind.value }
-        assertThat(props).doesNotContain("job")
-        assertThat(props).containsExactlyInAnyOrder("publicField")
+        verify(dataBuilder).buildDataDefinition(TestClass::class)
+        assertThat(result.data).containsExactlyInAnyOrder(testStepDataDefinition)
     }
 
     @Test
@@ -167,18 +111,18 @@ class StepDefinitionBuilderTest {
         assertThat(result.metadata).isSameAs(testMetadata)
     }
 
+    private val testStepDataDefinition = mock<DataDefinition<Any>> {
+        on { kind }.doReturn(
+            DataKind(
+                "test"
+            )
+        )
+    }
+    
     private fun mockDataBuilder(): DataDefinitionBuilder {
         return mock<DataDefinitionBuilder> {
-            on { buildDataDefinitionFromProperty<Any>(any(), any()) }.doAnswer { answer ->
-                { _ ->
-                    mock<DataDefinition<Any>> {
-                        on { kind }.doReturn(
-                            DataKind(
-                                answer.getArgument(1, KProperty1::class.java).name
-                            )
-                        )
-                    }
-                }
+            on { buildDataDefinition<Any>(any()) }.doAnswer { answer ->
+                listOf { _ -> testStepDataDefinition }
             }
             on { isDataProperty<Any>(any()) }.thenCallRealMethod()
         }
