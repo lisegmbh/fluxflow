@@ -22,7 +22,7 @@ val projVersion = project.findProperty("projVersion")
 
 subprojects {
     val subProject = this
-    val springBootVersion = "3.3.2"
+    val springBootVersion = "3.3.3"
     
     apply(plugin = "maven-publish")
     apply(plugin = "java-library")
