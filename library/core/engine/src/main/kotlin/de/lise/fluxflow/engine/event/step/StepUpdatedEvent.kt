@@ -1,10 +1,9 @@
 package de.lise.fluxflow.engine.event.step
 
-import de.lise.fluxflow.api.event.FlowEvent
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.workflow.Workflow
 
-data class StepUpdatedEvent(val step: Step) : FlowEvent {
+class StepUpdatedEvent(step: Step) : StepEvent(step) {
     override val workflow: Workflow<*>
         get() = step.workflow
     override val context: Any?
