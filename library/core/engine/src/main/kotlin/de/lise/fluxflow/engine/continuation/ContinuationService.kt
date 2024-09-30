@@ -211,6 +211,8 @@ open class ContinuationService(
             ReferredWorkflowObject.create(reactivatedStep).reference
         )
 
+        workflowUpdateService.saveChanges(workflow)
+
         return ContinuationCommit.Nop
     }
 
