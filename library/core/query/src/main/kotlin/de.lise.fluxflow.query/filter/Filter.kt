@@ -153,6 +153,18 @@ interface Filter<in TModel> {
         }
 
         /**
+         * Creates a filter that matches collections not containing the given [element].
+         * @param element The element to be absent within matching collections.
+         * @return A filter matching all collections not containing the given [element].
+         */
+        @JvmStatic
+        fun <TCollection : Collection<TModel>, TModel> doesNotContainElement(
+            element: TModel
+        ): Filter<TCollection> {
+            return DoesNotContainElementFilter(element)
+        }
+
+        /**
          * Creates a filter that matches numeric values that are greater than or equal to the supplied [value].
          * @param value The value matching elements must be equal to or greater than.
          * @return A filter matching if `actual >= value`.
