@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    See [https://docs.fluxflow.cloud/see/2](https://docs.fluxflow.cloud/see/2) for more information.
 5. **Allow passing additional information when updating step data**<br />
    The `StepDataService` now accepts an additional parameter allowing developers to pass additional context information.
+6. **DoesNotContainElement filter**
+   The filter 'DoesNotContainElement' has been added, which matches collections not matching a given element.
    
 
 ### Changed
