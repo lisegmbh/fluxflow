@@ -9,5 +9,5 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(project(":springboot:springboot-testing"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
 }
