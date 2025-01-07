@@ -1,9 +1,9 @@
 plugins {
-    kotlin("jvm") version "2.0.21"
+    kotlin("jvm") version "2.1.0"
     `java-library`
     `maven-publish`
     signing
-    id("io.spring.dependency-management") version "1.1.6"
+    id("io.spring.dependency-management") version "1.1.7"
 }
 
 repositories {
@@ -22,7 +22,7 @@ val projVersion = project.findProperty("projVersion")
 
 subprojects {
     val subProject = this
-    val springBootVersion = "3.3.4"
+    val springBootVersion = "3.4.0"
     
     apply(plugin = "maven-publish")
     apply(plugin = "java-library")
@@ -56,11 +56,11 @@ subprojects {
     dependencies {
         // Test
         testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
-        testImplementation("org.assertj:assertj-core:3.26.3")
+        testImplementation("org.assertj:assertj-core:3.27.2")
         testImplementation("org.mockito:mockito-inline:5.2.0")
 
-        testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.3")
-        testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.3")
+        testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.4")
+        testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.4")
     }
 
     tasks.withType<Test> {
