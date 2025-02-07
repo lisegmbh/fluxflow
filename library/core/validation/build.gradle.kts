@@ -5,7 +5,7 @@ dependencies {
     implementation(project(":core:stereotyped"))
     implementation(project(":core:reflection"))
     
-    api("jakarta.validation:jakarta.validation-api:3.1.0")
+    api("jakarta.validation:jakarta.validation-api:3.1.1")
     
     // Test
     testImplementation("org.hibernate.validator:hibernate-validator:8.0.2.Final")
