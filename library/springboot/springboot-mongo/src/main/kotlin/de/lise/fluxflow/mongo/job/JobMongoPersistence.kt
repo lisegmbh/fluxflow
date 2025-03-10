@@ -6,6 +6,8 @@ import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.job.query.JobDataQuery
+import de.lise.fluxflow.query.pagination.Page
 import org.bson.types.ObjectId
 
 class JobMongoPersistence(
@@ -33,6 +35,12 @@ class JobMongoPersistence(
         return jobRepository.findByWorkflowId(workflowIdentifier.value).map {
             it.toJobData()
         }
+    }
+
+    override fun findAll(query: JobDataQuery): Page<JobData> {
+        return jobRepository.findAll(
+            JobDocumentQuery(query),
+        ).map { it.toJobData() }
     }
 
     override fun cancelJobs(workflowIdentifier: WorkflowIdentifier, cancellationKey: CancellationKey) {

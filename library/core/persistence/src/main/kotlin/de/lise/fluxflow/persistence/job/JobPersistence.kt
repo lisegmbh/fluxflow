@@ -3,6 +3,8 @@ package de.lise.fluxflow.persistence.job
 import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.persistence.job.query.JobDataQuery
+import de.lise.fluxflow.query.pagination.Page
 
 interface JobPersistence {
     /**
@@ -22,6 +24,13 @@ interface JobPersistence {
      * Returns all jobs associated with the given workflow.
      */
     fun findForWorkflow(workflowIdentifier: WorkflowIdentifier): List<JobData>
+
+    /**
+     * Returns all jobs that match the given query.
+     * @param query The query to be used.
+     * @return The found jobs.
+     */
+    fun findAll(query: JobDataQuery): Page<JobData>
 
     /**
      * Updates all jobs belonging to the workflow with the given

@@ -86,6 +86,11 @@ open class BasicConfiguration {
     // This needs to be done to avoid the circular dependency between StepServiceImpl and ContinuationService
     private var continuationService: ContinuationService? = null
 
+    @Lazy
+    @Autowired
+    // This needs to be done to avoid the circular dependency between JobServiceImpl and WorkflowService
+    private var workflowService: WorkflowService? = null
+
     @Bean
     open fun iocProvider(
         applicationContext: ApplicationContext
@@ -223,7 +228,7 @@ open class BasicConfiguration {
         workflowStarterService: WorkflowStarterService,
         workflowQueryService: WorkflowQueryService,
         workflowUpdateService: WorkflowUpdateService,
-        workflowRemovalService: WorkflowRemovalService
+        workflowRemovalService: WorkflowRemovalService,
     ): WorkflowService {
         return WorkflowServiceImpl(
             workflowStarterService,
@@ -553,12 +558,13 @@ open class BasicConfiguration {
     open fun jobService(
         jobActivationService: JobActivationService,
         jobPersistence: JobPersistence,
-        schedulingService: SchedulingService
+        schedulingService: SchedulingService,
     ): JobServiceImpl {
         return JobServiceImpl(
             jobActivationService,
             jobPersistence,
             schedulingService,
+            workflowService!!,
         )
     }
 

@@ -1,7 +1,9 @@
 package de.lise.fluxflow.api.job
 
 import de.lise.fluxflow.api.job.continuation.JobContinuation
+import de.lise.fluxflow.api.job.query.JobQuery
 import de.lise.fluxflow.api.workflow.Workflow
+import de.lise.fluxflow.query.pagination.Page
 
 interface JobService {
     /**
@@ -27,4 +29,6 @@ interface JobService {
     fun <TWorkflowModel> findAllJobs(
         workflow: Workflow<TWorkflowModel>
     ): List<Job>
+
+    fun findAll(query: JobQuery): Page<Job>
 }
