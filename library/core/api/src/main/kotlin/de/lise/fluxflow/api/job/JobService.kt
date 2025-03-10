@@ -31,4 +31,6 @@ interface JobService {
     ): List<Job>
 
     fun findAll(query: JobQuery): Page<Job>
+
+    fun deleteAll(jobsIdentifiers: Set<JobIdentifier>)
 }

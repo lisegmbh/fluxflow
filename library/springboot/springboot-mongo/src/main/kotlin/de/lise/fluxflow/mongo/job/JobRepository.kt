@@ -15,4 +15,5 @@ interface JobRepository : MongoRepository<JobDocument, String>, QueryableJobRepo
         status: Set<JobStatus>
     )
     fun deleteAllByWorkflowId(workflowId: String)
+    fun deleteAllByIdIsIn(ids: List<String>)
 }

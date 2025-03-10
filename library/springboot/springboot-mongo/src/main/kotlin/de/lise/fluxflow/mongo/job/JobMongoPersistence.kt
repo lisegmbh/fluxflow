@@ -75,4 +75,8 @@ class JobMongoPersistence(
     override fun deleteAllForWorkflow(workflowIdentifier: WorkflowIdentifier) {
         jobRepository.deleteAllByWorkflowId(workflowIdentifier.value)
     }
+
+    override fun deleteAll(jobsIdentifiers: Set<JobIdentifier>) {
+        jobRepository.deleteAllByIdIsIn(jobsIdentifiers.map { it.value })
+    }
 }

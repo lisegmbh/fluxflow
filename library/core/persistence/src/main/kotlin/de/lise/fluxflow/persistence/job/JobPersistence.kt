@@ -61,4 +61,6 @@ interface JobPersistence {
     fun save(jobData: JobData): JobData
 
     fun deleteAllForWorkflow(workflowIdentifier: WorkflowIdentifier)
+
+    fun deleteAll(jobsIdentifiers: Set<JobIdentifier>)
 }

@@ -123,6 +123,10 @@ class JobServiceImpl(
         }
     }
 
+    override fun deleteAll(jobsIdentifiers: Set<JobIdentifier>) {
+        jobPersistence.deleteAll(jobsIdentifiers)
+    }
+
     fun deleteAllForWorkflow(workflowIdentifier: WorkflowIdentifier) {
         jobPersistence.deleteAllForWorkflow(workflowIdentifier)
     }

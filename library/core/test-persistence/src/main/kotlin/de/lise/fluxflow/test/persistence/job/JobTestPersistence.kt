@@ -81,4 +81,8 @@ class JobTestPersistence(
     override fun deleteAllForWorkflow(workflowIdentifier: WorkflowIdentifier) {
         entities.entries.removeAll { (_, v) -> v.workflowId == workflowIdentifier.value }
     }
+
+    override fun deleteAll(jobsIdentifiers: Set<JobIdentifier>) {
+        entities.keys.removeAll(jobsIdentifiers.map { it.value }.toSet())
+    }
 }
