@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.bootstrapping
 
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
+import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.migration.MigrationDocument
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
@@ -64,6 +65,19 @@ class CreateIndexesBootstrapAction(
             true,
             StepDefinitionDocument::kind,
             StepDefinitionDocument::version
+        )
+
+        ensureIndex<JobDocument>(
+            "idx_job_workflow_id",
+            false,
+            JobDocument::workflowId
+        )
+
+        ensureIndex<JobDocument>(
+            "idx_job_scheduled_time_status",
+            false,
+            JobDocument::scheduledTime,
+            JobDocument::jobStatus,
         )
     }
 }
