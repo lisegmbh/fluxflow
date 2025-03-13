@@ -17,6 +17,7 @@ class MongoFilterTest {
             Filter.property(String::length, Filter.eq(3)) to MongoPropertyFilter::class,
             Filter.or<Any>() to MongoOrFilter::class,
             Filter.and<Any>() to MongoAndFilter::class,
+            Filter.not(Filter.eq("Hallo")) to MongoNotFilter::class,
             Filter.endsWith("") to MongoEndsWithFilter::class,
             Filter.startsWith("") to MongoStartsWithFilter::class,
             Filter.contains("") to MongoContainsFilter::class,

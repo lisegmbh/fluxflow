@@ -36,6 +36,7 @@ fun interface InMemoryFilter<TModel> {
 
                 is OrFilter -> InMemoryOrFilter(filter)
                 is AndFilter -> InMemoryAndFilter(filter)
+                is NotFilter -> InMemoryNotFilter(filter)
                 is TypeFilter -> InMemoryTypeFilter(filter.type)
                 is OfTypeFilter<*, *> -> InMemoryAndFilter(
                     listOf(

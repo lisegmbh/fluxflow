@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    The `StepDataService` now accepts an additional parameter allowing developers to pass additional context information.
 6. **DoesNotContainElement filter**
    The filter 'DoesNotContainElement' has been added, which matches collections not matching a given element.
-7. **Job querying feature**<br/>
+7. **Not filter**<br />
+   The `Not` filter has been added, which negates the result of the inner filter.
+8. **Job querying feature**<br/>
    Added the ability to query for jobs using the `JobService.findAll` method. This allows developers to retrieve jobs based on various criteria.
    
 

@@ -85,6 +85,18 @@ interface Filter<in TModel> {
         }
 
         /**
+         * Creates a filter that matches, if the provided [filter] does not match.
+         * @param filter The filter to be negated.
+         * @return A filter that matches if the provided [filter] does not match.
+         */
+        @JvmStatic
+        fun <TModel> not(
+            filter: Filter<TModel>
+        ): Filter<TModel> {
+            return NotFilter(filter)
+        }
+
+        /**
          * Creates a filter that matches values equal to the provided [value].
          * @param value The expected value.
          * @return A filter that matches every value, that is equal to the provided [value].

@@ -32,6 +32,7 @@ fun interface MongoFilter<TModel> {
                 is AndFilter<TModel> -> MongoAndFilter(
                     filter.filters.map { fromDomainFilter(it) }
                 )
+                is NotFilter<TModel> -> MongoNotFilter(fromDomainFilter(filter.filter))
 
                 is EndsWithFilter -> MongoEndsWithFilter(filter) as MongoFilter<TModel>
                 is StartsWithFilter -> MongoStartsWithFilter(filter) as MongoFilter<TModel>
