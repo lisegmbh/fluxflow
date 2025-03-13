@@ -6,8 +6,9 @@ data class MongoNotFilter<TModel>(
     private val filter: MongoFilter<TModel>
 ) : MongoFilter<TModel> {
     override fun apply(path: String): Criteria {
-        // This wraps the inner filter's criteria in a $nor operator,
-        // effectively negating it.
+        // Instead of using .not(), which only negates the immediately following operator,
+        // we wrap the inner filter's criteria in a $nor operator. This ensures that the entire
+        // composite filter (all its conditions) is effectively negated.
         return Criteria().norOperator(filter.apply(path))
     }
 }
