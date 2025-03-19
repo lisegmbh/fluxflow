@@ -32,7 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    The `ElemMatch` filter has been added, which matches collections where the inner filter matches any element of the collection.
 10. **Job duplication**
     The `duplicateJob` method has been added, which duplicates the given job and schedules it for a workflow.
-
+11. **Workflow definition metadata**<br/>
+   Similar to steps, jobs, and step data, workflow definitions now support metadata. The metadata is automatically extracted from
+   annotations present on the workflow model class. This metadata can be accessed via the `WorkflowDefinition.metadata` property.
+   [Issue #86](https://github.com/lisegmbh/fluxflow/issues/86) and [Issue #50](https://github.com/lisegmbh/fluxflow/issues/50)
+   
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>
    The `Continuation.workflow` function now supports a `replacementScope` parameter that defines which workflow elements should be replaced.

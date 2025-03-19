@@ -152,10 +152,12 @@ open class BasicConfiguration {
 
     @Bean
     open fun workflowActivationService(
-        modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder
+        modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder,
+        metadataBuilder: MetadataBuilder
     ): WorkflowActivationService {
         return WorkflowActivationServiceImpl(
-            modelListenerDefinitionBuilder
+            modelListenerDefinitionBuilder,
+            metadataBuilder
         )
     }
 
