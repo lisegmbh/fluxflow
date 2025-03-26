@@ -165,6 +165,20 @@ interface Filter<in TModel> {
         }
 
         /**
+         * Returns a filter that matches collections with objects having the specified [property] matching the supplied [propertyFilter].
+         * @param property Specifies the collection element's property.
+         * @param propertyFilter The filter to be applied to the collection element's [property].
+         * @return A filter that is matching for collections if [propertyFilter] matches the `property` of any collection element.
+         */
+        @JvmStatic
+        fun <TObject, TProperty> elemMatch(
+            property: KProperty1<TObject, TProperty>,
+            propertyFilter: Filter<TProperty>
+        ): Filter<Collection<TObject>> {
+            return ElemMatchFilter(property, propertyFilter)
+        }
+
+        /**
          * Creates a filter that matches collections not containing the given [element].
          * @param element The element to be absent within matching collections.
          * @return A filter matching all collections not containing the given [element].
