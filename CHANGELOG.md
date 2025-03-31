@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    The `Not` filter has been added, which negates the result of the inner filter.
 8. **Job querying feature**<br/>
    Added the ability to query for jobs using the `JobService.findAll` method. This allows developers to retrieve jobs based on various criteria.
-   
+9. **ElemMatch filter**<br />
+   The `ElemMatch` filter has been added, which matches collections where the inner filter matches any element of the collection.
 
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>

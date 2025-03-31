@@ -23,6 +23,7 @@ class MongoFilterTest {
             Filter.contains("") to MongoContainsFilter::class,
             Filter.anyOf(listOf("")) to MongoInFilter::class,
             Filter.containsElement("") to MongoContainsElementFilter::class,
+            Filter.elemMatch(String::length, Filter.eq(3)) to MongoElemMatchFilter::class,
             Filter.doesNotContainElement("") to MongoDoesNotContainElementFilter::class,
         )
 

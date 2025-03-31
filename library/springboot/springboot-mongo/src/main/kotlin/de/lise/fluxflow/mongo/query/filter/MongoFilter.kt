@@ -38,6 +38,10 @@ fun interface MongoFilter<TModel> {
                 is StartsWithFilter -> MongoStartsWithFilter(filter) as MongoFilter<TModel>
                 is ContainsFilter -> MongoContainsFilter(filter) as MongoFilter<TModel>
                 is ContainsElementFilter<*, *> -> MongoContainsElementFilter(filter) as MongoFilter<TModel>
+                is ElemMatchFilter<*, *> -> MongoElemMatchFilter(
+                    filter.property as KProperty1<TModel, Any>,
+                    fromDomainFilter(filter.filterForProperty) as MongoFilter<Any>
+                ) as MongoFilter<TModel>
                 is DoesNotContainElementFilter<*, *> -> MongoDoesNotContainElementFilter(filter) as MongoFilter<TModel>
                 is InFilter -> MongoInFilter(filter)
 
