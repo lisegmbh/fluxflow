@@ -22,7 +22,6 @@ class JobServiceImpl(
     private val schedulingService: SchedulingService,
     private val workflowService: WorkflowService,
 ) : JobService {
-
     override fun <TWorkflowModel, TJobModel> schedule(
         workflow: Workflow<TWorkflowModel>,
         jobContinuation: JobContinuation<TJobModel>
@@ -62,8 +61,49 @@ class JobServiceImpl(
                 job,
             )
         )
-        
+
         return job
+    }
+
+    override fun <TWorkflowModel> duplicateJob(
+        workflow: Workflow<TWorkflowModel>,
+        job: Job
+    ): Job {
+        val duplicatedJob = job.definition.createJob(
+            JobIdentifier(jobPersistence.randomId()),
+            workflow,
+            job.scheduledTime,
+            job.cancellationKey,
+            job.status,
+        )
+
+        duplicatedJob.cancellationKey?.let {
+            cancelAll(workflow, it)
+        }
+
+        val persistedJobData = jobPersistence.create(
+            JobData(
+                duplicatedJob.identifier.value,
+                workflow.identifier.value,
+                duplicatedJob.definition.kind.value,
+                fetchParameters(duplicatedJob),
+                duplicatedJob.scheduledTime,
+                duplicatedJob.cancellationKey?.value,
+                duplicatedJob.status,
+            )
+        )
+
+        schedulingService.schedule(
+            duplicatedJob.scheduledTime,
+            SchedulingReference(
+                workflow.identifier,
+                JobIdentifier(persistedJobData.id),
+                duplicatedJob.cancellationKey,
+                job,
+            )
+        )
+
+        return duplicatedJob
     }
 
     override fun <TWorkflowModel> cancelAll(

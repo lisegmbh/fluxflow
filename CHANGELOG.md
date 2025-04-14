@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Added the ability to query for jobs using the `JobService.findAll` method. This allows developers to retrieve jobs based on various criteria.
 9. **ElemMatch filter**<br />
    The `ElemMatch` filter has been added, which matches collections where the inner filter matches any element of the collection.
+10. **Job duplication**
+    The `duplicateJob` method has been added, which duplicates the given job and schedules it for a workflow.
 
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>

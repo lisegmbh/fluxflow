@@ -16,6 +16,16 @@ interface JobService {
         jobContinuation: JobContinuation<TJobModel>
     ) : Job
 
+    /**
+     * Duplicates a given job and schedules it for the given workflow.
+     * @param workflow The owning workflow for which the job should be scheduled.
+     * @param job The [Job] from which the data should be used for scheduling.
+     */
+    fun <TWorkflowModel> duplicateJob(
+        workflow: Workflow<TWorkflowModel>,
+        job: Job
+    ) : Job
+
     fun <TWorkflowModel> cancelAll(
         workflow: Workflow<TWorkflowModel>,
         cancellationKey: CancellationKey
