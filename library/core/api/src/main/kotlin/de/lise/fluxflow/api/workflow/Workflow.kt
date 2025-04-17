@@ -20,4 +20,9 @@ interface Workflow<TModel> {
      * Returns the data associated with this workflow.
      */
     val model: TModel
+
+    /**
+     * Arbitrary metainformation associated with this workflow.
+     */
+    val metadata: Map<String, Any>
 }

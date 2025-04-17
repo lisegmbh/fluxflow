@@ -4,10 +4,12 @@ import de.lise.fluxflow.api.workflow.ModelListenerDefinition
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.workflow.WorkflowData
+import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.workflow.ModelListenerDefinitionBuilder
 
 class WorkflowActivationServiceImpl(
-    private val modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder
+    private val modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder,
+    private val metadataBuilder: MetadataBuilder
 ) : WorkflowActivationService {
     @Suppress("UNCHECKED_CAST")
     override fun <TModel> activate(data: WorkflowData): Workflow<TModel> {
@@ -15,14 +17,19 @@ class WorkflowActivationServiceImpl(
         val listenerDefinitions = model?.let {
             modelListenerDefinitionBuilder.build(model) as List<ModelListenerDefinition<TModel>>
         } ?: emptyList()
-
+        
+        val metadata = model?.let {
+            metadataBuilder.build(it::class)
+        } ?: emptyMap()
+        
         return WorkflowImpl(
             WorkflowDefinitionImpl(
                 listenerDefinitions,
+                metadata
             ),
             WorkflowIdentifier(data.id),
-            data.model as TModel
+            data.model as TModel,
+            metadata,
         )
     }
-
 }

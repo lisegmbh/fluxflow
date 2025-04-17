@@ -8,4 +8,5 @@ class WorkflowImpl<TModel>(
     override val definition: WorkflowDefinition<TModel>,
     override val identifier: WorkflowIdentifier,
     override val model: TModel,
+    override val metadata: Map<String, Any>
 ) : Workflow<TModel>
