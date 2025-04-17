@@ -22,6 +22,30 @@ data class VacationRequestWorkflow( // This will be the workflow model.
 )
 ```
 
+### Adding metadata to the model definitions
+The workflow model can also carry metadata. 
+Workflow model metadata is defined using annotations that are themselves meta-annotated with `@Metadata`.
+
+```kotlin
+import de.lise.fluxflow.stereotyped.metadata.Metadata
+
+@Metadata("displayName")
+annotation class DisplayName(val value: String)
+
+@Metadata("description")
+annotation class Description(val value: String)
+
+@DisplayName("Vacation Request")
+@Description("A workflow model for managing vacation requests")
+data class VacationRequest(
+    val creationTime: Instant,
+    var status: Status = Status.Draft
+)
+```
+
+Workflow metadata is exposed through `Workflow.definition.metadata`. 
+This provides a key-value map containing all metadata entries.
+
 ## Usage
 
 Using the workflow model is as easy as passing an instance into the `WorkflowStarterService.start` function.
