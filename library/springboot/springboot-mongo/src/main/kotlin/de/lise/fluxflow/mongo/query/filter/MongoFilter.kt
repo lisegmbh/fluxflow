@@ -19,6 +19,11 @@ fun interface MongoFilter<TModel> {
                     filter.property as KProperty1<TModel, Any>,
                     fromDomainFilter(filter.filterForProperty) as MongoFilter<Any>
                 )
+                // Use normal property filter for nullable properties cause mongo handles null values
+                is NullablePropertyFilter<*, *> -> MongoPropertyFilter(
+                    filter.property as KProperty1<TModel, Any>,
+                    fromDomainFilter(filter.filterForProperty) as MongoFilter<Any>
+                )
 
                 is MapValueFilter<*, *> -> MongoMapValueFilter(
                     filter.key,
