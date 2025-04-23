@@ -5,8 +5,8 @@ import de.lise.fluxflow.query.filter.AndFilter
 data class InMemoryAndFilter<TModel>(
     private val filters: List<InMemoryFilter<TModel>>
 ) : InMemoryFilter<TModel> {
-    constructor(andFilter: AndFilter<TModel>) : this(andFilter.filters.map {
-        InMemoryFilter.fromDomainFilter(andFilter)
+    constructor(andFilter: AndFilter<TModel>) : this(andFilter.filters.map { filter ->
+        InMemoryFilter.fromDomainFilter(filter)
     })
 
     override fun toPredicate(): InMemoryPredicate<TModel> {
