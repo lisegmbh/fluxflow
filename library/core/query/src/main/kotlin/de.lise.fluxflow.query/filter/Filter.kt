@@ -398,7 +398,7 @@ interface Filter<in TModel> {
             property: KProperty1<TObject, TProperty?>,
             propertyFilter: Filter<TProperty>
         ): Filter<TObject> {
-            return PropertyFilter(
+            return NullablePropertyFilter(
                 property as KProperty1<TObject, TProperty>,
                 propertyFilter
             )

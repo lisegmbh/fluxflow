@@ -18,6 +18,10 @@ fun interface InMemoryFilter<TModel> {
                     filter.property as KProperty1<TModel, Any>,
                     fromDomainFilter(filter.filterForProperty) as InMemoryFilter<Any>
                 )
+                is NullablePropertyFilter<*, *> -> InMemoryNullablePropertyFilter(
+                    filter.property as KProperty1<TModel, Any?>,
+                    fromDomainFilter(filter.filterForProperty) as InMemoryFilter<Any>
+                )
 
                 is MapValueFilter<*, *> -> InMemoryMapValueFilter(
                     filter.key,
