@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    The `NullPointerException` that has been thrown within
    `ParamMatcher.isAssignable` when passing in a generic type has been fixed.
    [Issue #158](https://github.com/lisegmbh/fluxflow/issues/158)
+2. **SOE with AndFilter in InMemoryFilter**<br/>
+   Fixed a bug in the `InMemoryFilter` implementation where the `and` filter was not implemented correctly and caused a stack overflow error with infinite recursion of `and` calls.
+
 ### Removed
 1. Removed the unused `Type.toKClass()` extension function from `de.lise.fluxflow.reflection`.
 
