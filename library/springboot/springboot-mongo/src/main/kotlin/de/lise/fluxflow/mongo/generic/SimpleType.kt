@@ -15,7 +15,12 @@ class SimpleType(val typeName: String) : TypeSpec {
 
     override fun assertType(value: Any?): Any? {
         val type = try {
-             Thread.currentThread().contextClassLoader.loadClass(typeName).kotlin
+            when (typeName) {
+                // resolve names of internal singleton types to avoid ClassNotFoundException
+                "java.util.Collections.SingletonList" -> List::class
+                "java.util.Collections.SingletonSet" -> Set::class
+                else -> Thread.currentThread().contextClassLoader.loadClass(typeName).kotlin
+            }
         } catch (e: ClassNotFoundException) {
             Logger.warn("Could not load type {}. We will try to use the value anyway.", typeName, e)
             return value
