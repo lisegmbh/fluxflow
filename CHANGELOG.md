@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 3. **NPE with NullablePropertyFilter in InMemoryFilter**<br/>
    Fixed a bug in the `InMemoryFilter` implementation where the `nullableProperty` filter was incorrectly casting nullable properties
    and not properly handling null values, which caused `NullPointerException`s during filtering.
+4. **CNFE for singleton lists and sets**
+   Fixed a bug in `assertType` in `SimpleType.kt` where lists and sets with one element cause a `ClassNotFoundException` because they are stored using the internal singleton collection types.
 
 ### Removed
 1. Removed the unused `Type.toKClass()` extension function from `de.lise.fluxflow.reflection`.
