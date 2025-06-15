@@ -8,6 +8,6 @@ dependencies {
     api("jakarta.validation:jakarta.validation-api:3.1.1")
     
     // Test
-    testImplementation("org.hibernate.validator:hibernate-validator:9.0.0.Final")
+    testImplementation("org.hibernate.validator:hibernate-validator:9.0.1.Final")
     testImplementation("jakarta.el:jakarta.el-api:6.0.1")
 }
