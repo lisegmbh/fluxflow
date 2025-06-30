@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.1.20"
+    kotlin("jvm") version "2.2.0"
     `java-library`
     `maven-publish`
     signing
@@ -29,7 +29,7 @@ subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "signing")
     apply(plugin = "io.spring.dependency-management")
-    
+
     group = "de.lise.fluxflow"
     version = projVersion ?: "0.2.0-SNAPSHOT-18"
 
@@ -49,7 +49,11 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion") {
+                bomProperties(
+                    mapOf("kotlin.version" to "2.2.0")
+                )
+            }
         }
     }
 
