@@ -3,6 +3,7 @@ package de.lise.fluxflow.engine.workflow
 import de.lise.fluxflow.api.workflow.ModelListenerDefinition
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.api.workflow.action.WorkflowAction
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.workflow.ModelListenerDefinitionBuilder
@@ -22,14 +23,26 @@ class WorkflowActivationServiceImpl(
             metadataBuilder.build(it::class)
         } ?: emptyMap()
         
-        return WorkflowImpl(
-            WorkflowDefinitionImpl(
-                listenerDefinitions,
-                metadata
-            ),
+        val definition = WorkflowDefinitionImpl(
+            listenerDefinitions,
+            metadata
+        ) 
+        val actions = mutableListOf<WorkflowAction<TModel>>()
+        
+        val workflow = WorkflowImpl(
+            definition,
             WorkflowIdentifier(data.id),
             data.model as TModel,
             metadata,
+            actions
         )
+        
+        actions.addAll(
+            definition.actions.map { actionDefinition ->
+                actionDefinition.createAction(workflow)
+            }   
+        )
+        
+        return workflow
     }
 }
