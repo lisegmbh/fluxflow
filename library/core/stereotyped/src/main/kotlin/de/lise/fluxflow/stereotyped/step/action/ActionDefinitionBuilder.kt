@@ -4,12 +4,12 @@ import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.step.stateful.action.ActionDefinition
 import de.lise.fluxflow.api.step.stateful.action.ActionKind
 import de.lise.fluxflow.api.validation.ValidationBehavior
+import de.lise.fluxflow.reflection.hasAdditionalParameters
+import de.lise.fluxflow.reflection.isInvokableInstanceFunction
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
-import kotlin.reflect.KParameter
-import kotlin.reflect.KVisibility
 import kotlin.reflect.full.functions
 
 /**
@@ -47,7 +47,7 @@ class ActionDefinitionBuilder(
         requireAnnotation: Boolean,
     ): ((TFunctionOwner) -> ActionDefinition)? {
         if (
-            !canBeInvoked(function)
+            !function.isInvokableInstanceFunction()
         ) {
             return null
         }
@@ -59,7 +59,7 @@ class ActionDefinitionBuilder(
         }
 
         if (
-            annotation == null && hasAdditionalParameters(function)
+            annotation == null && function.hasAdditionalParameters()
         ) {
             return null
         }
@@ -75,7 +75,7 @@ class ActionDefinitionBuilder(
         val beforeExecutionBehavior = annotation?.beforeExecutionValidation ?: ValidationBehavior.Default
         val validationGroups = annotation?.validationGroups?.let { setOf(*it) } ?: emptySet()
         
-        return { obj ->
+        return { obj: TFunctionOwner ->
             ReflectedActionDefinition(
                 kind,
                 metadata,
@@ -97,15 +97,5 @@ class ActionDefinitionBuilder(
         fun isActionAnnotation(annotation: Annotation): Boolean {
             return annotation is de.lise.fluxflow.stereotyped.step.action.Action
         }
-
-        private fun canBeInvoked(function: KFunction<*>): Boolean {
-            return function.visibility == KVisibility.PUBLIC && !function.isAbstract
-        }
-
-        private fun hasAdditionalParameters(function: KFunction<*>): Boolean {
-            return function.parameters.any { it.kind != KParameter.Kind.INSTANCE }
-        }
-
     }
-
 }
