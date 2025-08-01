@@ -704,8 +704,8 @@ continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A step continuation indicates that the
 workflow should be continued with a new step.</p></td>
 <td style="text-align: left;"><p>Returning
-<code>Continuation.job()</code>.</p></td>
-<td style="text-align: left;"><p>Returning an instance of a job
+<code>Continuation.step()</code>.</p></td>
+<td style="text-align: left;"><p>Returning an instance of a step
 definition.</p></td>
 </tr>
 <tr class="odd">
