@@ -31,6 +31,10 @@ class WorkflowActionServiceImpl(
         val continuation = action.execute()
         
         eventService.publish(WorkflowActionEvent(action))
+        /**
+         *  IMPORTANT: Save changes to workflow before executing the continuation because it would otherwise fetch
+         *  the outdated workflow from the database and overwrites the previous changes.
+         */
         workflowUpdateService.saveChanges(action.workflow)
         continuationService.execute(
             action.workflow,
