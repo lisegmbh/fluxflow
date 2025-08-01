@@ -145,7 +145,7 @@ class WorkflowRemovalServiceImplTest {
         stepService: StepServiceImpl = mock<StepServiceImpl>(),
         jobService: JobServiceImpl = mock<JobServiceImpl>(),
         activationService: WorkflowActivationService = mock<WorkflowActivationService> {
-            on { activate<Any?>(any()) } doReturn mock<Workflow<Any?>> {}
+            on { activate<Any>(any()) } doReturn mock<Workflow<Any>> {}
         },
         continuationHistoryService: ContinuationHistoryService = mock<ContinuationHistoryService>(),
     ): WorkflowRemovalServiceImpl {

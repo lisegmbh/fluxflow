@@ -4,7 +4,7 @@ import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.continuation.Continuation
 
 interface WorkflowStarterService {
-    fun <TWorkflowModel, TContinuation> start(
+    fun <TWorkflowModel : Any, TContinuation> start(
         workflowModel: TWorkflowModel,
         continuation: Continuation<TContinuation>,
         originatingObject: ReferredWorkflowObject<*>? = null,

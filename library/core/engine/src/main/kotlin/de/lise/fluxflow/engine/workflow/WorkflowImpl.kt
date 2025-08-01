@@ -10,5 +10,5 @@ class WorkflowImpl<TModel>(
     override val identifier: WorkflowIdentifier,
     override val model: TModel,
     override val metadata: Map<String, Any>,
-    override val actions: List<WorkflowAction<TModel>>
+    override val actions: List<WorkflowAction<TModel>> = emptyList()
 ) : Workflow<TModel>

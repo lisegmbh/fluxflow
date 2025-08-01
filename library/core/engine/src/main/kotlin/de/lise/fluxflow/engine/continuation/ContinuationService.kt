@@ -119,14 +119,14 @@ open class ContinuationService(
 
             workflowRemovalServiceImpl.removeSilently(oldId, continuation.replacementScope)
             workflowStarterService.start(
-                continuation.model,
+                continuation.model!!,
                 continuation.initialWorkflowContinuation,
                 null,
                 oldId
             )
         } else {
             workflowStarterService.start(
-                continuation.model,
+                continuation.model!!,
                 continuation.initialWorkflowContinuation,
                 null
             )
@@ -211,7 +211,8 @@ open class ContinuationService(
             ReferredWorkflowObject.create(reactivatedStep).reference
         )
 
-        workflowUpdateService.saveChanges(workflow)
+        @Suppress("UNCHECKED_CAST")
+        workflowUpdateService.saveChanges(workflow as Workflow<Any>)
 
         return ContinuationCommit.Nop
     }
@@ -260,7 +261,8 @@ open class ContinuationService(
                 }
 
                 stepService.saveChanges(creationResult.step)
-                workflowUpdateService.saveChanges(creationResult.step.workflow)
+                @Suppress("UNCHECKED_CAST")
+                workflowUpdateService.saveChanges(creationResult.step.workflow as Workflow<Any>)
 
                 continuations.forEach { continuation ->
                     execute(

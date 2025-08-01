@@ -23,7 +23,7 @@ class WorkflowRemovalServiceImpl(
         val workflowDataToDelete = persistence.find(identifierToDelete)
             ?: throw WorkflowNotFoundException(identifierToDelete)
 
-        val workflowToDelete = activationService.activate<Any?>(workflowDataToDelete)
+        val workflowToDelete = activationService.activate<Any>(workflowDataToDelete)
 
         persistence.delete(identifierToDelete)
         removeRelatedElements(

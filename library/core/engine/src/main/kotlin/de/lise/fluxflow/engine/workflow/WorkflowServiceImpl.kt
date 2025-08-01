@@ -13,7 +13,7 @@ class WorkflowServiceImpl(
     private val workflowUpdateService: WorkflowUpdateService,
     private val workflowRemovalService: WorkflowRemovalService
 ) : WorkflowService {
-    override fun <TWorkflowModel, TContinuation> start(
+    override fun <TWorkflowModel : Any, TContinuation> start(
         workflowModel: TWorkflowModel,
         continuation: Continuation<TContinuation>,
         originatingObject: ReferredWorkflowObject<*>?,

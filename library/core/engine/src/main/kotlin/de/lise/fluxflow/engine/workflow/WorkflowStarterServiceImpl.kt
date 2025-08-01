@@ -16,7 +16,7 @@ class WorkflowStarterServiceImpl(
     private val continuationService: ContinuationService,
     private val eventService: EventService
 ) : WorkflowStarterService {
-    fun <TWorkflowModel> create(
+    fun <TWorkflowModel : Any> create(
         workflowModel: TWorkflowModel,
         forcedId: WorkflowIdentifier?
     ): Workflow<TWorkflowModel> {
@@ -27,7 +27,7 @@ class WorkflowStarterServiceImpl(
         return workflow
     }
 
-    override fun <TWorkflowModel, TContinuation> start(
+    override fun <TWorkflowModel : Any, TContinuation> start(
         workflowModel: TWorkflowModel,
         continuation: Continuation<TContinuation>,
         originatingObject: ReferredWorkflowObject<*>?,
