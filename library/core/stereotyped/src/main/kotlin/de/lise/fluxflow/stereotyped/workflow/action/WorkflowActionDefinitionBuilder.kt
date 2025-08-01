@@ -1,12 +1,12 @@
 package de.lise.fluxflow.stereotyped.workflow.action
 
-import de.lise.fluxflow.api.step.stateful.action.ActionKind
 import de.lise.fluxflow.api.workflow.action.WorkflowActionDefinition
 import de.lise.fluxflow.reflection.hasAdditionalParameters
 import de.lise.fluxflow.reflection.isInvokableInstanceFunction
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.action.Action
+import de.lise.fluxflow.stereotyped.step.action.ActionKindInspector.Companion.actionKind
 import de.lise.fluxflow.stereotyped.step.action.ImplicitStatusBehavior
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -30,6 +30,7 @@ class WorkflowActionDefinitionBuilder(
 
     private fun <TModel : Any> build(
         function: KFunction<*>,
+        @Suppress("SameParameterValue")
         requireAnnotation: Boolean,
     ): WorkflowActionDefinition<TModel>? {
         if (
@@ -50,10 +51,7 @@ class WorkflowActionDefinitionBuilder(
             return null
         }
 
-        val kind = annotation?.value
-            ?.takeUnless { it.isBlank() }
-            ?.let { ActionKind(it) }
-            ?: ActionKind(function.name)
+        val kind = function.actionKind
         val metadata = metadataBuilder.build(function)
         val converter = continuationBuilder.createResultConverter(
             ImplicitStatusBehavior.Preserve,
