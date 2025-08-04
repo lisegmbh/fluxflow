@@ -1,5 +1,6 @@
 package de.lise.fluxflow.engine.workflow.action
 
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.step.stateful.action.ActionKind
 import de.lise.fluxflow.api.workflow.Workflow
@@ -39,7 +40,7 @@ class WorkflowActionServiceImpl(
         }
     }
 
-    override fun <TModel : Any> invokeAction(action: WorkflowAction<TModel>) {
+    override fun <TModel : Any> invokeAction(action: WorkflowAction<TModel>): Continuation<*> {
         val continuation = action.execute()
 
         eventService.publish(WorkflowActionEvent(action))
@@ -53,5 +54,7 @@ class WorkflowActionServiceImpl(
             null,
             continuation
         )
+
+        return continuation
     }
 }

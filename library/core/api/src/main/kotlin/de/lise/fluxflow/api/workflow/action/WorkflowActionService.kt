@@ -1,5 +1,6 @@
 package de.lise.fluxflow.api.workflow.action
 
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.step.stateful.action.ActionKind
 import de.lise.fluxflow.api.workflow.Workflow
 
@@ -38,25 +39,31 @@ interface WorkflowActionService {
     fun <TModel : Any> getActionOrNull(workflow: Workflow<TModel>, kind: ActionKind): WorkflowAction<TModel>?
 
     /**
-     * Executes the given [action] while handling all required side effects.
+     * Invokes the given workflow [action] and returns the resulting [Continuation].
      *
-     * @param action The action to be executed.
+     * **Note:** The continuation has already been fully executed by the workflow engine.
+     * It is returned only for inspection or post-processing purposes.
+     * Consumers must not use it to manipulate the workflow state manually.
+     *
+     * @param action The workflow action to invoke.
+     * @return The [Continuation] that was produced and already executed.
      */
-    fun <TModel : Any> invokeAction(action: WorkflowAction<TModel>)
+    fun <TModel : Any> invokeAction(action: WorkflowAction<TModel>): Continuation<*>
 
     /**
-     * Execute a workflow action based on its [kind].
+     * Resolves and invokes the workflow action of the given [kind] on the specified [workflow].
      *
-     * **Note** that this is a convenience overload.
-     * One could also fetch the action first (using [getAction])
-     * and then execute it using the other [invokeAction] overload.
+     * Internally delegates to [getAction] and [invokeAction].
+     *
+     * **Note:** The returned [Continuation] has already been executed.
      *
      * @param TModel The workflow model's type.
-     * @param workflow The workflow from which the action should be obtained.
-     * @param kind The kind of the action to be executed.
+     * @param workflow The workflow on which the action should be executed.
+     * @param kind The kind identifier of the action to invoke.
+     * @return The [Continuation] that was produced and already executed.
      */
-    fun <TModel : Any> invokeAction(workflow: Workflow<TModel>, kind: ActionKind) {
-        invokeAction(
+    fun <TModel : Any> invokeAction(workflow: Workflow<TModel>, kind: ActionKind): Continuation<*> {
+        return invokeAction(
             getAction(
                 workflow,
                 kind

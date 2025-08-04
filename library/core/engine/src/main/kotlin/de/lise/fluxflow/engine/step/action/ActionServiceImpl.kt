@@ -1,6 +1,7 @@
 package de.lise.fluxflow.engine.step.action
 
 import de.lise.fluxflow.api.ReferredWorkflowObject
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.step.InvalidStepStateException
 import de.lise.fluxflow.api.step.Status
@@ -41,7 +42,7 @@ class ActionServiceImpl(
             )
     }
 
-    override fun invokeAction(action: Action) {
+    override fun invokeAction(action: Action): Continuation<*> {
         validationService.validateBeforeAction(action)
         when (action.step.status) {
             Status.Canceled -> throw InvalidStepStateException("Unable to invoke action on canceled step '${action.step.identifier}'")
@@ -65,5 +66,7 @@ class ActionServiceImpl(
             ReferredWorkflowObject.Companion.create(action.step), 
             continuation,
         )
+
+        return continuation
     }
 }

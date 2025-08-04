@@ -1,5 +1,6 @@
 package de.lise.fluxflow.api.step.stateful.action
 
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.step.Step
 
 /**
@@ -46,26 +47,30 @@ interface ActionService {
     fun getActionOrNull(step: Step, kind: ActionKind): Action?
 
     /**
-     * Invokes the given [action].
+     * Invokes the given [action] and returns the resulting [Continuation].
      *
-     * The implementation is responsible for providing any necessary parameter injection,
-     * continuation handling, and lifecycle management.
+     * **Note:** The continuation has already been processed and applied by the engine.
+     * You may use the returned value to inspect the outcome of the action.
      *
-     * @param action The action to invoke.
+     * @param action The action to execute.
+     * @return The [Continuation] that was produced and already executed.
      */
-    fun invokeAction(action: Action)
+    fun invokeAction(action: Action): Continuation<*>
 
     /**
-     * Convenience method to invoke the action of the specified [kind] on the given [step].
+     * Resolves and invokes the action of the given [kind] on the specified [step].
      *
-     * Internally retrieves the corresponding [Action] and then invokes it.
+     * Internally uses [getAction] followed by [invokeAction].
      *
-     * @param step The step containing the action.
-     * @param kind The kind identifier of the action.
-     * @throws ActionNotFoundException if there is no action for the given [step] and [kind].
+     * **Note:** The returned [Continuation] has already been executed by the engine.
+     *
+     * @param step The step that contains the action.
+     * @param kind The identifier of the action to invoke.
+     * @return The [Continuation] that was produced and already executed.
+     * @throws ActionNotFoundException if the action cannot be found.
      */
-    fun invokeAction(step: Step, kind: ActionKind) {
-        invokeAction(
+    fun invokeAction(step: Step, kind: ActionKind): Continuation<*> {
+        return invokeAction(
             getAction(
                 step,
                 kind
