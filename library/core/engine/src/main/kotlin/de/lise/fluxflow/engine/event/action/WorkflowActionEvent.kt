@@ -1,12 +1,14 @@
 package de.lise.fluxflow.engine.event.action
 
 import de.lise.fluxflow.api.event.FlowEvent
-import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.workflow.Workflow
+import de.lise.fluxflow.api.workflow.action.WorkflowAction
 
-data class ActionEvent(val action: Action) : FlowEvent {
+data class WorkflowActionEvent<TModel>(
+    val action: WorkflowAction<TModel>
+) : FlowEvent {
     override val workflow: Workflow<*>
-        get() = action.step.workflow
+        get() = action.workflow
     override val context: Any?
         get() = null
 }

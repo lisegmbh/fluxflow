@@ -36,8 +36,8 @@ class StepIT {
     @Test
     fun `findSteps with workflow and query should only include steps from a given workflow`() {
         // Arrange
-        val workflow1 = workflowStarterService!!.start(null, Continuation.step(TestStep()))
-        val workflow2 = workflowStarterService!!.start(null, Continuation.step(TestStep()))
+        val workflow1 = workflowStarterService!!.start(Any(), Continuation.step(TestStep()))
+        val workflow2 = workflowStarterService!!.start(Any(), Continuation.step(TestStep()))
 
         // Act
         val stepsFromWorkflow1 = stepService!!.findSteps(workflow1, StepQuery.empty())
@@ -55,7 +55,7 @@ class StepIT {
     @Test
     fun `steps should not be completed if the continuation is set to preserve the step status`() {
         // Arrange
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithActions()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithActions()))
         val stepBeforeAction = stepService!!.findSteps(workflow).first()
         val action = (stepBeforeAction as StatefulStep).actions.first {
             it.definition.kind.value == TestStepWithActions::doSomethingAndPreserveStepStatus.name
@@ -72,7 +72,7 @@ class StepIT {
     @Test
     fun `steps should be completed if the continuation is set not to preserve the step status`() {
         // Arrange
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithActions()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithActions()))
         val stepBeforeAction = stepService!!.findSteps(workflow).first()
         val action = (stepBeforeAction as StatefulStep).actions.first {
             it.definition.kind.value == TestStepWithActions::doSomethingAndCompleteStep.name
@@ -89,7 +89,7 @@ class StepIT {
     @Test
     fun `returning multiple continuations should be properly scheduled`() {
         // Arrange
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithMultiContinuation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithMultiContinuation()))
         val stepWithMultiContinuation = stepService!!.findSteps(workflow).first()
         val action = (stepWithMultiContinuation as StatefulStep).actions.first {
             it.definition.kind.value == TestStepWithMultiContinuation::run.name

@@ -37,7 +37,7 @@ class StepAutomationIT {
         TestStepWithAutomation.onStartedRunCount = 0
 
         // Act
-        workflowStarterService!!.start(null, Continuation.step(TestStepWithAutomation()))
+        workflowStarterService!!.start(Any(), Continuation.step(TestStepWithAutomation()))
 
         // Assert
         assertThat(TestStepWithAutomation.automatedOnCreatedRunCount).isEqualTo(1)
@@ -51,7 +51,7 @@ class StepAutomationIT {
         TestStepWithAutomation.onCompletedRunCount = 0
 
         // Act & Assert
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithAutomation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithAutomation()))
         assertThat(TestStepWithAutomation.automatedOnCompletedRunCount).isZero()
         assertThat(TestStepWithAutomation.onCompletedRunCount).isZero()
         val step = stepService!!.findSteps(workflow).first()
@@ -67,7 +67,7 @@ class StepAutomationIT {
         TestStepWithAutomation.onCompletedRunCount = 0
 
         // Act
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithAutomation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithAutomation()))
         val stepAction = stepService!!.findSteps(workflow)
             .firstNotNullOf { it as? StatefulStep }.actions
             .first { it.definition.kind.value == "noop" }
@@ -84,7 +84,7 @@ class StepAutomationIT {
         TestStepWithAutomation.onCompletedRunCount = 0
 
         // Act
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithAutomation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithAutomation()))
         val stepAction = stepService!!.findSteps(workflow)
             .firstNotNullOf { it as? StatefulStep }.actions
             .first { it.definition.kind.value == "noopWithMultipleContinuation" }
@@ -103,7 +103,7 @@ class StepAutomationIT {
         TestStepWithAutomation.onCreatedOnCompletedRunCount = 0
 
         // Act & Assert
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithAutomation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithAutomation()))
         assertThat(TestStepWithAutomation.automatedCombinedOnCreatedAndCompletedRunCount).isEqualTo(1)
         assertThat(TestStepWithAutomation.onCreatedOnCompletedRunCount).isEqualTo(1)
         val step = stepService!!.findSteps(workflow).first()
@@ -120,7 +120,7 @@ class StepAutomationIT {
         TestStepWithAutomation.onStartedRunCount = 0
 
         // Act
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithAutomation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithAutomation()))
         stepService!!.findSteps(workflow)
 
         // Assert
@@ -131,7 +131,7 @@ class StepAutomationIT {
     @Test
     fun `continuations returned from automation functions should be processed`() {
         // Act
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithAutomation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithAutomation()))
 
         // Assert
         val steps = stepService!!.findSteps(workflow)
@@ -146,7 +146,7 @@ class StepAutomationIT {
     @Test
     fun `status behavior should be respected when processing continuations returned from automated functions`() {
         // Arrange & Act
-        val workflow = workflowStarterService!!.start(null, Continuation.step(TestStepWithStatusModifyingContinuation()))
+        val workflow = workflowStarterService!!.start(Any(), Continuation.step(TestStepWithStatusModifyingContinuation()))
 
         // Assert
         val stepAfterAction = stepService!!.findSteps(workflow).single()
@@ -175,7 +175,7 @@ class StepAutomationIT {
         val stepDefinition = TestWorkflowStepWithAutomationFunctionExpectingParameters()
         
         // Act
-        workflowStarterService!!.start(null, Continuation.step(stepDefinition))
+        workflowStarterService!!.start(Any(), Continuation.step(stepDefinition))
 
         // Assert
         assertThat(stepDefinition.receivedWorkflowStarterService).isSameAs(workflowStarterService)

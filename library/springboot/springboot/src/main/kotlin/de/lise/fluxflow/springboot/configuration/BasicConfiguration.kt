@@ -11,6 +11,7 @@ import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
 import de.lise.fluxflow.api.versioning.*
 import de.lise.fluxflow.api.workflow.*
+import de.lise.fluxflow.api.workflow.action.WorkflowActionService
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
@@ -27,6 +28,7 @@ import de.lise.fluxflow.engine.step.definition.StepDefinitionService
 import de.lise.fluxflow.engine.step.definition.StepDefinitionVersionRecorder
 import de.lise.fluxflow.engine.step.validation.ValidationService
 import de.lise.fluxflow.engine.workflow.*
+import de.lise.fluxflow.engine.workflow.action.WorkflowActionServiceImpl
 import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.migration.MigrationService
 import de.lise.fluxflow.migration.MigrationServiceImpl
@@ -62,6 +64,9 @@ import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import de.lise.fluxflow.stereotyped.workflow.ModelListenerDefinitionBuilder
 import de.lise.fluxflow.stereotyped.workflow.SelectorExpressionParser
+import de.lise.fluxflow.stereotyped.workflow.action.WorkflowActionDefinitionBuilder
+import de.lise.fluxflow.stereotyped.workflow.action.WorkflowActionFunctionResolver
+import de.lise.fluxflow.stereotyped.workflow.action.WorkflowActionFunctionResolverImpl
 import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
@@ -151,13 +156,35 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun workflowActionFunctionResolver(
+        parameterResolver: ParameterResolver
+    ): WorkflowActionFunctionResolver {
+        return WorkflowActionFunctionResolverImpl(parameterResolver)
+    }
+    
+    @Bean
+    open fun workflowActionDefinitionBuilder(
+        metadataBuilder: MetadataBuilder,
+        continuationBuilder: ContinuationBuilder,
+        actionFunctionResolver: WorkflowActionFunctionResolver
+    ): WorkflowActionDefinitionBuilder {
+        return WorkflowActionDefinitionBuilder(
+            metadataBuilder,
+            continuationBuilder,
+            actionFunctionResolver
+        )
+    }
+    
+    @Bean
     open fun workflowActivationService(
         modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder,
-        metadataBuilder: MetadataBuilder
+        metadataBuilder: MetadataBuilder,
+        actionDefinitionBuilder: WorkflowActionDefinitionBuilder
     ): WorkflowActivationService {
         return WorkflowActivationServiceImpl(
             modelListenerDefinitionBuilder,
-            metadataBuilder
+            metadataBuilder,
+            actionDefinitionBuilder
         )
     }
 
@@ -553,6 +580,19 @@ open class BasicConfiguration {
             continuationService,
             validationService,
             eventService
+        )
+    }
+
+    @Bean
+    open fun workflowActionService(
+        eventService: EventService,
+        workflowUpdateService: WorkflowUpdateService,
+        continuationService: ContinuationService
+    ): WorkflowActionService {
+        return WorkflowActionServiceImpl(
+            eventService,
+            workflowUpdateService,
+            continuationService
         )
     }
 

@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.stateful.action.Action
+import de.lise.fluxflow.api.workflow.Workflow
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
@@ -56,8 +57,10 @@ class ActionServiceImplTest {
     @Test
     fun `invokeAction should throw no exception if step is active`() {
         // Arrange
+        val testWorkflow = mock<Workflow<Any>> { }
         val actionService = defaultService()
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Active
             on { identifier } doReturn StepIdentifier("test")
         }

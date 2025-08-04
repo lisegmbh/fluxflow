@@ -9,6 +9,7 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.data.*
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.event.step.data.StepDataEvent
@@ -71,7 +72,8 @@ class StepDataServiceImpl(
         }
 
         stepServiceImpl.saveChanges(data.step)
-        workflowUpdateService.saveChanges(data.step.workflow)
+        @Suppress("UNCHECKED_CAST")
+        workflowUpdateService.saveChanges(data.step.workflow as Workflow<Any>)
 
         /*
             When publishing the StepDataEvent,

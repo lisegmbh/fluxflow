@@ -1,5 +1,7 @@
 package de.lise.fluxflow.api.workflow
 
+import de.lise.fluxflow.api.workflow.action.WorkflowAction
+
 /**
  * Represents a workflow.
  * 
@@ -25,4 +27,9 @@ interface Workflow<TModel> {
      * Arbitrary metainformation associated with this workflow.
      */
     val metadata: Map<String, Any>
+
+    /**
+     * Holds the actions that can be executed in the scope of this workflow.
+     */
+    val actions: List<WorkflowAction<TModel>>
 }

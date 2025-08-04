@@ -69,6 +69,64 @@ class VacationRequestController(
 }
 ```
 
+## Workflow actions
+Workflow actions are similar to [step actions](../steps.md/#actions).  
+They are used to execute custom logic and influence the workflow’s control flow.  
+Unlike step actions, a workflow action is defined in the context of the entire workflow.  
+It does not require an active workflow step
+and is available throughout the workflow’s lifetime.
+
+For more general information about actions and their purpose,  
+see the section on [step actions](../steps.md#actions).
+
+### Defining a workflow action
+Workflow actions are defined by creating a function annotated with `@Action`.
+In contrast to step actions, a workflow action always requires this annotation in order to be detected.
+
+```kotlin
+data class VacationRequestWorkflow(
+    val creationTime: Instant,
+    var status: Status = Status.Draft
+) {
+    @Action
+    fun export() {
+        // some logic that can/should be executed independently within the workflow's context
+    }
+
+    fun isOlderThan10Days(): Boolean {
+        // this is a regular function, having no meaning to FluxFlow
+        return Duration.between(creationTime, Instant.now()) > Duration.ofDays(10)
+    }
+}
+```
+Workflow actions support the same features as step actions, 
+which are also applied in the same way (e.g. [continuations](../steps.md#continuing-the-workflow-using-return-values)
+or [dependency injection](../steps.md#injection-into-action-functions)).
+Please refer to the corresponding section.
+
+### Obtaining and executing a workflow action
+A workflow action can be executed using the `WorkflowActionService`.
+Simply invoking the `WorkflowAction.execute()` function would execute the action's payload,
+but fail to handle any side effects like persisting the new workflow state or executing any continuation.
+
+```kotlin
+@Service
+class ExportService(
+    private val workflowService: WorkflowQueryService,
+    private val workflowActionService: WorkflowActionService
+) {
+    fun triggerExport(
+        workflowIdentifier: WorkflowIdentifier
+    ) {
+        val workflow = workflowService.get<VacationRequestWorkflow>(workflowIdentifier)
+        workflowActionService.invokeAction(
+            workflow,
+            ActionKind("export")
+        )
+    }
+}
+```
+
 ## Listening for changes (model listeners)
 
 Sometimes it is necessary to react to changes to a workflow's model.
@@ -84,7 +142,7 @@ It will be invoked whenever the model changes in a way, that is relevant to the 
 The most basic listener will be invoked whenever anything within the model changes (= the new model state is not equal
 to the old one).
 
-It can be defined by declaring a public function with the worfklow model's type and annotating it with `@ModelListener`.
+It can be defined by declaring a public function with the workflow model's type and annotating it with `@ModelListener`.
 
 ```kotlin
 data class VacationRequestWorkflow(

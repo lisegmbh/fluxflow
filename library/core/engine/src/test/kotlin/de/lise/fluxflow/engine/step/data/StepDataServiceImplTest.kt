@@ -5,6 +5,7 @@ import de.lise.fluxflow.api.step.InvalidStepStateException
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.data.*
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.event.step.data.StepDataEvent
@@ -78,7 +79,9 @@ class StepDataServiceImplTest {
     fun `setValue should not throw an exception if inactive modification is enabled and step is canceled`() {
         // Arrange
         val dataService = defaultService(true)
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Canceled
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -100,7 +103,9 @@ class StepDataServiceImplTest {
     fun `setValue should throw no exception if step is active`() {
         // Arrange
         val dataService = defaultService(false)
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Active
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -151,7 +156,9 @@ class StepDataServiceImplTest {
             eventService = eventService,
             stepServiceImpl = stepServiceImpl
         )
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Active
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -186,7 +193,9 @@ class StepDataServiceImplTest {
             eventService = eventService,
             stepServiceImpl = stepServiceImpl
         )
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Completed
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -246,7 +255,9 @@ class StepDataServiceImplTest {
             eventService = eventService,
             stepServiceImpl = stepServiceImpl
         )
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Active
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -279,7 +290,9 @@ class StepDataServiceImplTest {
             eventService = eventService,
             stepServiceImpl = stepServiceImpl
         )
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Active
         }
         val dataDefinition = mock<DataDefinition<String>> {

@@ -3,6 +3,7 @@ package de.lise.fluxflow.engine.job
 import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.job.JobStatus
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
 import de.lise.fluxflow.api.workflow.WorkflowQueryService
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
@@ -29,7 +30,7 @@ class JobSchedulingCallback(
         )
         
         val workflow = ref.alreadyLoadedJob?.workflow ?: try {
-            workflowQueryService.get<Any?>(ref.workflowIdentifier)
+            workflowQueryService.get<Any>(ref.workflowIdentifier)
         } catch (e: WorkflowNotFoundException) {
             Logger.warn(
                 "The workflow \"{}\" that owned job \"{}\" seems to be lost. Skipping job execution.",
@@ -56,7 +57,7 @@ class JobSchedulingCallback(
             return
         }
         jobService.setStatus(runningJob, JobStatus.Executed)
-        workflowUpdateService.saveChanges(workflow)
+        workflowUpdateService.saveChanges(workflow as Workflow<Any>)
         continuationService.execute(
             workflow, 
             ReferredWorkflowObject.create(runningJob),

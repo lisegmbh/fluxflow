@@ -29,7 +29,7 @@ class WorkflowIT {
     fun `deleted workflows should stop from being returned by search method`() {
         // Arrange
         val workflow = workflowStarterService!!.start(
-            null,
+            Any(),
             Continuation.none()
         )
 
@@ -43,7 +43,7 @@ class WorkflowIT {
     @Test
     fun `get method should throw an exception when called on deleted workflows`() {
         val workflow = workflowStarterService!!.start(
-            null,
+            Any(),
             Continuation.none()
         )
 

@@ -21,7 +21,7 @@ class WorkflowQueryServiceImpl(
     override fun getAll(): List<Workflow<*>> {
         return persistence.findAll()
             .map {
-                activationService.activate<Any?>(it)
+                activationService.activate<Any>(it)
             }
     }
 
@@ -43,7 +43,7 @@ class WorkflowQueryServiceImpl(
         return persistence.findAll(
             query.toDataQuery()
         ).map {
-            activationService.activate<Any?>(it)
+            activationService.activate<Any>(it)
         }
     }
 

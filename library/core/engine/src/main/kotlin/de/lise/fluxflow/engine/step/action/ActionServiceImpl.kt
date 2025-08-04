@@ -9,6 +9,7 @@ import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.step.stateful.action.ActionKind
 import de.lise.fluxflow.api.step.stateful.action.ActionService
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.event.action.ActionEvent
@@ -48,7 +49,8 @@ class ActionServiceImpl(
          *  IMPORTANT: Save changes to workflow before step completion because the step completion would otherwise fetch
          *  the outdated workflow from the database and overwrites the changes.
          */
-        workflowUpdateService.saveChanges(action.step.workflow)
+        @Suppress("UNCHECKED_CAST")
+        workflowUpdateService.saveChanges(action.step.workflow as Workflow<Any>)
         continuationService.execute(
             action.step.workflow,
             ReferredWorkflowObject.Companion.create(action.step), 

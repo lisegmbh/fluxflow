@@ -141,7 +141,7 @@ class JobSchedulingCallbackTest {
             on { findJob<Any>(any(), any()) }.doReturn(modifyingTestJob)
             on { setStatus(any(), any()) }.doReturn(modifyingTestJob)
         }
-        val persistedWorkflowCaptor = argumentCaptor<Workflow<*>> { }
+        val persistedWorkflowCaptor = argumentCaptor<Workflow<Any>> { }
         val continuationService = mock<ContinuationService> {}
 
         val schedulingCallback = JobSchedulingCallback(
@@ -155,7 +155,8 @@ class JobSchedulingCallbackTest {
         schedulingCallback.onScheduled(testRef)
 
         // Assert
-        verify(workflowUpdateService, times(1)).saveChanges(persistedWorkflowCaptor.capture())
+        verify(workflowUpdateService, times(1))
+            .saveChanges(persistedWorkflowCaptor.capture())
         val persistedWorkflow = persistedWorkflowCaptor.firstValue
         assertThat((persistedWorkflow.model as ModifiableWorkflowData).modifiedValue).isTrue()
     }
