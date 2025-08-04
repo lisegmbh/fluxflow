@@ -11,6 +11,7 @@ import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
 import de.lise.fluxflow.api.versioning.*
 import de.lise.fluxflow.api.workflow.*
+import de.lise.fluxflow.api.workflow.action.WorkflowActionService
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl

@@ -2,7 +2,6 @@ package de.lise.fluxflow.api.workflow.action
 
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.workflow.Workflow
-import de.lise.fluxflow.api.workflow.WorkflowActionService
 
 /**
  * Represents an activated and executable workflow action.
