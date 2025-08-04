@@ -43,6 +43,7 @@ class DataDefinitionBuilderTest {
 
         // Assert
         assertThat(data).isNotInstanceOf(ModifiableData::class.java)
+        assertThat(data.definition.isReadonly).isTrue()
     }
 
     @Test
@@ -55,8 +56,8 @@ class DataDefinitionBuilderTest {
 
         // Assert
         assertThat(data).isInstanceOf(ModifiableData::class.java)
+        assertThat(data.definition.isReadonly).isFalse()
     }
-
 
     @Test
     fun `build should return a builder that creates a data definition accessing the correct property`() {

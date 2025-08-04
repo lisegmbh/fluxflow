@@ -22,7 +22,8 @@ class RestoredDataDefinition(
         get() = emptyList()
     override val validation: DataValidationDefinition?
         get() = null
-
+    override val isReadonly: Boolean
+        get() = true
 
     constructor(
         dataDefinitionData: DataDefinitionData,
