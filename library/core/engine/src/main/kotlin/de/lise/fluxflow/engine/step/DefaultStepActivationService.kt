@@ -22,7 +22,7 @@ class DefaultStepActivationService(
     private val compatibilityTester: CompatibilityTester
 ) : StepActivationService {
     override fun <TWorkflowModel> activate(workflow: Workflow<TWorkflowModel>, stepData: StepData): Step {
-        val stepDefinition = activeStepDefinition(workflow, stepData)
+        val stepDefinition = activateStepDefinition(workflow, stepData)
         val persistedVersion = Version.parse(stepData.version)
         val currentCompatibility = compatibilityTester.checkCompatibility(persistedVersion, stepDefinition.version)
 
@@ -64,7 +64,7 @@ class DefaultStepActivationService(
             ?: stepDefinitionBuilder.build(definitionObject)
     }
 
-    private fun <TWorkflowModel> activeStepDefinition(
+    private fun <TWorkflowModel> activateStepDefinition(
         workflow: Workflow<TWorkflowModel>,
         stepData: StepData
     ): StepDefinition {
