@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.api.step.stateful.data.ModificationPolicy
 import de.lise.fluxflow.reflection.ReflectionUtils
 import de.lise.fluxflow.reflection.property.findAnnotationEverywhere
+import de.lise.fluxflow.stereotyped.Import
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
@@ -42,6 +43,9 @@ class DataDefinitionBuilder(
         instanceType: KClass<out TObject>,
         prop: KProperty1<out TObject, *>
     ): List<DataBuilderCallback<TObject>> {
+        if (prop.findAnnotationEverywhere<Import>() != null) {
+            return importProperty(prop)
+        }
         if (!isDataProperty(prop)) {
             return emptyList()
         }
@@ -142,6 +146,14 @@ class DataDefinitionBuilder(
                 { prop.get(it) }
             )
         }
+    }
+
+    private fun <TObject : Any> importProperty(
+        prop: KProperty1<out TObject, *>
+    ): List<DataBuilderCallback<TObject>> {
+        val propertyType = ReflectionUtils.findReturnClass(prop)
+
+        return buildDataDefinition(propertyType)
     }
 
     /**
