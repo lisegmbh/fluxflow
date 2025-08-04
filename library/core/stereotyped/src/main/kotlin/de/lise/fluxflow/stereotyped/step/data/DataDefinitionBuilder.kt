@@ -27,35 +27,22 @@ class DataDefinitionBuilder(
     private val metadataBuilder: MetadataBuilder
 ) {
     /**
-     * Checks if the given property should be interpreted as a [DataDefinition].
-     */
-    internal fun <TObject : Any> isDataProperty(
-        prop: KProperty1<out TObject, *>
-    ): Boolean {
-        return prop.visibility == KVisibility.PUBLIC &&
-                ReflectionUtils.findReturnClass(prop).let { returnType ->
-                    !returnType.hasAnnotation<Job>() &&
-                    !returnType.isSubclassOf(JobContinuation::class)
-                }
-    }
-
-    /**
      * Builds all data definitions that can be obtained by introspecting the given [type].
      * @param type The type to get data definitions from.
      * @return A list of all data definitions. If no data definition could be obtained, an empty list is returned.
      */
     fun <TObject : Any> buildDataDefinition(
         type: KClass<out TObject>
-    ) : List<DataBuilderCallback<TObject>> {
+    ): List<DataBuilderCallback<TObject>> {
         return type.memberProperties
             .flatMap { buildDataDefinition(type, it) }
     }
-    
+
     private fun <TObject : Any> buildDataDefinition(
         instanceType: KClass<out TObject>,
         prop: KProperty1<out TObject, *>
-    ) : List<DataBuilderCallback<TObject>> {
-        if(!isDataProperty(prop)) {
+    ): List<DataBuilderCallback<TObject>> {
+        if (!isDataProperty(prop)) {
             return emptyList()
         }
         return listOf(
@@ -132,7 +119,7 @@ class DataDefinitionBuilder(
                     valueType,
                     metadata,
                     persistenceType,
-                    dataListenerDefinitions.map { it(obj)  },
+                    dataListenerDefinitions.map { it(obj) },
                     validations?.build(obj),
                     modificationPolicy,
                     obj,
@@ -155,5 +142,18 @@ class DataDefinitionBuilder(
                 { prop.get(it) }
             )
         }
+    }
+
+    /**
+     * Checks if the given property should be interpreted as a [DataDefinition].
+     */
+    internal fun <TObject : Any> isDataProperty(
+        prop: KProperty1<out TObject, *>
+    ): Boolean {
+        return prop.visibility == KVisibility.PUBLIC &&
+                ReflectionUtils.findReturnClass(prop).let { returnType ->
+                    !returnType.hasAnnotation<Job>() &&
+                            !returnType.isSubclassOf(JobContinuation::class)
+                }
     }
 }
