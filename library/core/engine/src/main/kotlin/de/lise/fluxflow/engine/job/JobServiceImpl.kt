@@ -131,7 +131,26 @@ class JobServiceImpl(
         return jobActivationService.activate(job.workflow, updatedJobData)
     }
 
+    @Deprecated(
+        "In order to align the API naming, this function will be replace by .getJob() or .getJobOrNull()",
+        replaceWith = ReplaceWith("getJobOrNull<TWorkflowModel>(workflow, jobIdentifier)")
+    )
     override fun <TWorkflowModel> findJob(workflow: Workflow<TWorkflowModel>, jobIdentifier: JobIdentifier): Job? {
+        return getJobOrNull(workflow, jobIdentifier)
+    }
+
+    override fun <TWorkflowModel> getJob(
+        workflow: Workflow<TWorkflowModel>,
+        jobIdentifier: JobIdentifier
+    ): Job {
+        return getJobOrNull(workflow, jobIdentifier)
+            ?: throw JobNotFoundException(workflow, jobIdentifier)
+    }
+
+    override fun <TWorkflowModel> getJobOrNull(
+        workflow: Workflow<TWorkflowModel>,
+        jobIdentifier: JobIdentifier
+    ): Job? {
         return jobPersistence.findForWorkflowAndId(workflow.identifier, jobIdentifier)
             ?.let { jobActivationService.activate(workflow, it) }
     }

@@ -23,17 +23,25 @@ class WorkflowActionServiceImpl(
         workflow: Workflow<TModel>,
         kind: ActionKind,
     ): WorkflowAction<TModel> {
-        return getActions(workflow).firstOrNull { 
+        return getActionOrNull(workflow, kind)
+            ?: throw WorkflowActionNotFoundException(
+                workflow,
+                kind
+            )
+    }
+
+    override fun <TModel : Any> getActionOrNull(
+        workflow: Workflow<TModel>,
+        kind: ActionKind
+    ): WorkflowAction<TModel>? {
+        return getActions(workflow).firstOrNull {
             it.definition.kind == kind
-        } ?: throw WorkflowActionNotFoundException(
-            workflow,
-            kind
-        )
+        }
     }
 
     override fun <TModel : Any> invokeAction(action: WorkflowAction<TModel>) {
         val continuation = action.execute()
-        
+
         eventService.publish(WorkflowActionEvent(action))
         /**
          *  IMPORTANT: Save changes to workflow before executing the continuation because it would otherwise fetch
@@ -44,6 +52,6 @@ class WorkflowActionServiceImpl(
             action.workflow,
             null,
             continuation
-        )   
+        )
     }
 }

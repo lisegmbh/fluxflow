@@ -59,6 +59,15 @@ interface WorkflowQueryService {
      * @param identifier the identifier of the workflow to be returned
      * @param TWorkflowModel the type of the workflow's model
      * @return the workflow with the given identifier
+     * @throws WorkflowNotFoundException if there is no workflow with the given [identifier].
      */
     fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>
+
+    /**
+     * Returns the workflow with the given identifier.
+     * @param identifier the identifier of the workflow to be returned
+     * @param TWorkflowModel the type of the workflow's model
+     * @return the workflow with the given identifier, or `null` if there is no workflow with the given [identifier].
+     */
+    fun <TWorkflowModel> getOrNull(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>?
 }

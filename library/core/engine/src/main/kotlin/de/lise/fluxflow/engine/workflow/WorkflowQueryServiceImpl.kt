@@ -64,10 +64,15 @@ class WorkflowQueryServiceImpl(
         }
     }
 
-    override fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel> {
+    override fun <TWorkflowModel> getOrNull(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>? {
         return persistence.find(identifier)
             ?.let {
                 activationService.activate(it)
-            } ?: throw WorkflowNotFoundException(identifier)
+            }
+    }
+
+    override fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel> {
+        return getOrNull(identifier)
+            ?: throw WorkflowNotFoundException(identifier)
     }
 }

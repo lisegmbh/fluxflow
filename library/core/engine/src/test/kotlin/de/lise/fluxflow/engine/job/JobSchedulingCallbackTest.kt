@@ -37,7 +37,7 @@ class JobSchedulingCallbackTest {
             on { identifier } doReturn jobIdentifier
         }
         val jobService = mock<JobServiceImpl> {
-            on { findJob<Any>(any(), any()) } doReturn testJob
+            on { getJobOrNull<Any>(any(), any()) } doReturn testJob
             on { setStatus(any(), any()) } doReturn testJob
         }
         val continuationService = mock<ContinuationService> {}
@@ -81,7 +81,7 @@ class JobSchedulingCallbackTest {
             on { execute() }.doThrow(RuntimeException("surprise surprise"))
         }
         val jobService = mock<JobServiceImpl> {
-            on { findJob<Any>(any(), any()) }.doReturn(testJob)
+            on { getJobOrNull<Any>(any(), any()) }.doReturn(testJob)
             on { setStatus(any(), any()) }.doReturn(testJob)
         }
         val continuationService = mock<ContinuationService> {}
@@ -138,7 +138,7 @@ class JobSchedulingCallbackTest {
             .createJob(jobIdentifier, workflow, Instant.now(), null, JobStatus.Scheduled)
 
         val jobService = mock<JobServiceImpl> {
-            on { findJob<Any>(any(), any()) }.doReturn(modifyingTestJob)
+            on { getJobOrNull<Any>(any(), any()) }.doReturn(modifyingTestJob)
             on { setStatus(any(), any()) }.doReturn(modifyingTestJob)
         }
         val persistedWorkflowCaptor = argumentCaptor<Workflow<Any>> { }

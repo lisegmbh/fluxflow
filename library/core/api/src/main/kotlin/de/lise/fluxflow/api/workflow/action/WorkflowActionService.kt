@@ -22,10 +22,20 @@ interface WorkflowActionService {
      * @param TModel The workflow model's type.
      * @param workflow The workflow from which the action should be obtained.
      * @param kind The expected [de.lise.fluxflow.api.step.stateful.action.ActionKind].
-     * @return The [WorkflowAction], or `null` if no action with the given [kind] is available.
+     * @return The [WorkflowAction] with the given [kind].
      * @throws WorkflowActionNotFoundException if there is no action of the specified [kind].
      */
     fun <TModel : Any> getAction(workflow: Workflow<TModel>, kind: ActionKind): WorkflowAction<TModel>
+
+    /**
+     * Returns a workflow action of the given [kind] or `null`, if no such action exists.
+     *
+     * @param TModel The workflow model's type.
+     * @param workflow The workflow from which the action should be obtained.
+     * @param kind The expected [de.lise.fluxflow.api.step.stateful.action.ActionKind].
+     * @return The [WorkflowAction], or `null` if no action with the given [kind] is available.
+     */
+    fun <TModel : Any> getActionOrNull(workflow: Workflow<TModel>, kind: ActionKind): WorkflowAction<TModel>?
 
     /**
      * Executes the given [action] while handling all required side effects.

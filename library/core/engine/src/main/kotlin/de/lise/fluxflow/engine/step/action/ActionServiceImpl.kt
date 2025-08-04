@@ -8,6 +8,7 @@ import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.step.stateful.action.ActionKind
+import de.lise.fluxflow.api.step.stateful.action.ActionNotFoundException
 import de.lise.fluxflow.api.step.stateful.action.ActionService
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
@@ -27,9 +28,17 @@ class ActionServiceImpl(
             ?: emptyList()
     }
 
-    override fun getAction(step: Step, kind: ActionKind): Action? {
+    override fun getActionOrNull(step: Step, kind: ActionKind): Action? {
         return getActions(step)
             .firstOrNull { it.definition.kind == kind }
+    }
+
+    override fun getAction(step: Step, kind: ActionKind): Action {
+        return getActionOrNull(step, kind)
+            ?: throw ActionNotFoundException(
+                step,
+                kind
+            )
     }
 
     override fun invokeAction(action: Action) {
