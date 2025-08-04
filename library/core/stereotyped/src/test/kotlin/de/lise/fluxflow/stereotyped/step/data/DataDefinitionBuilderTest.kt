@@ -3,6 +3,7 @@ package de.lise.fluxflow.stereotyped.step.data
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.data.Data
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
+import de.lise.fluxflow.stereotyped.Import
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
@@ -126,6 +127,35 @@ class DataDefinitionBuilderTest {
     }
 
     @Test
+    fun `build should include imported data definitions`() {
+        // Arrange
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            listenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+        val testInstance = TestClassWithImportedData(ImportableProperties("", ""))
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(
+            TestClassWithImportedData::class,
+        ).map { builder ->
+            builder(testInstance)
+        }
+
+        // Assert
+        assertThat(definitions).hasSize(2)
+
+        val firstnameDefinition = definitions.firstOrNull { it.kind == DataKindInspector.getDataKind(ImportableProperties::firstname) }
+        assertThat(firstnameDefinition).isNotNull
+        assertThat(firstnameDefinition?.isReadonly).isTrue()
+
+        val lastnameDefinition = definitions.firstOrNull { it.kind == DataKindInspector.getDataKind(ImportableProperties::lastname) }
+        assertThat(lastnameDefinition).isNotNull
+        assertThat(lastnameDefinition?.isReadonly).isFalse()
+    }
+
+    @Test
     fun `isDataProperty should return true for public properties, that do not represent a job`() {
         // Arrange
         val dataDefinitionBuilder = DataDefinitionBuilder(
@@ -225,6 +255,19 @@ class DataDefinitionBuilderTest {
     class TestJob
     class TestClassWithJobProp(
         val testJob: TestJob
+    )
+
+
+    data class ImportableProperties(
+        @de.lise.fluxflow.stereotyped.step.data.Data
+        val firstname: String,
+        @de.lise.fluxflow.stereotyped.step.data.Data
+        var lastname: String
+    )
+
+    class TestClassWithImportedData(
+        @Import
+        val importedProperty: ImportableProperties
     )
 }
 
