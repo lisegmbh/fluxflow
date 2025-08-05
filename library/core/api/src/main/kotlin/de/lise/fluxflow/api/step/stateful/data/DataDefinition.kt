@@ -34,5 +34,12 @@ interface DataDefinition<T> {
      * Controls if inactive data can be modified.
      */
     val modificationPolicy: ModificationPolicy
+
+    /**
+     * Indicates if this definition describes a read-only (see [Data])
+     * or modifiable data element (see [ModifiableData]).
+     */
+    val isReadonly: Boolean
+
     fun createData(step: Step): Data<T>
 }

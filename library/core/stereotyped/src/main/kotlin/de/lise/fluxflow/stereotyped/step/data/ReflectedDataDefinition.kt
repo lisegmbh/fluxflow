@@ -18,6 +18,9 @@ class ReflectedDataDefinition<TInstance, TModel>(
     private val propertyGetter: PropertyGetter<TInstance, TModel>,
     private val propertySetter: PropertySetter<TInstance, TModel>? = null,
 ) : DataDefinition<TModel> {
+    override val isReadonly: Boolean
+        get() = propertySetter == null
+
     override fun createData(step: Step): Data<TModel> {
         val readOnlyData = ReflectedData(
             step,
