@@ -27,12 +27,17 @@ class StepDataServiceImpl(
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T> getData(step: Step, kind: DataKind): Data<T>? {
+    override fun <T> getDataOrNull(step: Step, kind: DataKind): Data<T>? {
         return getData(step).firstOrNull {
             it.definition.kind == kind
         }?.let {
             it as Data<T>
         }
+    }
+
+    override fun <T> getData(step: Step, kind: DataKind): Data<T> {
+        return getDataOrNull(step, kind)
+            ?: throw DataNotFoundException(step, kind)
     }
 
     override fun <T> setValue(data: Data<T>, value: T) {

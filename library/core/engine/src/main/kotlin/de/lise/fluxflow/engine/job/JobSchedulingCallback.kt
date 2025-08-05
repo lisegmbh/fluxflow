@@ -41,7 +41,7 @@ class JobSchedulingCallback(
             return
         }
 
-        val job = ref.alreadyLoadedJob ?: jobService.findJob(workflow, ref.jobIdentifier)
+        val job = ref.alreadyLoadedJob ?: jobService.getJobOrNull(workflow, ref.jobIdentifier)
         if (job == null) {
             Logger.warn("Job definition for scheduled job \"{}\" seems to be lost.", ref)
             return
@@ -57,6 +57,7 @@ class JobSchedulingCallback(
             return
         }
         jobService.setStatus(runningJob, JobStatus.Executed)
+        @Suppress("UNCHECKED_CAST")
         workflowUpdateService.saveChanges(workflow as Workflow<Any>)
         continuationService.execute(
             workflow, 

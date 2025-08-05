@@ -50,6 +50,10 @@ class WorkflowServiceImpl(
         return workflowQueryService.get(identifier)
     }
 
+    override fun <TWorkflowModel> getOrNull(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>? {
+        return workflowQueryService.getOrNull(identifier)
+    }
+
     override fun <TWorkflowModel> saveChanges(workflow: Workflow<TWorkflowModel>): Workflow<TWorkflowModel> {
         return workflowUpdateService.saveChanges(workflow)
     }

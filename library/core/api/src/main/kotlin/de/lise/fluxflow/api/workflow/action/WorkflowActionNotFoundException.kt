@@ -7,7 +7,7 @@ class WorkflowActionNotFoundException(
     val workflow: Workflow<*>,
     val kind: ActionKind
 ): Exception(
-    "Action of kind '${kind}' could not be found for workflow ${
+    "Workflow action of kind '$kind' could not be found for workflow ${
         workflow.identifier
     } (available kinds: ${
         workflow.definition.actions
