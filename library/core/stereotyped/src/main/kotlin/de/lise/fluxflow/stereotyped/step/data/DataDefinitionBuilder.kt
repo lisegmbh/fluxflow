@@ -164,13 +164,13 @@ class DataDefinitionBuilder(
         val propertyType = ReflectionUtils.findReturnClass(prop)
 
         val result = buildDataDefinition(propertyType)
-        val mapped = result.map { originalCallback ->
-            { instance: TObject ->
-                val importedInstance = (prop as KProperty1<TObject, *>).get(instance)
-                originalCallback.invoke(importedInstance as Any)
-            }
+        return result.map { originalCallback ->
+            @Suppress("UNCHECKED_CAST")
+            NestedDataBuilderCallback(
+                prop as KProperty1<TObject, Any>,
+                originalCallback
+            )
         }
-        return mapped
     }
 
     /**
