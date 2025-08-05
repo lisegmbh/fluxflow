@@ -25,7 +25,7 @@ import kotlin.reflect.jvm.javaField
 class DataDefinitionBuilder(
     private val dataListenerDefinitionBuilder: DataListenerDefinitionBuilder,
     private val validationBuilder: ValidationBuilder,
-    private val metadataBuilder: MetadataBuilder
+    private val metadataBuilder: MetadataBuilder,
 ) {
     /**
      * Builds all data definitions that can be obtained by introspecting the given [type].
@@ -33,15 +33,20 @@ class DataDefinitionBuilder(
      * @return A list of all data definitions. If no data definition could be obtained, an empty list is returned.
      */
     fun <TObject : Any> buildDataDefinition(
-        type: KClass<out TObject>
+        type: KClass<out TObject>,
     ): List<DataBuilderCallback<TObject>> {
         return type.memberProperties
-            .flatMap { buildDataDefinition(type, it) }
+            .flatMap {
+                buildDataDefinition(
+                    type,
+                    it
+                )
+            }
     }
 
     private fun <TObject : Any> buildDataDefinition(
         instanceType: KClass<out TObject>,
-        prop: KProperty1<out TObject, *>
+        prop: KProperty1<out TObject, *>,
     ): List<DataBuilderCallback<TObject>> {
         if (prop.findAnnotationEverywhere<Import>() != null) {
             return importProperty(prop)
@@ -64,7 +69,7 @@ class DataDefinitionBuilder(
      */
     private fun <TObject : Any> buildDataDefinitionFromProperty(
         instanceType: KClass<out TObject>,
-        prop: KProperty1<out TObject, *>
+        prop: KProperty1<out TObject, *>,
     ): (instance: TObject) -> DataDefinition<*> {
         @Suppress("UNCHECKED_CAST")
         return buildDataDefinitionFromTypedProperty(
@@ -74,7 +79,7 @@ class DataDefinitionBuilder(
     }
 
     private fun <TObject, TProp : Any> getIsCalculatedValue(
-        prop: KProperty1<TObject, TProp>
+        prop: KProperty1<TObject, TProp>,
     ): Boolean {
         val persistenceType = prop.findAnnotationEverywhere<Data>()?.persistenceType
             ?: PersistenceType.Auto
@@ -92,7 +97,7 @@ class DataDefinitionBuilder(
 
     private fun <TObject : Any, TProp : Any> buildDataDefinitionFromTypedProperty(
         instanceType: KClass<out TObject>,
-        prop: KProperty1<TObject, TProp>
+        prop: KProperty1<TObject, TProp>,
     ): (element: TObject) -> DataDefinition<TProp?> {
         val kind = DataKindInspector.getDataKind(prop)
         val modificationPolicy = prop.findAnnotationEverywhere<Data>()
@@ -128,7 +133,12 @@ class DataDefinitionBuilder(
                     modificationPolicy,
                     obj,
                     { instance -> prop.get(instance) },
-                    { instance, newVal -> modifiableProperty.set(instance, newVal) }
+                    { instance, newVal ->
+                        modifiableProperty.set(
+                            instance,
+                            newVal
+                        )
+                    }
                 )
             }
         }
@@ -149,23 +159,30 @@ class DataDefinitionBuilder(
     }
 
     private fun <TObject : Any> importProperty(
-        prop: KProperty1<out TObject, *>
+        prop: KProperty1<out TObject, *>,
     ): List<DataBuilderCallback<TObject>> {
         val propertyType = ReflectionUtils.findReturnClass(prop)
 
-        return buildDataDefinition(propertyType)
+        val result = buildDataDefinition(propertyType)
+        val mapped = result.map { originalCallback ->
+            { instance: TObject ->
+                val importedInstance = (prop as KProperty1<TObject, *>).get(instance)
+                originalCallback.invoke(importedInstance as Any)
+            }
+        }
+        return mapped
     }
 
     /**
      * Checks if the given property should be interpreted as a [DataDefinition].
      */
     internal fun <TObject : Any> isDataProperty(
-        prop: KProperty1<out TObject, *>
+        prop: KProperty1<out TObject, *>,
     ): Boolean {
         return prop.visibility == KVisibility.PUBLIC &&
-                ReflectionUtils.findReturnClass(prop).let { returnType ->
-                    !returnType.hasAnnotation<Job>() &&
-                            !returnType.isSubclassOf(JobContinuation::class)
-                }
+            ReflectionUtils.findReturnClass(prop).let { returnType ->
+                !returnType.hasAnnotation<Job>() &&
+                    !returnType.isSubclassOf(JobContinuation::class)
+            }
     }
 }
