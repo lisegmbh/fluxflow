@@ -9,6 +9,7 @@ import de.lise.fluxflow.api.step.stateful.data.StepDataService
 import de.lise.fluxflow.api.workflow.WorkflowService
 import de.lise.fluxflow.engine.IntegrationTestConfig
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
+import de.lise.fluxflow.stereotyped.step.bind
 import de.lise.fluxflow.stereotyped.step.data.DataKindInspector
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -91,7 +92,6 @@ class DataIT {
                 "lastname"
             )
         )
-
         val workflow = workflowService.start(
             Any(),
             Continuation.step(stepModel)
@@ -115,13 +115,86 @@ class DataIT {
             ),
             step.identifier
         )!!
+
+        // Assert
+        val restoredFirstname = stepDataService.getData<String>(
+            restoredStep,
+            DataKindInspector.getDataKind(ImportableData::firstname)
+        )!!
+        assertThat(restoredFirstname.get()).isEqualTo("firstname")
+
+        val restoredLastname = stepDataService.getData<String>(
+            restoredStep,
+            DataKindInspector.getDataKind(ImportableData::lastname)
+        )!!
+        assertThat(restoredLastname.get()).isEqualTo("new lastname")
+    }
+    
+    @Test
+    fun `listeners defined on the importing type should be invoked whenever an imported data object changes`() {
+        // Arrange
+        val stepModel = DataTestStepWithImportedData(
+            ImportableData(
+                "firstname",
+                "lastname"
+            )
+        )
+        val workflow = workflowService.start(
+            Any(),
+            Continuation.step(stepModel)
+        )
+        val step = stepService.findSteps(workflow).first() as StatefulStep
+        val lastname = step.data.last {
+            it.definition.kind == DataKindInspector.getDataKind(ImportableData::lastname)
+        }.let {
+            @Suppress("UNCHECKED_CAST")
+            it as ModifiableData<String>
+        }
+
+        // Act
+        stepDataService.setValue(
+            lastname,
+            "new lastname"
+        )
         
         // Assert
-        val restoredFirstname = stepDataService.getData<String>(restoredStep, DataKindInspector.getDataKind(ImportableData::firstname))!!
-        assertThat(restoredFirstname.get()).isEqualTo("firstname")
-        
-        val restoredLastname = stepDataService.getData<String>(restoredStep, DataKindInspector.getDataKind(ImportableData::lastname))!!
-        assertThat(restoredLastname.get()).isEqualTo("new lastname")
+        val currentStep = step.bind<DataTestStepWithImportedData>()!!
+        assertThat(currentStep.onChangeInvoked).isTrue()
+    }
+
+    @Test
+    fun `listeners defined on the imported type should be invoked whenever the unwrapped data object changes`() {
+        // Arrange
+        val stepModel = DataTestStepWithImportedData(
+            ImportableData(
+                "firstname",
+                "lastname"
+            )
+        )
+        val workflow = workflowService.start(
+            Any(),
+            Continuation.step(stepModel)
+        )
+        val step = stepService.findSteps(workflow).first() as StatefulStep
+        val lastname = step.data.last {
+            it.definition.kind == DataKindInspector.getDataKind(ImportableData::lastname)
+        }.let {
+            @Suppress("UNCHECKED_CAST")
+            it as ModifiableData<String>
+        }
+
+        // Act
+        stepDataService.setValue(
+            lastname,
+            "new lastname"
+        )
+
+        // Assert
+        val currentStep = step.bind<DataTestStepWithImportedData>()!!
+        val dataWrapper = currentStep.data
+        assertThat(dataWrapper.onChangeInvoked).isTrue()
+        assertThat(dataWrapper.givenStep).isEqualTo(step)
+        assertThat(dataWrapper.givenWorkflow).isEqualTo(step.workflow)
     }
 
     @Test

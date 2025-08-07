@@ -9,6 +9,7 @@ import de.lise.fluxflow.reflection.property.findAnnotationEverywhere
 import de.lise.fluxflow.stereotyped.Import
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
+import de.lise.fluxflow.stereotyped.step.data.imported.ImportedDataBuilderCallback
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty1
@@ -49,7 +50,10 @@ class DataDefinitionBuilder(
         prop: KProperty1<out TObject, *>,
     ): List<DataBuilderCallback<TObject>> {
         if (prop.findAnnotationEverywhere<Import>() != null) {
-            return importProperty(prop)
+            return importProperty(
+                instanceType,
+                prop
+            )
         }
         if (!isDataProperty(prop)) {
             return emptyList()
@@ -159,6 +163,7 @@ class DataDefinitionBuilder(
     }
 
     private fun <TObject : Any> importProperty(
+        instanceType: KClass<out TObject>,
         prop: KProperty1<out TObject, *>,
     ): List<DataBuilderCallback<TObject>> {
         val propertyType = ReflectionUtils.findReturnClass(prop)
@@ -166,10 +171,12 @@ class DataDefinitionBuilder(
         val result = buildDataDefinition(propertyType)
         return result.map { originalCallback ->
             @Suppress("UNCHECKED_CAST")
-            NestedDataBuilderCallback(
+            (ImportedDataBuilderCallback(
+                dataListenerDefinitionBuilder,
                 prop as KProperty1<TObject, Any>,
-                originalCallback
-            )
+                originalCallback,
+                instanceType
+            ))
         }
     }
 
