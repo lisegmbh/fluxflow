@@ -1,11 +1,11 @@
 package de.lise.fluxflow.stereotyped.step.action
 
-import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolution
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.continuation.ContinuationConverter
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
+import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStep
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
@@ -55,7 +55,7 @@ class ActionDefinitionBuilderTest {
         // Act
         val actionDefinition = actionDefinitionBuilder.build<TestClass>(
             TestClass::someFunction, false
-        )!!.invoke(TestClass())
+        )!!
 
         // Assert
         assertThat(actionDefinition.metadata).isSameAs(testMetadata)
@@ -82,7 +82,10 @@ class ActionDefinitionBuilderTest {
     @Test
     fun `actions built for functions requiring additional parameters should be executable`() {
         // Arrange
-        val step = mock<Step> { }
+        val stepInstance = TestClassWithExplicitlyAnnotatedActions()
+        val step = mock<ReflectedStatefulStep> { 
+            on { instance } doReturn stepInstance
+        }
         val clock = mock<Clock> { }
         val parameterResolution = mock<ParameterResolution> {
             on { get() } doReturn clock
@@ -105,11 +108,10 @@ class ActionDefinitionBuilderTest {
             mock { },
             ActionFunctionResolverImpl(parameterResolver)
         )
-        val stepDefinitionFunction = actionDefinitionBuilder.build<TestClassWithExplicitlyAnnotatedActions>(
+        val actionDefinition = actionDefinitionBuilder.build<TestClassWithExplicitlyAnnotatedActions>(
             TestClassWithExplicitlyAnnotatedActions::someFunctionWithDependency, false
-        )
-        val stepInstance = TestClassWithExplicitlyAnnotatedActions()
-        val actionDefinition = stepDefinitionFunction!!.invoke(stepInstance)
+        )!!
+       
         val action = actionDefinition.createAction(step)
 
         // Act

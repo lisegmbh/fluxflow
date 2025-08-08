@@ -24,7 +24,7 @@ class JakartaDataValidationBuilderIT {
             DataKind("test"),
             TestModel::class,
             TestModel::testObject
-        )!!.build(TestModel())
+        )!!
 
         // Assert
         assertThat(validationDefinition.constraints).hasOnlyElementsOfType(PropertyValidationConstraintImpl::class.java)
@@ -39,7 +39,7 @@ class JakartaDataValidationBuilderIT {
             DataKind("test"),
             TestModel::class,
             TestModel::testObjects
-        )!!.build(TestModel())
+        )!!
 
         // Assert
         assertThat(validationDefinition.constraints).hasOnlyElementsOfType(PropertyValidationConstraintImpl::class.java)
@@ -54,7 +54,7 @@ class JakartaDataValidationBuilderIT {
             DataKind("test"),
             TestModelWithRecursiveProp::class,
             TestModelWithRecursiveProp::someProp
-        )!!.build(TestModelWithRecursiveProp())
+        )!!
 
         // Assert
         assertThat(validationDefinition.constraints).hasExactlyElementsOfTypes(PropertyValidationConstraintImpl::class.java)

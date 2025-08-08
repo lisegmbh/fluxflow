@@ -1,9 +1,6 @@
 package de.lise.fluxflow.engine.step
 
-import de.lise.fluxflow.api.step.Step
-import de.lise.fluxflow.api.step.StepDefinition
-import de.lise.fluxflow.api.step.StepIdentifier
-import de.lise.fluxflow.api.step.StepKind
+import de.lise.fluxflow.api.step.*
 import de.lise.fluxflow.api.step.stateful.StepActivationException
 import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.workflow.Workflow
@@ -24,16 +21,38 @@ import org.slf4j.LoggerFactory
 class RestoringStepActivationService(
     private val baseStepActivationService: StepActivationService,
     private val stepDefinitionService: StepDefinitionService,
-    private val handleAnyException: Boolean
+    private val handleAnyException: Boolean,
 ) : StepActivationService {
-    override fun <TWorkflowModel> activate(workflow: Workflow<TWorkflowModel>, stepData: StepData): Step {
+    override fun <TWorkflowModel> activateInitial(
+        workflow: Workflow<TWorkflowModel>,
+        invokableStepDefinition: InvokableStepDefinition,
+        identifier: StepIdentifier,
+    ): Step {
+        return baseStepActivationService.activateInitial(workflow, invokableStepDefinition, identifier)
+    }
+
+    override fun <TWorkflowModel> activateFromPersistence(
+        workflow: Workflow<TWorkflowModel>,
+        stepData: StepData,
+    ): Step {
         return try {
-            baseStepActivationService.activate(workflow, stepData)
+            baseStepActivationService.activateFromPersistence(
+                workflow,
+                stepData
+            )
         } catch (e: StepActivationException) {
-            activateStepByRestoringFromPersistedDefinition(workflow, stepData, e)
+            activateStepByRestoringFromPersistedDefinition(
+                workflow,
+                stepData,
+                e
+            )
         } catch (e: Exception) {
-            if(handleAnyException) {
-                activateStepByRestoringFromPersistedDefinition(workflow, stepData, e)
+            if (handleAnyException) {
+                activateStepByRestoringFromPersistedDefinition(
+                    workflow,
+                    stepData,
+                    e
+                )
             } else {
                 throw e
             }
@@ -43,11 +62,11 @@ class RestoringStepActivationService(
     private fun <TWorkflowModel> activateStepByRestoringFromPersistedDefinition(
         workflow: Workflow<TWorkflowModel>,
         stepData: StepData,
-        cause: Exception
+        cause: Exception,
     ): Step {
         Logger.warn(
             "Trying to restore step #{} using a persisted step definition, " +
-                    "because the following error occurred during activation.",
+                "because the following error occurred during activation.",
             stepData.id,
             cause
         )
@@ -61,15 +80,20 @@ class RestoringStepActivationService(
         )
 
         val version = Version.parse(stepData.version)
-        
-        val step = restoredStepDefinition.createStep(
-            workflow,
-            StepIdentifier(stepData.id),
-            version,
-            stepData.status,
-            stepData.metadata
+
+        val step = restoredStepDefinition.toInvokableStepDefinition().activate(
+            StepActivationContext(
+                workflow,
+                StepIdentifier(stepData.id),
+                version,
+                stepData.status,
+                stepData.metadata,
+            )
         )
-        Logger.debug("Successfully restored step #{}.", step.identifier.value)
+        Logger.debug(
+            "Successfully restored step #{}.",
+            step.identifier.value
+        )
         return step
     }
 
@@ -77,7 +101,12 @@ class RestoringStepActivationService(
         return baseStepActivationService.toStepDefinition(definitionObject)
     }
 
+    override fun toInvokableStepDefinition(definitionObject: Any): InvokableStepDefinition {
+        return baseStepActivationService.toInvokableStepDefinition(definitionObject)
+    }
+
     private companion object {
         val Logger = LoggerFactory.getLogger(RestoringStepActivationService::class.java)!!
     }
 }
+

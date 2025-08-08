@@ -34,7 +34,7 @@ class StepDefinitionService(
         kind: StepKind,
         version: Version,
         stepData: StepData?
-    ): StepDefinition? {
+    ): RestoredStepDefinition? {
        return stepDefinitionPersistence.findForKindAndVersion(
             kind.value,
             version.version

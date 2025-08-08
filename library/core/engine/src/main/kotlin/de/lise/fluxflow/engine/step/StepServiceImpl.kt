@@ -36,23 +36,21 @@ class StepServiceImpl(
     private val workflowQueryService: WorkflowQueryService,
     private val enableAutomaticVersionUpgrade: Boolean,
     private val requiredCompatibility: VersionCompatibility,
-    private val compatibilityTester: CompatibilityTester
+    private val compatibilityTester: CompatibilityTester,
 ) : StepService {
-    fun create(workflow: Workflow<*>, definition: StepDefinition): StepCreationResult {
-        stepDefinitionVersionRecorder.record(definition)
+    fun create(workflow: Workflow<*>, invokableStepDefinition: InvokableStepDefinition): StepCreationResult {
+        stepDefinitionVersionRecorder.record(invokableStepDefinition.definition)
 
-        val step = definition.createStep(
+        val step = stepActivationService.activateInitial(
             workflow,
-            StepIdentifier(persistence.randomId()),
-            definition.version,
-            Status.Active,
-            definition.metadata
+            invokableStepDefinition,
+            StepIdentifier(persistence.randomId())
         )
 
         createData(step)
         eventService.publish(StepCreatedEvent(step))
 
-        val onCreatedAutomations = definition.onCreatedAutomations.map { it.createAutomation(step) }
+        val onCreatedAutomations = step.definition.onCreatedAutomations.map { it.createAutomation(step) }
 
         return StepCreationResult(
             step,
@@ -90,14 +88,14 @@ class StepServiceImpl(
 
     override fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>): List<Step> {
         return persistence.findForWorkflow(workflow.identifier)
-            .map { stepActivationService.activate(workflow, it) }
+            .map { stepActivationService.activateFromPersistence(workflow, it) }
     }
 
     override fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: StepQuery): Page<Step> {
         return persistence.findForWorkflow(
             workflow.identifier,
             query.toDataQuery()
-        ).map { stepActivationService.activate(workflow, it) }
+        ).map { stepActivationService.activateFromPersistence(workflow, it) }
     }
 
     override fun findSteps(query: StepQuery): Page<Step> {
@@ -114,7 +112,7 @@ class StepServiceImpl(
         ).items.associateBy { it.identifier.value }
 
         return page.map { step ->
-            stepActivationService.activate(
+            stepActivationService.activateFromPersistence(
                 workflows[step.workflowId]
                     ?: throw WorkflowNotFoundException(WorkflowIdentifier(step.workflowId)),
                 step
@@ -124,7 +122,7 @@ class StepServiceImpl(
 
     override fun <TWorkflowModel> findStep(workflow: Workflow<TWorkflowModel>, stepIdentifier: StepIdentifier): Step? {
         return persistence.findForWorkflowAndId(workflow.identifier, stepIdentifier)
-            ?.let { stepActivationService.activate(workflow, it) }
+            ?.let { stepActivationService.activateFromPersistence(workflow, it) }
     }
 
     override fun setMetadata(step: Step, key: String, value: Any?): Step {
@@ -233,7 +231,7 @@ class StepServiceImpl(
     }
 
     private fun saveChanges(step: Step, data: StepData): Step {
-        val updatedStep = stepActivationService.activate(step.workflow, persistence.save(data))
+        val updatedStep = stepActivationService.activateFromPersistence(step.workflow, persistence.save(data))
         eventService.publish(StepUpdatedEvent(step))
 
         return updatedStep

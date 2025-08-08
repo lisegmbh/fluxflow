@@ -1,6 +1,7 @@
 package de.lise.fluxflow.stereotyped.step.data.validation
 
 import de.lise.fluxflow.api.step.stateful.data.DataKind
+import de.lise.fluxflow.api.step.stateful.data.validation.DataValidationDefinition
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
@@ -16,9 +17,9 @@ interface ValidationBuilder {
      * @return The [ValidationBuilderResult] obtained from inspecting the given [prop].
      * If there are no validation constraints present, implementations must return `null`.
      */
-    fun <TInstance: Any, TProp : Any?> buildValidations(
+    fun <TInstance : Any, TProp : Any?> buildValidations(
         dataKind: DataKind,
         instanceType: KClass<out TInstance>,
         prop: KProperty1<TInstance, TProp>,
-    ): ValidationBuilderResult<TInstance>?
+    ): DataValidationDefinition?
 }

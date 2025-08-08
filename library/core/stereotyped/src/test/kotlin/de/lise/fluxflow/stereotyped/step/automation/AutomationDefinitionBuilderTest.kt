@@ -2,11 +2,11 @@ package de.lise.fluxflow.stereotyped.step.automation
 
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.continuation.StatusBehavior
-import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.reflection.activation.parameter.FunctionParameter
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolution
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
+import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStep
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -16,7 +16,6 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import java.time.Clock
 
-
 class AutomationDefinitionBuilderTest {
     @Test
     fun `build should preserve the continuation's status behavior`() {
@@ -24,7 +23,9 @@ class AutomationDefinitionBuilderTest {
         val continuationBuilder = ContinuationBuilder()
         val parameterResolver = mock<ParameterResolver> { }
         val testClass = TestClass()
-        val step = mock<Step> {}
+        val step = mock<ReflectedStatefulStep> {
+            on { instance } doReturn testClass
+        }
         val automationDefinitionBuilder = AutomationDefinitionBuilder(
             continuationBuilder,
             parameterResolver
@@ -33,7 +34,7 @@ class AutomationDefinitionBuilderTest {
         // Act
         val automationDefinition = automationDefinitionBuilder.build<TestClass>(
             TestClass::automaticallyCompleteStep
-        )[Trigger.OnCreated]!!(testClass)
+        )[Trigger.OnCreated]!!
         val automation = automationDefinition.createAutomation(step)
         val continuation = automation.execute()
 
@@ -47,7 +48,9 @@ class AutomationDefinitionBuilderTest {
         val continuationBuilder = ContinuationBuilder()
         val parameterResolver = mock<ParameterResolver> { }
         val testClass = TestClassWithDependency()
-        val step = mock<Step> {}
+        val step = mock<ReflectedStatefulStep> {
+            on { instance } doReturn testClass
+        }
         val automationDefinitionBuilder = AutomationDefinitionBuilder(
             continuationBuilder,
             parameterResolver
@@ -55,7 +58,7 @@ class AutomationDefinitionBuilderTest {
 
         val automationDefinition = automationDefinitionBuilder.build<TestClassWithDependency>(
             TestClassWithDependency::requireDependency
-        )[Trigger.OnCreated]!!(testClass)
+        )[Trigger.OnCreated]!!
         val automation = automationDefinition.createAutomation(step)
 
         // Act & Assert
@@ -80,14 +83,16 @@ class AutomationDefinitionBuilderTest {
             on { resolveParameter(eq(clockParameter)) } doReturn parameterResolution
         }
         val testClass = TestClassWithDependency()
-        val step = mock<Step> {}
+        val step = mock<ReflectedStatefulStep> {
+            on { instance } doReturn testClass
+        }
         val automationDefinitionBuilder = AutomationDefinitionBuilder(
             continuationBuilder,
             parameterResolver
         )
         val automationDefinition = automationDefinitionBuilder.build<TestClassWithDependency>(
             TestClassWithDependency::requireDependency
-        )[Trigger.OnCreated]!!(testClass)
+        )[Trigger.OnCreated]!!
         val automation = automationDefinition.createAutomation(step)
 
         // Act

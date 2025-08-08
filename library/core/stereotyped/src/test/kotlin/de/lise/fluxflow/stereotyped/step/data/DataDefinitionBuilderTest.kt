@@ -1,13 +1,14 @@
 package de.lise.fluxflow.stereotyped.step.data
 
-import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.data.Data
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
+import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStep
 import de.lise.fluxflow.stereotyped.step.data.validation.ValidationBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
@@ -39,7 +40,10 @@ class DataDefinitionBuilderTest {
         val instance = TestClass("hello")
 
         // Act
-        val data = createDataObject(instance, TestClass::readOnlyStringProperty)
+        val data = createDataObject(
+            instance,
+            TestClass::readOnlyStringProperty
+        )
 
         // Assert
         assertThat(data).isNotInstanceOf(ModifiableData::class.java)
@@ -52,7 +56,10 @@ class DataDefinitionBuilderTest {
         val instance = ModifiableTestClass("hello")
 
         // Act
-        val data = createDataObject(instance, ModifiableTestClass::modifiableStringProperty)
+        val data = createDataObject(
+            instance,
+            ModifiableTestClass::modifiableStringProperty
+        )
 
         // Assert
         assertThat(data).isInstanceOf(ModifiableData::class.java)
@@ -63,7 +70,10 @@ class DataDefinitionBuilderTest {
     fun `build should return a builder that creates a data definition accessing the correct property`() {
         // Arrange
         val instance = TestClass("foo bar")
-        val data = createDataObject(instance, TestClass::readOnlyStringProperty)
+        val data = createDataObject(
+            instance,
+            TestClass::readOnlyStringProperty
+        )
 
         // Act
         val value = data.get()
@@ -76,8 +86,11 @@ class DataDefinitionBuilderTest {
     fun `build should return a builder that creates a data definition setting the correct property`() {
         // Arrange
         val instance = ModifiableTestClass("The answer is 42")
-        val data = createDataObject(instance, ModifiableTestClass::modifiableStringProperty)
-                as ModifiableData<String>
+        val data = createDataObject(
+            instance,
+            ModifiableTestClass::modifiableStringProperty
+        )
+            as ModifiableData<String>
 
         // Act
         data.set("But what is the question?")
@@ -92,8 +105,11 @@ class DataDefinitionBuilderTest {
         val instance = ModifiableTestClass("Foo")
 
         // Act
-        val data = createDataObject(instance, ModifiableTestClass::modifiableStringProperty)
-                as ModifiableData<String>
+        val data = createDataObject(
+            instance,
+            ModifiableTestClass::modifiableStringProperty
+        )
+            as ModifiableData<String>
 
         // Assert 
         assertThat(data.definition.isCalculatedValue).isFalse()
@@ -105,8 +121,11 @@ class DataDefinitionBuilderTest {
         val instance = ModifiableTestClassWithOverwrittenIsCalculated("Foo")
 
         // Act
-        val data = createDataObject(instance, ModifiableTestClassWithOverwrittenIsCalculated::overwrittenProperty)
-                as ModifiableData<String>
+        val data = createDataObject(
+            instance,
+            ModifiableTestClassWithOverwrittenIsCalculated::overwrittenProperty
+        )
+            as ModifiableData<String>
 
         // Assert 
         assertThat(data.definition.isCalculatedValue).isTrue()
@@ -118,8 +137,11 @@ class DataDefinitionBuilderTest {
         val instance = TestClassWithCalculatedProperty()
 
         // Act
-        val data = createDataObject(instance, TestClassWithCalculatedProperty::calculatedProperty)
-                as ModifiableData<String>
+        val data = createDataObject(
+            instance,
+            TestClassWithCalculatedProperty::calculatedProperty
+        )
+            as ModifiableData<String>
 
         // Assert 
         assertThat(data.definition.isCalculatedValue).isTrue()
@@ -177,38 +199,39 @@ class DataDefinitionBuilderTest {
     }
 
     private fun <TObject : Any, TProp> createDataObject(
-        instance: TObject,
-        prop: KProperty1<out TObject, TProp>
+        testInstance: TObject,
+        prop: KProperty1<out TObject, TProp>,
     ): Data<TProp> {
         val dataDefinitionBuilder = DataDefinitionBuilder(
             listenerDefinitionBuilder,
             mock<ValidationBuilder> {},
             mock<MetadataBuilder> {}
         )
-        val step = mock<Step> {}
+        val step = mock<ReflectedStatefulStep> {
+            on { instance } doReturn testInstance
+        }
 
         val expectedKind = DataKindInspector.getDataKind(prop)
-        
+
         @Suppress("UNCHECKED_CAST")
         return dataDefinitionBuilder.buildDataDefinition(
-            instance::class,
+            testInstance::class,
         )
-            .map { it(instance) }
             .first { expectedKind == it.kind }
             .createData(step) as Data<TProp>
     }
 
     class TestClass(
-        val readOnlyStringProperty: String
+        val readOnlyStringProperty: String,
     )
 
     class ModifiableTestClass(
-        var modifiableStringProperty: String
+        var modifiableStringProperty: String,
     )
 
     class ModifiableTestClassWithOverwrittenIsCalculated(
         @de.lise.fluxflow.stereotyped.step.data.Data(persistenceType = PersistenceType.Calculated)
-        var overwrittenProperty: String
+        var overwrittenProperty: String,
     )
 
     class TestClassWithCalculatedProperty {
@@ -218,13 +241,13 @@ class DataDefinitionBuilderTest {
     }
 
     class TestClassWithPrivateProp(
-        private val privateProperty: Int
+        private val privateProperty: Int,
     )
 
     @Job
     class TestJob
     class TestClassWithJobProp(
-        val testJob: TestJob
+        val testJob: TestJob,
     )
 }
 
