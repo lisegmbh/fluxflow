@@ -1,14 +1,10 @@
 package de.lise.fluxflow.engine.step.definition
 
-import de.lise.fluxflow.api.step.Status
-import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.StepKind
 import de.lise.fluxflow.api.step.automation.AutomationDefinition
 import de.lise.fluxflow.api.step.stateful.StatefulStepDefinition
 import de.lise.fluxflow.api.step.stateful.action.ActionDefinition
 import de.lise.fluxflow.api.versioning.Version
-import de.lise.fluxflow.api.workflow.Workflow
-import de.lise.fluxflow.engine.step.data.RestoredData
 import de.lise.fluxflow.engine.step.data.RestoredDataDefinition
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
@@ -26,6 +22,10 @@ class RestoredStepDefinition(
     override val onCompletedAutomations: Set<AutomationDefinition>
         get() = emptySet()
 
+    fun toInvokableStepDefinition(): InvokableRestoredStepDefinition {
+        return InvokableRestoredStepDefinition(this)
+    }
+
     constructor(
         definitionData: StepDefinitionData,
         stepData: StepData?
@@ -40,28 +40,5 @@ class RestoredStepDefinition(
             )
         },
     )
-
-    override fun createStep(
-        workflow: Workflow<*>,
-        stepIdentifier: StepIdentifier,
-        version: Version,
-        status: Status,
-        metadata: Map<String, Any>?
-    ): RestoredStepImpl {
-        val dataList = mutableListOf<RestoredData>()
-        val step = RestoredStepImpl(
-            stepIdentifier,
-            version,
-            this,
-            workflow,
-            status,
-            metadata ?: this.metadata,
-            dataList
-        )
-        dataList.addAll(
-            data.map { it.createData(step) }
-        )
-
-        return step
-    }
 }
+

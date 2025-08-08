@@ -6,7 +6,7 @@ import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.ActionService
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
-import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStepDefinition
+import de.lise.fluxflow.stereotyped.step.bind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -44,7 +44,7 @@ class SpringValueExpressionParameterResolverIT {
             Continuation.step(TestStepWithValues())
         )
         val step = stepService!!.findSteps(workflow).first() as StatefulStep
-        val stepModel = (step.definition as ReflectedStatefulStepDefinition).instance as TestStepWithValues
+        val stepModel = step.bind<TestStepWithValues>()!!
         actionService!!.invokeAction(step.actions.first())
         return stepModel
     }

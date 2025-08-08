@@ -238,9 +238,10 @@ open class ContinuationService(
         continuation: StepContinuation<*>,
     ): ContinuationCommit {
         val model = continuation.model!!
-        val stepDefinition = stepActivationService.toStepDefinition(model)
+        val invokableStepDefinition = stepActivationService.toInvokableStepDefinition(model)
+        
 
-        val creationResult = stepService.create(workflow, stepDefinition)
+        val creationResult = stepService.create(workflow, invokableStepDefinition)
         val nextOriginatingObject = ReferredWorkflowObject.create(creationResult.step)
 
         continuationHistoryService.create(

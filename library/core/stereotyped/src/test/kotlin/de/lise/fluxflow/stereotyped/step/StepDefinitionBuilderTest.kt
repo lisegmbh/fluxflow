@@ -37,7 +37,7 @@ class StepDefinitionBuilderTest {
         )
 
         // Act
-        val result = builder.build(TestClass("", ""))
+        val result = builder.build(TestClass::class)
 
         // Assert
         assertThat(result).isNotNull
@@ -57,7 +57,7 @@ class StepDefinitionBuilderTest {
         )
 
         // Act
-        val result = builder.build(TestClass("", "")) as StatefulStepDefinition
+        val result = builder.build(TestClass::class) as StatefulStepDefinition
 
         // Assert
         verify(dataBuilder).buildDataDefinition(TestClass::class)
@@ -80,7 +80,7 @@ class StepDefinitionBuilderTest {
         )
 
         // Act
-        val result = builder.build(TestClassWithAutomation())
+        val result = builder.build(TestClassWithAutomation::class)
 
         // Assert
         verify(actionDefinitionBuilder, never()).build<Any>(any(), any())
@@ -104,7 +104,7 @@ class StepDefinitionBuilderTest {
         )
         
         // Act
-        val result = builder.build(TestClass("stringProp", "modifiableProp"))
+        val result = builder.build(TestClass::class)
         
         // Assert
         verify(metadataBuilder, times(1)).build(TestClass::class)
@@ -122,7 +122,7 @@ class StepDefinitionBuilderTest {
     private fun mockDataBuilder(): DataDefinitionBuilder {
         return mock<DataDefinitionBuilder> {
             on { buildDataDefinition<Any>(any()) }.doAnswer { answer ->
-                listOf { _ -> testStepDataDefinition }
+                listOf(testStepDataDefinition)
             }
         }
     }

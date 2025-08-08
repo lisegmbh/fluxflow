@@ -24,19 +24,19 @@ import kotlin.reflect.jvm.javaField
 class DataDefinitionBuilder(
     private val dataListenerDefinitionBuilder: DataListenerDefinitionBuilder,
     private val validationBuilder: ValidationBuilder,
-    private val metadataBuilder: MetadataBuilder
+    private val metadataBuilder: MetadataBuilder,
 ) {
     /**
      * Checks if the given property should be interpreted as a [DataDefinition].
      */
     internal fun <TObject : Any> isDataProperty(
-        prop: KProperty1<out TObject, *>
+        prop: KProperty1<out TObject, *>,
     ): Boolean {
         return prop.visibility == KVisibility.PUBLIC &&
-                ReflectionUtils.findReturnClass(prop).let { returnType ->
-                    !returnType.hasAnnotation<Job>() &&
+            ReflectionUtils.findReturnClass(prop).let { returnType ->
+                !returnType.hasAnnotation<Job>() &&
                     !returnType.isSubclassOf(JobContinuation::class)
-                }
+            }
     }
 
     /**
@@ -45,17 +45,22 @@ class DataDefinitionBuilder(
      * @return A list of all data definitions. If no data definition could be obtained, an empty list is returned.
      */
     fun <TObject : Any> buildDataDefinition(
-        type: KClass<out TObject>
-    ) : List<DataBuilderCallback<TObject>> {
+        type: KClass<out TObject>,
+    ): List<DataDefinition<*>> {
         return type.memberProperties
-            .flatMap { buildDataDefinition(type, it) }
+            .flatMap {
+                buildDataDefinition(
+                    type,
+                    it
+                )
+            }
     }
-    
+
     private fun <TObject : Any> buildDataDefinition(
         instanceType: KClass<out TObject>,
-        prop: KProperty1<out TObject, *>
-    ) : List<DataBuilderCallback<TObject>> {
-        if(!isDataProperty(prop)) {
+        prop: KProperty1<out TObject, *>,
+    ): List<DataDefinition<*>> {
+        if (!isDataProperty(prop)) {
             return emptyList()
         }
         return listOf(
@@ -73,8 +78,8 @@ class DataDefinitionBuilder(
      */
     private fun <TObject : Any> buildDataDefinitionFromProperty(
         instanceType: KClass<out TObject>,
-        prop: KProperty1<out TObject, *>
-    ): (instance: TObject) -> DataDefinition<*> {
+        prop: KProperty1<out TObject, *>,
+    ): DataDefinition<*> {
         @Suppress("UNCHECKED_CAST")
         return buildDataDefinitionFromTypedProperty(
             instanceType,
@@ -83,7 +88,7 @@ class DataDefinitionBuilder(
     }
 
     private fun <TObject, TProp : Any> getIsCalculatedValue(
-        prop: KProperty1<TObject, TProp>
+        prop: KProperty1<TObject, TProp>,
     ): Boolean {
         val persistenceType = prop.findAnnotationEverywhere<Data>()?.persistenceType
             ?: PersistenceType.Auto
@@ -101,8 +106,8 @@ class DataDefinitionBuilder(
 
     private fun <TObject : Any, TProp : Any> buildDataDefinitionFromTypedProperty(
         instanceType: KClass<out TObject>,
-        prop: KProperty1<TObject, TProp>
-    ): (element: TObject) -> DataDefinition<TProp?> {
+        prop: KProperty1<TObject, TProp>,
+    ): DataDefinition<TProp?> {
         val kind = DataKindInspector.getDataKind(prop)
         val modificationPolicy = prop.findAnnotationEverywhere<Data>()
             ?.modificationPolicy
@@ -115,7 +120,8 @@ class DataDefinitionBuilder(
             kind,
             valueType,
             instanceType
-        )
+        ).toList()
+        
         val validations = validationBuilder.buildValidations(
             kind,
             instanceType,
@@ -126,34 +132,33 @@ class DataDefinitionBuilder(
         if (modifiable) {
             @Suppress("UNCHECKED_CAST")
             val modifiableProperty = prop as KMutableProperty1<TObject, TProp?>
-            return { obj ->
-                ReflectedDataDefinition(
-                    kind,
-                    valueType,
-                    metadata,
-                    persistenceType,
-                    dataListenerDefinitions.map { it(obj)  },
-                    validations?.build(obj),
-                    modificationPolicy,
-                    obj,
-                    { instance -> prop.get(instance) },
-                    { instance, newVal -> modifiableProperty.set(instance, newVal) }
-                )
-            }
-        }
-
-        return { instance ->
-            ReflectedDataDefinition(
+            return ReflectedDataDefinition<TObject, TProp?>(
                 kind,
                 valueType,
                 metadata,
                 persistenceType,
-                dataListenerDefinitions.map { it(instance) },
-                validations?.build(instance),
+                dataListenerDefinitions,
+                validations,
                 modificationPolicy,
-                instance,
-                { prop.get(it) }
+                { instance -> prop.get(instance) },
+                { instance, newVal ->
+                    modifiableProperty.set(
+                        instance,
+                        newVal
+                    )
+                }
             )
         }
+
+        return ReflectedDataDefinition<TObject, TProp?>(
+            kind,
+            valueType,
+            metadata,
+            persistenceType,
+            dataListenerDefinitions,
+            validations,
+            modificationPolicy,
+            { prop.get(it) }
+        )
     }
 }

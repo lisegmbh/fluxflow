@@ -44,7 +44,7 @@ class DefaultStepActivationServiceTest {
 
         // Act
         val activatedStep =  assertDoesNotThrow {
-            activationService.activate(workflow, testStep)
+            activationService.activateFromPersistence(workflow, testStep)
         }
 
         // Assert
@@ -67,7 +67,7 @@ class DefaultStepActivationServiceTest {
 
         // Act
         val activatedStep =  assertDoesNotThrow {
-            activationService.activate(workflow, testStep)
+            activationService.activateFromPersistence(workflow, testStep)
         }
 
         // Assert
@@ -91,7 +91,7 @@ class DefaultStepActivationServiceTest {
 
         // Act
         val activatedStep = assertDoesNotThrow {
-            activationService.activate(workflow, testStepData)
+            activationService.activateFromPersistence(workflow, testStepData)
         }
 
         // Assert

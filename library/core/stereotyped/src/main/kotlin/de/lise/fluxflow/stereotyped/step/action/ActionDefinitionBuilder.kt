@@ -18,7 +18,7 @@ import kotlin.reflect.full.functions
 class ActionDefinitionBuilder(
     private val continuationBuilder: ContinuationBuilder,
     private val metadataBuilder: MetadataBuilder,
-    private val actionFunctionResolver: ActionFunctionResolver
+    private val actionFunctionResolver: ActionFunctionResolver,
 ) {
     /**
      * Checks if the given type has at least on method annotated with [Action].
@@ -45,7 +45,7 @@ class ActionDefinitionBuilder(
     fun <TFunctionOwner : Any> build(
         function: KFunction<*>,
         requireAnnotation: Boolean,
-    ): ((TFunctionOwner) -> ActionDefinition)? {
+    ): ActionDefinition? {
         if (
             !function.isInvokableInstanceFunction()
         ) {
@@ -70,26 +70,28 @@ class ActionDefinitionBuilder(
             ?.let { ActionKind(it) }
             ?: ActionKind(function.name)
         val metadata = metadataBuilder.build(function)
-        val converter = continuationBuilder.createResultConverter(implicitStatusBehavior, true, function)
+        val converter = continuationBuilder.createResultConverter(
+            implicitStatusBehavior,
+            true,
+            function
+        )
 
         val beforeExecutionBehavior = annotation?.beforeExecutionValidation ?: ValidationBehavior.Default
         val validationGroups = annotation?.validationGroups?.let { setOf(*it) } ?: emptySet()
-        
-        return { obj: TFunctionOwner ->
-            ReflectedActionDefinition(
-                kind,
-                metadata,
-                beforeExecutionBehavior,
-                validationGroups,
-                obj
-            ) { step, instance ->
-                val callable = actionFunctionResolver.resolve(
-                    function,
-                    { instance },
-                    { step }
-                )
 
-                converter.toContinuation(callable.call()) }
+        return ReflectedActionDefinition<TFunctionOwner>(
+            kind,
+            metadata,
+            beforeExecutionBehavior,
+            validationGroups,
+        ) { step, instance ->
+            val callable = actionFunctionResolver.resolve(
+                function,
+                { instance },
+                { step }
+            )
+
+            converter.toContinuation(callable.call())
         }
     }
 

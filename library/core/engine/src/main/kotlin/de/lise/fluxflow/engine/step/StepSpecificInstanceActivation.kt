@@ -1,8 +1,6 @@
 package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.ioc.IocProvider
-import de.lise.fluxflow.api.step.StepDefinition
-import de.lise.fluxflow.api.step.StepKind
 import de.lise.fluxflow.api.step.stateful.StepActivationException
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
@@ -13,11 +11,9 @@ import de.lise.fluxflow.reflection.activation.parameter.FixedValueParameterResol
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.ValueMatcher
-import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
+import kotlin.reflect.KClass
 
-class StepActivation<TWorkflowModel>(
-    private val stepTypeResolver: StepTypeResolver,
-    private val stepDefinitionBuilder: StepDefinitionBuilder,
+class StepSpecificInstanceActivation<TWorkflowModel>(
     iocProvider: IocProvider,
     workflow: Workflow<TWorkflowModel>,
     private val stepData: StepData
@@ -42,32 +38,11 @@ class StepActivation<TWorkflowModel>(
             )
         )
     )
-
-    fun activate(): StepDefinition {
-        val type = try {
-            stepTypeResolver.resolveType(StepKind(stepData.kind))
-        }catch (e: ClassNotFoundException) {
-            throw StepActivationException(
-                "Unable to activate step #${stepData.id} with kind '${stepData.kind}', " +
-                        "because it's type could not be resolved/activated.",
-                e
-            )
-        }
-
-        return when (
-            val activatedObject = typeActivator.findActivation(type)?.activate()
-        ) {
-            null -> {
-                throw StepActivationException(stepData.id, stepData.kind)
-            }
-
-            is StepDefinition -> {
-                activatedObject
-            }
-
-            else -> {
-                stepDefinitionBuilder.build(activatedObject)
-            }
-        }
+    
+    fun <TInstance : Any> activateInstance(
+        type: KClass<TInstance>
+    ): TInstance {
+        return typeActivator.findActivation(type)?.activate() 
+            ?: throw StepActivationException(stepData.id, stepData.kind)
     }
 }
