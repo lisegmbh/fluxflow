@@ -36,7 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Similar to steps, jobs, and step data, workflow definitions now support metadata. The metadata is automatically extracted from
    annotations present on the workflow model class. This metadata can be accessed via the `WorkflowDefinition.metadata` property.
    [Issue #86](https://github.com/lisegmbh/fluxflow/issues/86) and [Issue #50](https://github.com/lisegmbh/fluxflow/issues/50)
-   
+12. **Scheduled job reconciliation on startup**<br/>
+    Added a startup `BootstrapAction` that validates all jobs marked as `Scheduled` in persistence and automatically reschedules any that are missing from the active scheduler implementation. Enable with `fluxflow.scheduling.reconcile-on-startup=true`.
+
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>
    The `Continuation.workflow` function now supports a `replacementScope` parameter that defines which workflow elements should be replaced.

@@ -6,6 +6,7 @@ import de.lise.fluxflow.scheduling.SchedulingCallback
 import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.scheduling.SchedulingService
 import org.quartz.*
+import org.quartz.impl.matchers.GroupMatcher
 import java.time.Clock
 import java.time.Instant
 import java.util.*
@@ -76,5 +77,18 @@ open class QuartzSchedulingService(
             listener.onScheduled(ref)
         }
     }
+
+    override fun isJobScheduled(
+        schedulingReference: SchedulingReference
+    ): Boolean {
+        return getScheduledJobKeys().any { jobKey ->
+            val job = scheduler.getJobDetail(jobKey) ?: return@any false
+            val jobId = job.jobDataMap["jobIdentifier"] as? String
+
+            jobId == schedulingReference.jobIdentifier.value
+        }
+    }
+
+    private fun getScheduledJobKeys(): Set<JobKey> = scheduler.getJobKeys(GroupMatcher.anyGroup()).toSet()
 }
 

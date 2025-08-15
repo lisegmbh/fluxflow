@@ -27,4 +27,11 @@ interface SchedulingService {
     fun cancel(workflowIdentifier: WorkflowIdentifier, cancellationKey: CancellationKey)
 
     fun registerListener(callback: SchedulingCallback)
+
+    /**
+     * Checks if a job is scheduled.
+     * @param schedulingReference The reference of the job to check.
+     * @return `true` if the job is scheduled, `false` otherwise.
+     */
+    fun isJobScheduled(schedulingReference: SchedulingReference): Boolean
 }

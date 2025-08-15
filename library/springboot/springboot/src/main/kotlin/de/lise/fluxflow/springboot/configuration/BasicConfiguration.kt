@@ -47,6 +47,7 @@ import de.lise.fluxflow.scheduling.SchedulingCallback
 import de.lise.fluxflow.scheduling.SchedulingService
 import de.lise.fluxflow.springboot.activation.StepKindMapBuilder
 import de.lise.fluxflow.springboot.activation.parameter.SpringValueExpressionParameterResolver
+import de.lise.fluxflow.springboot.bootstrapping.ReconcileScheduledJobsBootstrapAction
 import de.lise.fluxflow.springboot.bootstrapping.SpringBootstrapper
 import de.lise.fluxflow.springboot.expression.SpringSelectorExpressionParser
 import de.lise.fluxflow.springboot.ioc.SpringIocProvider
@@ -79,6 +80,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.*
+import org.springframework.core.annotation.Order
 import org.springframework.expression.spel.standard.SpelExpressionParser
 import java.time.Clock
 
@@ -691,4 +693,20 @@ open class BasicConfiguration {
         )
     }
 
+    @Bean
+    @Order(105)
+    @ConditionalOnProperty(
+        value = ["fluxflow.scheduling.reconcile-on-startup"],
+        havingValue = "true",
+        matchIfMissing = false
+    )
+    open fun startupJobReconciliation(
+        jobService: JobService,
+        schedulingService: SchedulingService,
+    ): BootstrapAction {
+        return ReconcileScheduledJobsBootstrapAction(
+            jobService,
+            schedulingService
+        )
+    }
 }
