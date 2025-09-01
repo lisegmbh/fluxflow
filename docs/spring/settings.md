@@ -72,6 +72,17 @@ fluxflow:
       # Same model as `fluxflow.mongo.collation.default`, 
       # which will be used if omitted.
       continuationRecord: null
+  
+  quartz:
+    # boolean: if set to true, Quartz will search for pre-scheduled jobs by also comparing their job data map.
+    # Note that enabling this might come with a performance impact, 
+    # as it may require iterating over all previously scheduled jobs [O(n^2)].
+    legacyLookup: false
+
+  scheduling:
+    # boolean: if true,
+    # FluxFlow will attempt to re-schedule jobs that are missing from the scheduler's persistent storage.
+    reconcileOnStartup: false
 
   versioning:
     comparison: # Can be used to tweak the compatibility when comparing different versions

@@ -36,7 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Similar to steps, jobs, and step data, workflow definitions now support metadata. The metadata is automatically extracted from
    annotations present on the workflow model class. This metadata can be accessed via the `WorkflowDefinition.metadata` property.
    [Issue #86](https://github.com/lisegmbh/fluxflow/issues/86) and [Issue #50](https://github.com/lisegmbh/fluxflow/issues/50)
-   
+12. **Scheduled job reconciliation on startup**<br/>
+    Added a startup `BootstrapAction` that validates all jobs marked as `Scheduled` in persistence and automatically reschedules any that are missing from the active scheduler implementation. Enable with `fluxflow.scheduling.reconcileOnStartup=true`.
+
 ### Changed
 1. **Configurable replacement scope for workflow continuations**<br/>
    The `Continuation.workflow` function now supports a `replacementScope` parameter that defines which workflow elements should be replaced.
@@ -46,7 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2. Added an optional `version` property to MongoDB's StepDocument.
    There is no need for a migration, as the field is optional/nullable.
 3. A custom collation can now be specified when ensuring indexes using `MongoBootstrapAction`.
-4. MongoDB documents now use a different data structure to store map entries and their data types. See [https://docs.fluxflow.cloud/see/1](https://docs.fluxflow.cloud/see/1) for more information. 
+4. MongoDB documents now use a different data structure to store map entries and their data types. See [https://docs.fluxflow.cloud/see/1](https://docs.fluxflow.cloud/see/1) for more information.
+5. If a FluxFlow job has no explicit cancellation key,  
+   Quartz now uses the workflow and job identifier as the job key.  
+   This enables more efficient lookups for pre-scheduled jobs.  
+   To fall back to lookups based on the job detail map (which requires iterating over all scheduled jobs),  
+   set `fluxflow.quartz.legacyLookup` to `true`.
+
 ### Deprecated
 ### Fixed
 1. **NPE within ParamMatcher.isAssignable**<br/>
