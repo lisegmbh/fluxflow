@@ -699,7 +699,7 @@ been executed</caption>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><p><strong><a
-href="#step_action_continuation_step">Step
+href="#step-continuation">Step
 continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A step continuation indicates that the
 workflow should be continued with a new step.</p></td>
@@ -710,7 +710,7 @@ definition.</p></td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><p><strong><a
-href="#step_action_continuation_noop">No-op
+href="#no-op-continuation">No-op
 continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A no-op continuation indicates that no
 further operations should be performed.</p></td>
@@ -721,7 +721,7 @@ further operations should be performed.</p></td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><p><strong><a
-href="#step_action_continuation_job">Job
+href="#job-continuation">Job
 continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A job continuation indicates that the
 workflow should schedule a new job, which gets executed at a specified
@@ -732,7 +732,7 @@ time.</p></td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><p><strong><a
-href="#step_action_continuation_cancel_jobs">Cancel jobs
+href="#cancel-jobs-continuation">Cancel jobs
 continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A cancel jobs continuation indicates
 that FluxFlow should cancel previously scheduled jobs without replacing
@@ -743,7 +743,7 @@ them with new jobs.</p></td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><p><strong><a
-href="#step_action_continuation_multiple">Multiple
+href="#multiple-continuation">Multiple
 continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A multiple continuation indicates that
 the workflow should continue with multiple continuations at the same
@@ -754,7 +754,7 @@ time.</p></td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><p><strong><a
-href="#step_action_continuation_rollback">Rollback
+href="#rollback-continuation">Rollback
 continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A rollback continuation indicates that
 the previous step should be reactivated while (by default) canceling the
@@ -765,7 +765,7 @@ current one.</p></td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><p><strong><a
-href="#step_action_continuation_workflow">Workflow
+href="#workflow-continuation">Workflow
 continuation</a></strong></p></td>
 <td style="text-align: left;"><p>A workflow continuation indicates the
 FluxFlow should start a new workflow.</p></td>
@@ -824,11 +824,11 @@ If an action function is defined as a void method or returns a
 
 #### Job continuation
 
-See [???](#_jobs).
+See [Starting jobs using a continuation](./jobs.md#using-a-continuation).
 
 #### Cancel jobs continuation
 
-See [???](#_jobs)
+See [Job cancellation](./jobs.md#explicit-job-cancellation).
 
 #### Multiple continuation
 

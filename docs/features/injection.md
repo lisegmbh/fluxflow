@@ -55,7 +55,7 @@ valid injection targets. Such workflow objects elements are:
 
 2.  [Data listeners](#step_data_listen_for_changes)
 
-3.  [???](#_automation_functions)
+3.  [Automation functions](./automation.md#injection-into-automation-functions)
 
 4.  [Job payload functions](#_payload)
 

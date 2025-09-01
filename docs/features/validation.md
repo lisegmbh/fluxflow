@@ -25,8 +25,7 @@ available.
 
     implementation("org.hibernate.validator:hibernate-validator:<CURRENT VERSION>") // 
 
-- Be sure to set the desired
-  [version](https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator)
+Be sure to set the desired [version](https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator).
 
 ### Register the validator
 
@@ -180,7 +179,7 @@ invoked**
 
 ### Skip or force validation after specific actions
 
-Similar to the [pre-execution validation](#validation_execution_before),
+Similar to the pre-execution validation,
 post-execution behavior can be customized as well. This is done by
 applying a custom validation behavior to the returned continuation
 (calling `.withValidationBehavior(...)`).

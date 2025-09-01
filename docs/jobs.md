@@ -150,7 +150,7 @@ given by the table
         <li><p>The constructor parameter name must match the job parameters name
         (which is obtained from the associated property)</p></li>
         </ol>
-        <p>See <a href="#job_usage_definition_parameters">Parameters</a> for
+        <p>See <a href="#parameters">Parameters</a> for
         more information.</p></td>
         </tr>
         <tr class="even">
@@ -212,8 +212,7 @@ injection**
 
 As already mentioned in "[Requirements regarding a job's payload method
 ](#payload-function-requirements)", a payload
-function can declare parameters. Similar to the [Constructor
-injection](#job_usage_constructor_injection), this can be useful to
+function can declare parameters. Similar to the [Constructor injection](#constructor-injection), this can be useful to
 access external functionality or to obtain information regarding the
 current execution. Parameter resolution is done as outlined in the table
 
@@ -339,7 +338,7 @@ committed and instead be rolled back.
 ### Adding metadata to jobs
 Like other FluxFlow objects, jobs can have metadata added to them and their definition.
 You can apply them by annotating the job definition type with an appropriate annotation.
-More details on how to create a metadata annotation can be found in ["Definition of metadata"](/steps/#definition-of-metadata).
+More details on how to create a metadata annotation can be found in ["Definition of metadata"](./steps.md#definition-of-metadata).
 
 ```kotlin
 @Metadata("jobType")
@@ -555,5 +554,4 @@ cancellation key.
         }
     }
 
--   This will cancel all previously scheduled jobs having "alarm" for a
-    cancellation key.
+This will cancel all previously scheduled jobs having "alarm" for a cancellation key.
