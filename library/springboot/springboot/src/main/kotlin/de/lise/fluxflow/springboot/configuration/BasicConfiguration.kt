@@ -696,7 +696,7 @@ open class BasicConfiguration {
     @Bean
     @Order(105)
     @ConditionalOnProperty(
-        value = ["fluxflow.scheduling.reconcile-on-startup"],
+        value = ["fluxflow.scheduling.reconcileOnStartup"],
         havingValue = "true",
         matchIfMissing = false
     )

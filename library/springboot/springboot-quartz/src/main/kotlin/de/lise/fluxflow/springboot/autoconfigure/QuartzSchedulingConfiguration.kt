@@ -3,6 +3,7 @@ package de.lise.fluxflow.springboot.autoconfigure
 import de.lise.fluxflow.scheduling.SchedulingService
 import de.lise.fluxflow.springboot.scheduling.quartz.QuartzSchedulingService
 import org.quartz.Scheduler
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.context.annotation.Bean
@@ -18,11 +19,16 @@ open class QuartzSchedulingConfiguration {
     @ConditionalOnBean(Scheduler::class)
     open fun schedulingService(
         scheduler: Scheduler,
-        clock: Clock
+        clock: Clock,
+        @Value(
+            "\${fluxflow.quartz.legacyLookup:false}"
+        )
+        enableLegacyLookup: Boolean
     ): SchedulingService {
         return QuartzSchedulingService(
             scheduler,
-            clock
+            clock,
+            enableLegacyLookup
         )
     }
 }
