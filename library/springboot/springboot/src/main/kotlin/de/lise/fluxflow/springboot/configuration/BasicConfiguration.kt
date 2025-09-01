@@ -178,15 +178,24 @@ open class BasicConfiguration {
     }
     
     @Bean
-    open fun workflowActivationService(
+    open fun workflowDefinitionBuilder(
         modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder,
         metadataBuilder: MetadataBuilder,
         actionDefinitionBuilder: WorkflowActionDefinitionBuilder
-    ): WorkflowActivationService {
-        return WorkflowActivationServiceImpl(
+    ): WorkflowDefinitionBuilder {
+        return WorkflowDefinitionBuilder(
             modelListenerDefinitionBuilder,
             metadataBuilder,
             actionDefinitionBuilder
+        )
+    }
+    
+    @Bean
+    open fun workflowActivationService(
+        workflowDefinitionBuilder: WorkflowDefinitionBuilder
+    ): WorkflowActivationService {
+        return WorkflowActivationServiceImpl(
+            workflowDefinitionBuilder
         )
     }
 
