@@ -1,12 +1,15 @@
 package de.lise.fluxflow.engine.job
 
+import de.lise.fluxflow.api.interceptors.FlowInterceptor
 import de.lise.fluxflow.api.job.Job
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
+import de.lise.fluxflow.api.job.interceptors.JobExecutionContext
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
+import de.lise.fluxflow.engine.interceptors.InterceptedInvocation
 import de.lise.fluxflow.engine.workflow.WorkflowQueryServiceImpl
 import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
@@ -28,17 +31,29 @@ class JobSchedulingCallbackTest {
             null,
             null,
         )
+        val testWorkflow = mock<Workflow<Any>> {}
         val workflowService = mock<WorkflowQueryServiceImpl> {
-            on { get<Any>(any()) }.doReturn(mock {})
+            on { get<Any>(any()) } doReturn testWorkflow
         }
         val workflowUpdateService = mock<WorkflowUpdateService> {}
         val testJob = mock<Job> {
             on { execute() } doReturn mock {}
             on { identifier } doReturn jobIdentifier
+            on { workflow } doReturn testWorkflow
         }
         val jobService = mock<JobServiceImpl> {
-            on { getJobOrNull<Any>(any(), any()) } doReturn testJob
-            on { setStatus(any(), any()) } doReturn testJob
+            on {
+                getJobOrNull<Any>(
+                    any(),
+                    any()
+                )
+            } doReturn testJob
+            on {
+                setStatus(
+                    any(),
+                    any()
+                )
+            } doReturn testJob
         }
         val continuationService = mock<ContinuationService> {}
 
@@ -46,7 +61,8 @@ class JobSchedulingCallbackTest {
             workflowService,
             workflowUpdateService,
             jobService,
-            continuationService
+            continuationService,
+            InterceptedInvocation.empty()
         )
 
         // Act
@@ -58,10 +74,21 @@ class JobSchedulingCallbackTest {
             testJob,
             continuationService
         )
-        executionOrder.verify(jobService).setStatus(any(), eq(JobStatus.Running))
+        executionOrder.verify(jobService).setStatus(
+            any(),
+            eq(JobStatus.Running)
+        )
         executionOrder.verify(testJob).execute()
-        executionOrder.verify(jobService).setStatus(any(), eq(JobStatus.Executed))
-        executionOrder.verify(continuationService).execute(any(), anyOrNull(), any(), any())
+        executionOrder.verify(jobService).setStatus(
+            any(),
+            eq(JobStatus.Executed)
+        )
+        executionOrder.verify(continuationService).execute(
+            any(),
+            anyOrNull(),
+            any(),
+            any()
+        )
     }
 
     @Test
@@ -81,8 +108,18 @@ class JobSchedulingCallbackTest {
             on { execute() }.doThrow(RuntimeException("surprise surprise"))
         }
         val jobService = mock<JobServiceImpl> {
-            on { getJobOrNull<Any>(any(), any()) }.doReturn(testJob)
-            on { setStatus(any(), any()) }.doReturn(testJob)
+            on {
+                getJobOrNull<Any>(
+                    any(),
+                    any()
+                )
+            }.doReturn(testJob)
+            on {
+                setStatus(
+                    any(),
+                    any()
+                )
+            }.doReturn(testJob)
         }
         val continuationService = mock<ContinuationService> {}
 
@@ -90,7 +127,8 @@ class JobSchedulingCallbackTest {
             workflowService,
             workflowUpdateService,
             jobService,
-            continuationService
+            continuationService,
+            InterceptedInvocation.empty()
         )
 
         // Act
@@ -101,11 +139,98 @@ class JobSchedulingCallbackTest {
             jobService,
             testJob,
         )
-        executionOrder.verify(jobService).setStatus(any(), eq(JobStatus.Running))
+        executionOrder.verify(jobService).setStatus(
+            any(),
+            eq(JobStatus.Running)
+        )
         executionOrder.verify(testJob).execute()
-        executionOrder.verify(jobService).setStatus(any(), eq(JobStatus.Failed))
-        verify(continuationService, never()).execute(any(), any(), any(), any())
-        verify(jobService, never()).setStatus(any(), eq(JobStatus.Executed))
+        executionOrder.verify(jobService).setStatus(
+            any(),
+            eq(JobStatus.Failed)
+        )
+        verify(
+            continuationService,
+            never()
+        ).execute(
+            any(),
+            any(),
+            any(),
+            any()
+        )
+        verify(
+            jobService,
+            never()
+        ).setStatus(
+            any(),
+            eq(JobStatus.Executed)
+        )
+    }
+
+    @Test
+    fun `onScheduled should not execute the job and leave it status unchanged if an interceptor voted to abort the execution`() {
+        // Arrange
+        val testRef = SchedulingReference(
+            WorkflowIdentifier("workflow"),
+            JobIdentifier("job"),
+            null,
+            null,
+        )
+        val workflowService = mock<WorkflowQueryServiceImpl> {
+            on { get<Any>(any()) }.doReturn(mock {})
+        }
+        val workflowUpdateService = mock<WorkflowUpdateService> {}
+        val testJob = mock<Job> {
+            on { execute() }.doThrow(RuntimeException("surprise surprise"))
+        }
+        val jobService = mock<JobServiceImpl> {
+            on {
+                getJobOrNull<Any>(
+                    any(),
+                    any()
+                )
+            }.doReturn(testJob)
+            on {
+                setStatus(
+                    any(),
+                    any()
+                )
+            }.doReturn(testJob)
+        }
+        val continuationService = mock<ContinuationService> {}
+
+        var interceptorCalled = false
+        val interceptedInvocation = InterceptedInvocation<JobExecutionContext>(
+            listOf(
+            FlowInterceptor { token ->
+                token.abort()
+                interceptorCalled = true
+            }
+        ))
+
+        val schedulingCallback = JobSchedulingCallback(
+            workflowService,
+            workflowUpdateService,
+            jobService,
+            continuationService,
+            interceptedInvocation,
+        )
+
+        // Act
+        schedulingCallback.onScheduled(testRef)
+
+        // Assert
+        assertThat(interceptorCalled).isTrue
+        verify(jobService, never()).setStatus(
+            any(), 
+            any()
+        )
+        verify(continuationService, never()).execute(
+            any(),
+            any(),
+            any(),
+            any()
+        )
+        verify(testJob, never()).execute()
     }
 
     @Test
@@ -135,11 +260,27 @@ class JobSchedulingCallbackTest {
             mutableMapOf()
         )
         val modifyingTestJob = definitionBuilder.build(WorkflowModifyingTestJob())
-            .createJob(jobIdentifier, workflow, Instant.now(), null, JobStatus.Scheduled)
+            .createJob(
+                jobIdentifier,
+                workflow,
+                Instant.now(),
+                null,
+                JobStatus.Scheduled
+            )
 
         val jobService = mock<JobServiceImpl> {
-            on { getJobOrNull<Any>(any(), any()) }.doReturn(modifyingTestJob)
-            on { setStatus(any(), any()) }.doReturn(modifyingTestJob)
+            on {
+                getJobOrNull<Any>(
+                    any(),
+                    any()
+                )
+            }.doReturn(modifyingTestJob)
+            on {
+                setStatus(
+                    any(),
+                    any()
+                )
+            }.doReturn(modifyingTestJob)
         }
         val persistedWorkflowCaptor = argumentCaptor<Workflow<Any>> { }
         val continuationService = mock<ContinuationService> {}
@@ -148,14 +289,18 @@ class JobSchedulingCallbackTest {
             workflowService,
             workflowUpdateService,
             jobService,
-            continuationService
+            continuationService,
+            InterceptedInvocation.empty()
         )
 
         // Act
         schedulingCallback.onScheduled(testRef)
 
         // Assert
-        verify(workflowUpdateService, times(1))
+        verify(
+            workflowUpdateService,
+            times(1)
+        )
             .saveChanges(persistedWorkflowCaptor.capture())
         val persistedWorkflow = persistedWorkflowCaptor.firstValue
         assertThat((persistedWorkflow.model as ModifiableWorkflowData).modifiedValue).isTrue()
@@ -163,7 +308,7 @@ class JobSchedulingCallbackTest {
 }
 
 data class ModifiableWorkflowData(
-    var modifiedValue: Boolean
+    var modifiedValue: Boolean,
 )
 
 class WorkflowModifyingTestJob {

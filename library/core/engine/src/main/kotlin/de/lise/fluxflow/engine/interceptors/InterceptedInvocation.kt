@@ -35,4 +35,15 @@ class InterceptedInvocation<in TContext>(
         
         return rootToken.status
     }
+    
+    companion object {
+        /**
+         * Creates an [InterceptedInvocation] without a single interceptor,
+         * effectively calling the payload functions directly. 
+         */
+        @JvmStatic
+        fun <TContext> empty(): InterceptedInvocation<TContext> {
+            return InterceptedInvocation(emptyList())
+        }
+    }
 }
