@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
+import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
@@ -16,6 +17,7 @@ import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
 import de.lise.fluxflow.engine.event.EventServiceImpl
+import de.lise.fluxflow.engine.interceptors.InterceptedInvocation
 import de.lise.fluxflow.engine.job.JobActivationService
 import de.lise.fluxflow.engine.job.JobSchedulingCallback
 import de.lise.fluxflow.engine.job.JobServiceImpl
@@ -621,6 +623,7 @@ open class BasicConfiguration {
         )
     }
 
+    
     @Bean
     open fun jobSchedulingCallback(
         schedulingService: SchedulingService,
@@ -628,12 +631,14 @@ open class BasicConfiguration {
         workflowUpdateService: WorkflowUpdateService,
         jobService: JobServiceImpl,
         continuationService: ContinuationService,
+        interceptors: List<JobExecutionInterceptor>
     ): SchedulingCallback? {
         val callback = JobSchedulingCallback(
             workflowQueryService,
             workflowUpdateService,
             jobService,
             continuationService,
+            InterceptedInvocation(interceptors)
         )
         schedulingService.registerListener(callback)
         return callback

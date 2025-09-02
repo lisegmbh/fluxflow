@@ -555,3 +555,134 @@ cancellation key.
     }
 
 This will cancel all previously scheduled jobs having "alarm" for a cancellation key.
+
+## Execution interception
+Since jobs are almost always executed asynchronously and outside a Spring request context,  
+it may sometimes be necessary to perform custom setup and/or teardown actions,  
+such as populating context information or preparing a transition.
+
+FluxFlow supports these scenarios by allowing developers to define custom `JobExecutionInterceptor`s.  
+Once registered, FluxFlow invokes them right before a job is executed.
+
+### Defining a job execution interceptor
+To create and register a job execution interceptor,
+declare a Spring Bean that implements the `JobExecutionInterceptor` interface:
+
+```kotlin
+import de.lise.fluxflow.api.interceptors.InterceptionToken
+import de.lise.fluxflow.api.job.interceptors.JobExecutionContext
+import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
+import org.springframework.stereotype.Component
+
+@Component
+class MyMinimalInterceptor : JobExecutionInterceptor {
+    override fun intercept(token: InterceptionToken<JobExecutionContext>) {
+        // do something
+    }
+}
+```
+
+See the following sections for more detailed examples.
+
+### Creating a setup/teardown interceptor
+A setup/teardown interceptor can perform initialization before continuing the interceptor chain
+with a call to `token.next()`.
+Teardown operations can be placed immediately after `.next()` returns.
+
+```kotlin
+import de.lise.fluxflow.api.interceptors.InterceptionToken
+import de.lise.fluxflow.api.job.Job
+import de.lise.fluxflow.api.job.interceptors.JobExecutionContext
+import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
+
+@Component
+class CustomJobExecutionSetupInterceptor : JobExecutionInterceptor {
+    private val log = LoggerFactory.getLogger(CustomJobExecutionSetupInterceptor::class.java)!!
+
+    override fun intercept(token: InterceptionToken<JobExecutionContext>) {
+        setup(token.context.job)
+        try {
+            token.next()
+        } finally {
+            teardown()
+        }
+    }
+
+    private fun setup(
+        job: Job
+    ) {
+        log.debug("Setting up execution context for job '{}'", job.identifier)
+        // custom setup actions
+    }
+
+    private fun teardown() { /** custom teardown actions **/ }
+}
+```
+Note that a subsequent interceptor may cancel the job execution.
+If teardown actions depend on whether the job was actually executed,
+inspect the status returned by `token.next()` or the `token.status` property:
+
+```kotlin
+    override fun intercept(token: InterceptionToken<JobExecutionContext>) {
+        setup(token.context.job)
+        when(token.next()) {
+            InterceptionTokenStatus.Executed -> teardown()
+            else -> {}
+        }
+    }
+```
+
+
+### Creating a "filtering" interceptor
+Although it is generally recommended to prefer domain logic or workflow-native features,
+interceptors can also be used to abort job executions.
+This is done by calling `token.abort()` within the `intercept` method:  
+
+```kotlin
+@Component
+class JobFilteringInterceptor: JobExecutionInterceptor {
+    override fun intercept(token: InterceptionToken<JobExecutionContext>) {
+        if (isExecutionStillNecessary(token.context.job)) {
+            token.abort()
+        }
+    }
+
+    private fun isExecutionStillNecessary(job: Job): Boolean {
+        // custom logic
+        return true
+    }
+}
+```
+
+!!! important
+    Aborting a job execution causes FluxFlow to skip the entire job, including all side effects.
+    This means no status updates, no continuations, and no events will be emitted.
+
+    After cancellation, the job remains in the `Scheduled` state, 
+    appearing as if the scheduler failed to run it.
+    Therefore, cancelling interceptors must perform the required side effects themselves.
+
+```kotlin
+@Component
+class JobFilteringInterceptor(
+    private val jobService: JobService
+) : JobExecutionInterceptor {
+    override fun intercept(token: InterceptionToken<JobExecutionContext>) {
+        if (isExecutionStillNecessary(token.context.job)) {
+            token.abort()
+            jobService.deleteAll(
+                setOf(
+                    token.context.job.identifier
+                )
+            )
+        }
+    }
+
+    private fun isExecutionStillNecessary(job: Job): Boolean {
+        // custom logic
+        return true
+    }
+}
+```
