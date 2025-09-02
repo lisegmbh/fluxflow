@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!-- === Copy Template ===
 ## [Unreleased]
+
+### Added
+### Changed
+### Deprecated
+### Fixed
+### Removed
+-->
+
+## [0.2.0] - 2025-10-02
 ### Added
 1. **Optional sort property**<br/>
    Enhanced Sort Functionality to Handle Nullable Properties. The Sort interface now includes a nullableProperty function that allows nullable properties to be used for sorting. [Issue #135](https://github.com/lisegmbh/fluxflow/issues/135)
@@ -60,7 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    To fall back to lookups based on the job detail map (which requires iterating over all scheduled jobs),  
    set `fluxflow.quartz.legacyLookup` to `true`.
 
-### Deprecated
 ### Fixed
 1. **NPE within ParamMatcher.isAssignable**<br/>
    The `NullPointerException` that has been thrown within

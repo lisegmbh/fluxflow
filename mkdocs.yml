@@ -29,7 +29,7 @@ nav:
   - Spring:
     - Settings: spring/settings.md
   - Migration guides:
-    - Unreleased: migrations/unreleased.md
+    - v0.2.0: migrations/v0.2.0.md
   - Other resources:
     - Sources: https://github.com/lisegmbh/fluxflow
     - Issues: https://github.com/lisegmbh/fluxflow/issues

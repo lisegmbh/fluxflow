@@ -65,25 +65,7 @@ class CreateVacationRequestStep(
 - Open Source
 
 ## Getting started
-
-### Spring Boot dependencies
-
-**`build.gradle.kts`**
-```kotlin
-dependencies {
-  // Base dependencies
-  implementation("de.lise.fluxflow:springboot:0.1.0")
-  
-  // Persistence options
-  // a) In-Memory: no persistence between executions; can be used for testing or experiments 
-  implementation("de.lise.fluxflow:springboot-in-memory-persistence:0.1.0")
-  // b) MongoDB
-  implementation("de.lise.fluxflow:mongo:0.1.0")
-  
-  // ... your other Spring Boot dependencies
-  // e.g. implementation("org.springframework.boot:spring-boot-starter-web")
-}
-```
+See the [Getting started](https://docs.fluxflow.cloud/en/stable/getting-started/getting-started/) section within our documentation.
 
 ## Contributors
 - [Christian Scholz](https://github.com/bobmazy)
