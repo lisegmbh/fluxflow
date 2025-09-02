@@ -18,6 +18,10 @@ fun interface InMemoryFilter<TModel> {
                     filter.property as KProperty1<TModel, Any>,
                     fromDomainFilter(filter.filterForProperty) as InMemoryFilter<Any>
                 )
+                is NullablePropertyFilter<*, *> -> InMemoryNullablePropertyFilter(
+                    filter.property as KProperty1<TModel, Any?>,
+                    fromDomainFilter(filter.filterForProperty) as InMemoryFilter<Any>
+                )
 
                 is MapValueFilter<*, *> -> InMemoryMapValueFilter(
                     filter.key,
@@ -28,6 +32,11 @@ fun interface InMemoryFilter<TModel> {
                 is EndsWithFilter -> InMemoryEndsWithFilter(filter) as InMemoryFilter<TModel>
                 is ContainsFilter -> InMemoryContainsFilter(filter) as InMemoryFilter<TModel>
                 is ContainsElementFilter<*, *> -> InMemoryContainsElementFilter(filter) as InMemoryFilter<TModel>
+                is ElemMatchFilter<*, *> -> InMemoryElemMatchFilter(
+                    filter.property as KProperty1<TModel, Any>,
+                    fromDomainFilter(filter.filterForProperty) as InMemoryFilter<Any>
+                ) as InMemoryFilter<TModel>
+                is DoesNotContainElementFilter<*, *> -> InMemoryDoesNotContainElementFilter(filter) as InMemoryFilter<TModel>
                 is InFilter -> InMemoryInFilter(filter)
 
                 is GreaterThanEqualsFilter -> InMemoryGreaterThanEqualsFilter(filter)
@@ -35,6 +44,7 @@ fun interface InMemoryFilter<TModel> {
 
                 is OrFilter -> InMemoryOrFilter(filter)
                 is AndFilter -> InMemoryAndFilter(filter)
+                is NotFilter -> InMemoryNotFilter(filter)
                 is TypeFilter -> InMemoryTypeFilter(filter.type)
                 is OfTypeFilter<*, *> -> InMemoryAndFilter(
                     listOf(

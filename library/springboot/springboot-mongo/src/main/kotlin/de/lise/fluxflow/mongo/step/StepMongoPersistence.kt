@@ -28,6 +28,7 @@ class StepMongoPersistence(
                 stepData.id,
                 stepData.workflowId,
                 stepData.kind,
+                stepData.version,
                 stepData.data,
                 stepData.metadata,
                 stepData.status,
@@ -40,11 +41,21 @@ class StepMongoPersistence(
             .map { it.toStepData() }
     }
 
+    override fun findAll(query: StepDataQuery): Page<StepData> {
+        val documentQuery = StepDocumentQuery(query)
+        return stepRepository.findAll(
+            documentQuery
+        ).map { 
+            it.toStepData()
+        }
+    }
+
     override fun findForWorkflow(workflowIdentifier: WorkflowIdentifier, query: StepDataQuery): Page<StepData> {
         val queryWithWorkflowFilter: Query<StepDocumentFilter, Sort> = StepDocumentQuery(query).mapFilter {
             StepDocumentFilter(
                 id = it?.id,
                 kind = it?.kind,
+                version = it?.version,
                 status = it?.status,
                 workflowId = MongoEqualFilter(workflowIdentifier.value),
                 metadata = it?.metadata
@@ -74,6 +85,7 @@ class StepMongoPersistence(
                 stepData.id,
                 stepData.workflowId,
                 stepData.kind,
+                stepData.version,
                 stepData.data,
                 stepData.metadata,
                 stepData.status

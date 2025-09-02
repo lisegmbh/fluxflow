@@ -1,38 +1,33 @@
 package de.lise.fluxflow.stereotyped.step
 
-import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.automation.Trigger
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
+import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.full.functions
-import kotlin.reflect.full.memberProperties
 
 class StepDefinitionBuilder(
+    private val versionBuilder: VersionBuilder,
     private val actionDefinitionBuilder: ActionDefinitionBuilder,
     private val dataDefinitionBuilder: DataDefinitionBuilder,
     private val metadataBuilder: MetadataBuilder,
     private val automationDefinitionBuilder: AutomationDefinitionBuilder,
-    private val cache: MutableMap<KClass<*>, (element: Any) -> StepDefinition> = mutableMapOf()
+    private val cache: MutableMap<KClass<*>, ReflectedStatefulStepDefinition> = mutableMapOf(),
 ) {
-
-    fun <T : Any> build(element: T): StepDefinition {
-        val type = element::class
-
+    fun <T : Any> build(type: KClass<T>): ReflectedStatefulStepDefinition {
         return cache.getOrPut(type) {
-            createBuilder(type)
-        }.invoke(element)
+            createDefinition(type)
+        }
     }
 
-    private fun <T : Any> createBuilder(type: KClass<out T>): (element: T) -> StepDefinition {
-        val kind = StepKindInspector.getStepKind(type)
+    fun <T : Any> createDefinition(type: KClass<T>): ReflectedStatefulStepDefinition {
+        val kind = StepKindInspector.fromClass(type)
+        val version = versionBuilder.build(type)
 
-        val dataBuilders = type
-            .memberProperties
-            .filter { dataDefinitionBuilder.isDataProperty(it) }
-            .map { dataDefinitionBuilder.buildDataDefinitionFromProperty(type, it) }
+        val dataDefinitions = dataDefinitionBuilder.buildDataDefinition(type)
 
         val hasExplicitActionAnnotation = actionDefinitionBuilder.hasAnnotatedAction(type)
 
@@ -40,27 +35,28 @@ class StepDefinitionBuilder(
             .filter { automationDefinitionBuilder.isAutomation(it) }
             .associateWith { automationDefinitionBuilder.build<T>(it) }
 
-        val actionBuilders = type.functions
+        val actionDefinitions = type.functions
             .filter { !automationFunctions.containsKey(it) }
-            .mapNotNull { actionDefinitionBuilder.build<T>(it, hasExplicitActionAnnotation) }
+            .mapNotNull {
+                actionDefinitionBuilder.build<T>(
+                    it,
+                    hasExplicitActionAnnotation
+                )
+            }
 
-        return { instance ->
-            ReflectedStatefulStepDefinition(
-                instance,
-                kind,
-                dataBuilders.map { builder -> builder(instance) },
-                actionBuilders.map { builder -> builder(instance) },
-                metadataBuilder.build(type),
-                automationFunctions.values
-                    .mapNotNull { it[Trigger.OnCreated] }
-                    .map { builder -> builder(instance) }
-                    .toSet(),
-                automationFunctions.values
-                    .mapNotNull { it[Trigger.OnCompleted] }
-                    .map { builder -> builder(instance) }
-                    .toSet()
-            )
-        }
+        return ReflectedStatefulStepDefinition(
+            kind,
+            version,
+            dataDefinitions,
+            actionDefinitions,
+            metadataBuilder.build(type),
+            automationFunctions.values
+                .mapNotNull { it[Trigger.OnCreated] }
+                .toSet(),
+            automationFunctions.values
+                .mapNotNull { it[Trigger.OnCompleted] }
+                .toSet(),
+            type,
+        )
     }
-
 }

@@ -19,6 +19,11 @@ fun interface MongoFilter<TModel> {
                     filter.property as KProperty1<TModel, Any>,
                     fromDomainFilter(filter.filterForProperty) as MongoFilter<Any>
                 )
+                // Use normal property filter for nullable properties cause mongo handles null values
+                is NullablePropertyFilter<*, *> -> MongoPropertyFilter(
+                    filter.property as KProperty1<TModel, Any>,
+                    fromDomainFilter(filter.filterForProperty) as MongoFilter<Any>
+                )
 
                 is MapValueFilter<*, *> -> MongoMapValueFilter(
                     filter.key,
@@ -32,11 +37,17 @@ fun interface MongoFilter<TModel> {
                 is AndFilter<TModel> -> MongoAndFilter(
                     filter.filters.map { fromDomainFilter(it) }
                 )
+                is NotFilter<TModel> -> MongoNotFilter(fromDomainFilter(filter.filter))
 
                 is EndsWithFilter -> MongoEndsWithFilter(filter) as MongoFilter<TModel>
                 is StartsWithFilter -> MongoStartsWithFilter(filter) as MongoFilter<TModel>
                 is ContainsFilter -> MongoContainsFilter(filter) as MongoFilter<TModel>
-                is ContainsElementFilter<*, *> -> MongoContainsElementFiler(filter) as MongoFilter<TModel>
+                is ContainsElementFilter<*, *> -> MongoContainsElementFilter(filter) as MongoFilter<TModel>
+                is ElemMatchFilter<*, *> -> MongoElemMatchFilter(
+                    filter.property as KProperty1<TModel, Any>,
+                    fromDomainFilter(filter.filterForProperty) as MongoFilter<Any>
+                ) as MongoFilter<TModel>
+                is DoesNotContainElementFilter<*, *> -> MongoDoesNotContainElementFilter(filter) as MongoFilter<TModel>
                 is InFilter -> MongoInFilter(filter)
 
                 is GreaterThanEqualsFilter -> MongoGreaterThanEqualsFilter(filter.value)

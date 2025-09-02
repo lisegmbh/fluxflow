@@ -1,5 +1,7 @@
 package de.lise.fluxflow.engine.workflow
 
+import de.lise.fluxflow.api.WorkflowObjectKind
+import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
@@ -14,17 +16,20 @@ class WorkflowRemovalServiceImpl(
     private val activationService: WorkflowActivationService,
     private val stepService: StepServiceImpl,
     private val jobService: JobServiceImpl,
-    private val eventService: EventService
+    private val eventService: EventService,
+    private val continuationHistoryService: ContinuationHistoryService,
 ) : WorkflowRemovalService {
     override fun delete(identifierToDelete: WorkflowIdentifier) {
         val workflowDataToDelete = persistence.find(identifierToDelete)
             ?: throw WorkflowNotFoundException(identifierToDelete)
 
-        val workflowToDelete = activationService.activate<Any?>(workflowDataToDelete)
+        val workflowToDelete = activationService.activate<Any>(workflowDataToDelete)
 
         persistence.delete(identifierToDelete)
-        stepService.deleteAllForWorkflow(identifierToDelete)
-        jobService.deleteAllForWorkflow(identifierToDelete)
+        removeRelatedElements(
+            identifierToDelete,
+            setOf(WorkflowObjectKind.Step, WorkflowObjectKind.Job)
+        )
 
         eventService.publish(
             WorkflowDeletedEvent(
@@ -34,12 +39,24 @@ class WorkflowRemovalServiceImpl(
     }
 
     /**
-     * Deletes the workflow with the given identifier and all of its related steps.
-     * In contrast to the [delete] function, it does not delete jobs nor does it publish a [WorkflowDeletedEvent].
+     * Deletes the workflow with the given identifier.
+     * Depending on the removal scope, it also deletes all related steps and jobs.
+     * In contrast to the [delete] function, it does not publish a [WorkflowDeletedEvent].
      * @param identifierToDelete the id of the workflow to delete
+     * @param removalScope the scope of the removal (e.g. [WorkflowObjectKind.Step], [WorkflowObjectKind.Job])
      */
-    internal fun removeSilently(identifierToDelete: WorkflowIdentifier) {
+    internal fun removeSilently(identifierToDelete: WorkflowIdentifier, removalScope: Set<WorkflowObjectKind>) {
         persistence.delete(identifierToDelete)
-        stepService.deleteAllForWorkflow(identifierToDelete)
+
+        removeRelatedElements(identifierToDelete, removalScope)
+    }
+
+    private fun removeRelatedElements(
+        identifierToDelete: WorkflowIdentifier,
+        removalScope: Set<WorkflowObjectKind>,
+    ) {
+        if (WorkflowObjectKind.Step in removalScope) stepService.deleteAllForWorkflow(identifierToDelete)
+        if (WorkflowObjectKind.Job in removalScope) jobService.deleteAllForWorkflow(identifierToDelete)
+        if (WorkflowObjectKind.ContinuationRecord in removalScope) continuationHistoryService.deleteAllForWorkflow(identifierToDelete)
     }
 }

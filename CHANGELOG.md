@@ -5,12 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!-- === Copy Template ===
 ## [Unreleased]
+
 ### Added
 ### Changed
 ### Deprecated
 ### Fixed
 ### Removed
+-->
+
+## [0.2.0] - 2025-10-02
+### Added
+1. **Optional sort property**<br/>
+   Enhanced Sort Functionality to Handle Nullable Properties. The Sort interface now includes a nullableProperty function that allows nullable properties to be used for sorting. [Issue #135](https://github.com/lisegmbh/fluxflow/issues/135)
+2. **Inclusion of nested/recursive validation constraints**<br/>
+   The Jakarta validation now reports validation constraints
+   present on step data property's type, as long as the property is itself annotated with `@Valid`. [Issue #152](https://github.com/lisegmbh/fluxflow/issues/152)
+3. **Versioning information for step definitions**<br />
+   Step definitions and steps can now carry versioning information.
+   They can be applied by annotating a step with the new `@Version` annotation.
+4. **Compatibility checks and restored versions for steps**<br />
+   FluxFlow can now check if the current step definition is still compatible with the version that has been used to
+   originally create a step to be loaded from persistence.
+   If it is incompatible, a restored/historic version of the affected step can be returned.
+   See [https://docs.fluxflow.cloud/see/2](https://docs.fluxflow.cloud/see/2) for more information.
+5. **Allow passing additional information when updating step data**<br />
+   The `StepDataService` now accepts an additional parameter allowing developers to pass additional context information.
+6. **DoesNotContainElement filter**
+   The filter 'DoesNotContainElement' has been added, which matches collections not matching a given element.
+7. **Not filter**<br />
+   The `Not` filter has been added, which negates the result of the inner filter.
+8. **Job querying feature**<br/>
+   Added the ability to query for jobs using the `JobService.findAll` method. This allows developers to retrieve jobs based on various criteria.
+9. **ElemMatch filter**<br />
+   The `ElemMatch` filter has been added, which matches collections where the inner filter matches any element of the collection.
+10. **Job duplication**
+    The `duplicateJob` method has been added, which duplicates the given job and schedules it for a workflow.
+11. **Workflow definition metadata**<br/>
+    Similar to steps, jobs, and step data, workflow definitions now support metadata. The metadata is automatically extracted from
+    annotations present on the workflow model class. This metadata can be accessed via the `WorkflowDefinition.metadata` property.
+    [Issue #86](https://github.com/lisegmbh/fluxflow/issues/86) and [Issue #50](https://github.com/lisegmbh/fluxflow/issues/50)
+12. **Scheduled job reconciliation on startup**<br/>
+    Added a startup `BootstrapAction` that validates all jobs marked as `Scheduled` in persistence and automatically reschedules any that are missing from the active scheduler implementation. Enable with `fluxflow.scheduling.reconcileOnStartup=true`.
+13. **Possibility to intercept job executions**<br/>
+    Developers can now register JobExecutionInterceptors allowing them to intercept immediate job executions.
+    This allows for custom setup and teardown actions,
+    which might be necessary as jobs are regularly executed outside a request context.
+    [Issue #337](https://github.com/lisegmbh/fluxflow/issues/337)
+
+### Changed
+1. **Configurable replacement scope for workflow continuations**<br/>
+   The `Continuation.workflow` function now supports a `replacementScope` parameter that defines which workflow elements should be replaced.
+   The default value is an empty scope, which means that only the workflow itself is replaced. 
+
+   Previously, the standard behavior of a workflow replacement continuation was to replace the steps and jobs of the workflow. [Issue #99](https://github.com/lisegmbh/fluxflow/issues/99)
+2. Added an optional `version` property to MongoDB's StepDocument.
+   There is no need for a migration, as the field is optional/nullable.
+3. A custom collation can now be specified when ensuring indexes using `MongoBootstrapAction`.
+4. MongoDB documents now use a different data structure to store map entries and their data types. See [https://docs.fluxflow.cloud/see/1](https://docs.fluxflow.cloud/see/1) for more information.
+5. If a FluxFlow job has no explicit cancellation key,  
+   Quartz now uses the workflow and job identifier as the job key.  
+   This enables more efficient lookups for pre-scheduled jobs.  
+   To fall back to lookups based on the job detail map (which requires iterating over all scheduled jobs),  
+   set `fluxflow.quartz.legacyLookup` to `true`.
+
+### Fixed
+1. **NPE within ParamMatcher.isAssignable**<br/>
+   The `NullPointerException` that has been thrown within
+   `ParamMatcher.isAssignable` when passing in a generic type has been fixed.
+   [Issue #158](https://github.com/lisegmbh/fluxflow/issues/158)
+2. **SOE with AndFilter in InMemoryFilter**<br/>
+   Fixed a bug in the `InMemoryFilter` implementation where the `and` filter was not implemented correctly and caused a stack overflow error with infinite recursion of `and` calls.
+3. **NPE with NullablePropertyFilter in InMemoryFilter**<br/>
+   Fixed a bug in the `InMemoryFilter` implementation where the `nullableProperty` filter was incorrectly casting nullable properties
+   and not properly handling null values, which caused `NullPointerException`s during filtering.
+4. **CNFE for singleton lists and sets**
+   Fixed a bug in `assertType` in `SimpleType.kt` where lists and sets with one element cause a `ClassNotFoundException` because they are stored using the internal singleton collection types.
+
+### Removed
+1. Removed the unused `Type.toKClass()` extension function from `de.lise.fluxflow.reflection`.
 
 ## [0.1.0] - 2024-03-10
 ### Added

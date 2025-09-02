@@ -15,7 +15,6 @@ import de.lise.fluxflow.api.workflow.continuation.WorkflowContinuation
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
 import de.lise.fluxflow.engine.step.StepActivationService
 import de.lise.fluxflow.engine.step.StepServiceImpl
-import de.lise.fluxflow.engine.workflow.WorkflowQueryServiceImpl
 import de.lise.fluxflow.engine.workflow.WorkflowRemovalServiceImpl
 
 open class ContinuationService(
@@ -24,7 +23,6 @@ open class ContinuationService(
     private val jobService: JobService,
     private val continuationHistoryService: ContinuationHistoryServiceImpl,
     private val workflowStarterService: WorkflowStarterService,
-    private val workflowService: WorkflowQueryServiceImpl,
     private val workflowUpdateService: WorkflowUpdateService,
     private val workflowRemovalServiceImpl: WorkflowRemovalServiceImpl
 ) {
@@ -118,16 +116,17 @@ open class ContinuationService(
     ): ContinuationCommit {
         if (continuation.forkBehavior == ForkBehavior.Replace) {
             val oldId = workflow.identifier
-            workflowRemovalServiceImpl.removeSilently(oldId)
+
+            workflowRemovalServiceImpl.removeSilently(oldId, continuation.replacementScope)
             workflowStarterService.start(
-                continuation.model,
+                continuation.model!!,
                 continuation.initialWorkflowContinuation,
                 null,
                 oldId
             )
         } else {
             workflowStarterService.start(
-                continuation.model,
+                continuation.model!!,
                 continuation.initialWorkflowContinuation,
                 null
             )
@@ -212,6 +211,9 @@ open class ContinuationService(
             ReferredWorkflowObject.create(reactivatedStep).reference
         )
 
+        @Suppress("UNCHECKED_CAST")
+        workflowUpdateService.saveChanges(workflow as Workflow<Any>)
+
         return ContinuationCommit.Nop
     }
 
@@ -236,9 +238,10 @@ open class ContinuationService(
         continuation: StepContinuation<*>,
     ): ContinuationCommit {
         val model = continuation.model!!
-        val stepDefinition = stepActivationService.toStepDefinition(model)
+        val invokableStepDefinition = stepActivationService.toInvokableStepDefinition(model)
+        
 
-        val creationResult = stepService.create(workflow, stepDefinition)
+        val creationResult = stepService.create(workflow, invokableStepDefinition)
         val nextOriginatingObject = ReferredWorkflowObject.create(creationResult.step)
 
         continuationHistoryService.create(
@@ -259,7 +262,8 @@ open class ContinuationService(
                 }
 
                 stepService.saveChanges(creationResult.step)
-                workflowUpdateService.saveChanges(creationResult.step.workflow)
+                @Suppress("UNCHECKED_CAST")
+                workflowUpdateService.saveChanges(creationResult.step.workflow as Workflow<Any>)
 
                 continuations.forEach { continuation ->
                     execute(

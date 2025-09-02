@@ -1,6 +1,7 @@
 package de.lise.fluxflow.engine.step.action
 
 import de.lise.fluxflow.api.ReferredWorkflowObject
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.step.InvalidStepStateException
 import de.lise.fluxflow.api.step.Status
@@ -8,7 +9,9 @@ import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.Action
 import de.lise.fluxflow.api.step.stateful.action.ActionKind
+import de.lise.fluxflow.api.step.stateful.action.ActionNotFoundException
 import de.lise.fluxflow.api.step.stateful.action.ActionService
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.event.action.ActionEvent
@@ -26,12 +29,20 @@ class ActionServiceImpl(
             ?: emptyList()
     }
 
-    override fun getAction(step: Step, kind: ActionKind): Action? {
+    override fun getActionOrNull(step: Step, kind: ActionKind): Action? {
         return getActions(step)
             .firstOrNull { it.definition.kind == kind }
     }
 
-    override fun invokeAction(action: Action) {
+    override fun getAction(step: Step, kind: ActionKind): Action {
+        return getActionOrNull(step, kind)
+            ?: throw ActionNotFoundException(
+                step,
+                kind
+            )
+    }
+
+    override fun invokeAction(action: Action): Continuation<*> {
         validationService.validateBeforeAction(action)
         when (action.step.status) {
             Status.Canceled -> throw InvalidStepStateException("Unable to invoke action on canceled step '${action.step.identifier}'")
@@ -48,11 +59,14 @@ class ActionServiceImpl(
          *  IMPORTANT: Save changes to workflow before step completion because the step completion would otherwise fetch
          *  the outdated workflow from the database and overwrites the changes.
          */
-        workflowUpdateService.saveChanges(action.step.workflow)
+        @Suppress("UNCHECKED_CAST")
+        workflowUpdateService.saveChanges(action.step.workflow as Workflow<Any>)
         continuationService.execute(
             action.step.workflow,
             ReferredWorkflowObject.Companion.create(action.step), 
             continuation,
         )
+
+        return continuation
     }
 }

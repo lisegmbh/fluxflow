@@ -26,9 +26,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="7"
-     inkscape:cx="222"
-     inkscape:cy="294.5"
+     inkscape:zoom="1.75"
+     inkscape:cx="366.85714"
+     inkscape:cy="280.28571"
      inkscape:window-width="2560"
      inkscape:window-height="1348"
      inkscape:window-x="0"
@@ -55,84 +55,86 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1">
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.175px;font-family:Sans;-inkscape-font-specification:'Sans, ';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;stroke-width:0.264583"
-       x="56.484322"
-       y="88.656929"
-       id="text6"><tspan
-         sodipodi:role="line"
-         id="tspan6"
-         style="stroke-width:0.264583"
-         x="56.484322"
-         y="88.656929" /></text>
+    <rect
+       style="display:inline;fill:#000000;stroke-width:1.00886"
+       id="rect1"
+       width="209.80701"
+       height="65.125298"
+       x="0.18142626"
+       y="71.437508"
+       inkscape:label="dark-background"
+       inkscape:export-filename="condensed-white-transparent-100.png"
+       inkscape:export-xdpi="110.52637"
+       inkscape:export-ydpi="110.52637" />
     <g
-       id="g15"
+       id="g15-0-1"
        inkscape:export-filename="./condensed-400.png"
        inkscape:export-xdpi="461.79001"
        inkscape:export-ydpi="461.79001"
-       transform="translate(-22.240116,-53.098093)">
+       transform="translate(61.070503,-8.1209602)"
+       style="fill:#ffffff"
+       inkscape:label="dark-condensed-bw">
       <text
          xml:space="preserve"
-         style="font-size:3.34491px;fill:#4e324e;fill-opacity:1;stroke-width:0.278742"
+         style="font-size:3.34491px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
          x="37.503098"
          y="109.86246"
-         id="text1-8"
+         id="text1-8-6-94"
          transform="skewX(2.2489442)"><tspan
            sodipodi:role="line"
-           id="tspan1-5"
-           style="fill:#4e324e;fill-opacity:1;stroke-width:0.278742"
+           id="tspan1-5-2-2"
+           style="fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
            x="37.503098"
            y="109.86246"><tspan
-   style="font-size:13.3796px;fill:#4e324e;fill-opacity:1;stroke-width:0.278742"
-   id="tspan3-9">𝆑</tspan> </tspan></text>
+   style="font-size:13.3796px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-6-0">𝆑</tspan> </tspan></text>
       <text
          xml:space="preserve"
-         style="font-size:3.34491px;fill:#621e62;fill-opacity:1;stroke-width:0.278742"
+         style="font-size:3.34491px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
          x="33.778095"
          y="109.86143"
-         id="text1-8-0"
+         id="text1-8-0-1-65"
          transform="skewX(2.2489442)"><tspan
            sodipodi:role="line"
-           id="tspan1-5-3"
-           style="fill:#621e62;fill-opacity:1;stroke-width:0.278742"
+           id="tspan1-5-3-8-9"
+           style="fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
            x="33.778095"
            y="109.86143"><tspan
-   style="font-size:13.3796px;fill:#621e62;fill-opacity:1;stroke-width:0.278742"
-   id="tspan3-9-1">𝆑</tspan> </tspan></text>
+   style="font-size:13.3796px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-1-7-5">𝆑</tspan> </tspan></text>
       <text
          xml:space="preserve"
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#621e62;fill-opacity:1;stroke-width:0.264583"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
          x="48.284561"
          y="106.34029"
-         id="text7"><tspan
+         id="text7-92-6"><tspan
            sodipodi:role="line"
-           id="tspan7"
-           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#621e62;fill-opacity:1;stroke-width:0.264583"
+           id="tspan7-0-1"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
            x="48.284561"
            y="106.34029">ux</tspan></text>
       <text
          xml:space="preserve"
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#4e324e;fill-opacity:1;stroke-width:0.264583"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
          x="46.969395"
          y="112.52065"
-         id="text8"><tspan
+         id="text8-2-14"><tspan
            sodipodi:role="line"
-           id="tspan8"
-           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#4e324e;fill-opacity:1;stroke-width:0.264583"
+           id="tspan8-3-3"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
            x="46.969395"
            y="112.52065">ow</tspan></text>
       <rect
-         style="fill:#4e324e;fill-opacity:1;stroke-width:0.206105"
-         id="rect8"
+         style="fill:#ffffff;fill-opacity:1;stroke-width:0.206105"
+         id="rect8-7-7"
          width="0.72029084"
          height="6.0097923"
          x="70.294914"
          y="109.28187"
          transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
       <rect
-         style="fill:#621e62;fill-opacity:1;stroke-width:0.206105"
-         id="rect8-3"
+         style="fill:#ffffff;fill-opacity:1;stroke-width:0.206105"
+         id="rect8-3-5-2"
          width="0.72029084"
          height="6.0097923"
          x="70.28405"
@@ -140,41 +142,77 @@
          transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
     </g>
     <g
-       id="g17"
-       transform="translate(-15.371143,7.2117388)"
+       id="g2-3"
+       inkscape:label="dark-logo"
+       transform="translate(-30.071759,-9.3057698)">
+      <text
+         xml:space="preserve"
+         style="font-size:3.34491px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+         x="169.00249"
+         y="110.7132"
+         id="text1-8-7-1"
+         transform="skewX(2.2489441)"><tspan
+           sodipodi:role="line"
+           id="tspan1-5-4-4"
+           style="fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+           x="169.00249"
+           y="110.7132"><tspan
+   style="font-size:13.3796px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-4-9">𝆑</tspan> </tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-size:3.34491px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
+         x="165.27748"
+         y="110.71217"
+         id="text1-8-0-3-2"
+         transform="skewX(2.2489441)"><tspan
+           sodipodi:role="line"
+           id="tspan1-5-3-0-0"
+           style="fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
+           x="165.27748"
+           y="110.71217"><tspan
+   style="font-size:13.3796px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-1-78-6">𝆑</tspan> </tspan></text>
+    </g>
+    <g
+       id="g17-8-0"
+       transform="translate(-4.8206911,80.435654)"
        inkscape:export-filename="./wide-600.png"
        inkscape:export-xdpi="499.17999"
-       inkscape:export-ydpi="499.17999">
+       inkscape:export-ydpi="499.17999"
+       inkscape:label="dark-full">
       <g
-         id="g16">
+         id="g16-7-6"
+         style="fill:#d6ee00;fill-opacity:1"
+         transform="translate(-4.1426227,-63.227855)">
         <text
            xml:space="preserve"
-           style="font-size:3.34491px;fill:#4e324e;fill-opacity:1;stroke-width:0.278742"
+           style="font-size:3.34491px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
            x="72.534225"
            y="85.187714"
-           id="text1-8-9"
+           id="text1-8-9-9-1"
            transform="skewX(1.4996953)"><tspan
              sodipodi:role="line"
-             id="tspan1-5-6"
-             style="fill:#4e324e;fill-opacity:1;stroke-width:0.278742"
+             id="tspan1-5-6-2-5"
+             style="fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
              x="72.534225"
              y="85.187714"><tspan
-   style="font-size:13.3796px;fill:#4e324e;fill-opacity:1;stroke-width:0.278742"
-   id="tspan3-9-4">𝆑</tspan> </tspan></text>
+   style="font-size:13.3796px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-4-0-5">𝆑</tspan> </tspan></text>
         <text
            xml:space="preserve"
-           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#4e324e;fill-opacity:1;stroke-width:0.264583"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
            x="79.502151"
            y="84.996849"
-           id="text8-7"><tspan
+           id="text8-7-2-4"><tspan
              sodipodi:role="line"
-             id="tspan8-4"
-             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#4e324e;fill-opacity:1;stroke-width:0.264583"
+             id="tspan8-4-3-7"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
              x="79.502151"
              y="84.996849">ow</tspan></text>
         <rect
-           style="fill:#4e324e;fill-opacity:1;stroke-width:0.206105"
-           id="rect8-6"
+           style="fill:#d6ee00;fill-opacity:1;stroke-width:0.206105"
+           id="rect8-6-7-6"
            width="0.72029084"
            height="6.0097923"
            x="96.831429"
@@ -182,36 +220,37 @@
            transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
       </g>
       <g
-         id="g10"
-         transform="translate(26.534513,-6.3930858)">
+         id="g10-5-5"
+         transform="translate(22.39189,-69.620941)"
+         style="fill:#ffffff;fill-opacity:1">
         <text
            xml:space="preserve"
-           style="font-size:3.34491px;fill:#621e62;fill-opacity:1;stroke-width:0.278742"
+           style="font-size:3.34491px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
            x="33.042168"
            y="91.574432"
-           id="text1-8-0-2"
+           id="text1-8-0-2-9-6"
            transform="skewX(1.4996953)"><tspan
              sodipodi:role="line"
-             id="tspan1-5-3-0"
-             style="fill:#621e62;fill-opacity:1;stroke-width:0.278742"
+             id="tspan1-5-3-0-2-9"
+             style="fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
              x="33.042168"
              y="91.574432"><tspan
-   style="font-size:13.3796px;fill:#621e62;fill-opacity:1;stroke-width:0.278742"
-   id="tspan3-9-1-2">𝆑</tspan> </tspan></text>
+   style="font-size:13.3796px;fill:#ffffff;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-1-2-2-3">𝆑</tspan> </tspan></text>
         <text
            xml:space="preserve"
-           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#621e62;fill-opacity:1;stroke-width:0.264583"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
            x="40.179741"
            y="91.399513"
-           id="text7-9"><tspan
+           id="text7-9-8-7"><tspan
              sodipodi:role="line"
-             id="tspan7-5"
-             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#621e62;fill-opacity:1;stroke-width:0.264583"
+             id="tspan7-5-9-4"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
              x="40.179741"
              y="91.399513">ux</tspan></text>
         <rect
-           style="fill:#621e62;fill-opacity:1;stroke-width:0.206105"
-           id="rect8-3-4"
+           style="fill:#ffffff;fill-opacity:1;stroke-width:0.206105"
+           id="rect8-3-4-7-5"
            width="0.72029084"
            height="6.0097923"
            x="58.889931"
@@ -220,59 +259,110 @@
       </g>
     </g>
     <g
-       id="g14"
-       transform="translate(21.223088,35.648695)">
+       id="g1"
+       inkscape:label="light-logo"
+       transform="translate(-27.924892,-53.309763)">
       <text
          xml:space="preserve"
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#4e324e;fill-opacity:1;stroke-width:0.264583"
-         x="47.174068"
-         y="78.509529"
-         id="text8-7-6"><tspan
+         style="font-size:3.34491px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+         x="169.00249"
+         y="110.7132"
+         id="text1-8-7"
+         transform="skewX(2.2489441)"><tspan
            sodipodi:role="line"
-           id="tspan8-4-4"
-           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#4e324e;fill-opacity:1;stroke-width:0.264583"
-           x="47.174068"
-           y="78.509529">ow</tspan></text>
+           id="tspan1-5-4"
+           style="fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+           x="169.00249"
+           y="110.7132"><tspan
+   style="font-size:13.3796px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-4">𝆑</tspan> </tspan></text>
       <text
          xml:space="preserve"
-         style="font-size:3.98708px;fill:#621e62;fill-opacity:1;stroke-width:0.332255"
-         x="42.962952"
-         y="75.178925"
-         id="text1-8-0-2-4"
-         transform="skewX(-0.25)"><tspan
+         style="font-size:3.34491px;fill:#000000;fill-opacity:1;stroke-width:0.278742"
+         x="165.27748"
+         y="110.71217"
+         id="text1-8-0-3"
+         transform="skewX(2.2489441)"><tspan
            sodipodi:role="line"
-           id="tspan1-5-3-0-5"
-           style="fill:#621e62;fill-opacity:1;stroke-width:0.332255"
-           x="42.962952"
-           y="75.178925"><tspan
-   style="font-size:15.9482px;fill:#621e62;fill-opacity:1;stroke-width:0.332255"
-   id="tspan3-9-1-2-1">𝆑</tspan> </tspan></text>
+           id="tspan1-5-3-0"
+           style="fill:#000000;fill-opacity:1;stroke-width:0.278742"
+           x="165.27748"
+           y="110.71217"><tspan
+   style="font-size:13.3796px;fill:#000000;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-1-78">𝆑</tspan> </tspan></text>
+    </g>
+    <g
+       id="g15"
+       inkscape:export-filename="./condensed-400.png"
+       inkscape:export-xdpi="461.79001"
+       inkscape:export-ydpi="461.79001"
+       transform="translate(-22.240116,-53.098093)"
+       inkscape:label="light-condensed">
       <text
          xml:space="preserve"
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#621e62;fill-opacity:1;stroke-width:0.264583"
-         x="48.558125"
-         y="72.311058"
-         id="text7-9-0"><tspan
+         style="font-size:3.34491px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+         x="37.503098"
+         y="109.86246"
+         id="text1-8"
+         transform="skewX(2.2489442)"><tspan
            sodipodi:role="line"
-           id="tspan7-5-0"
-           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#621e62;fill-opacity:1;stroke-width:0.264583"
-           x="48.558125"
-           y="72.311058">ux</tspan></text>
+           id="tspan1-5"
+           style="fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+           x="37.503098"
+           y="109.86246"><tspan
+   style="font-size:13.3796px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9">𝆑</tspan> </tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-size:3.34491px;fill:#000000;fill-opacity:1;stroke-width:0.278742"
+         x="33.778095"
+         y="109.86143"
+         id="text1-8-0"
+         transform="skewX(2.2489442)"><tspan
+           sodipodi:role="line"
+           id="tspan1-5-3"
+           style="fill:#000000;fill-opacity:1;stroke-width:0.278742"
+           x="33.778095"
+           y="109.86143"><tspan
+   style="font-size:13.3796px;fill:#000000;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-1">𝆑</tspan> </tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#1a1a1a;fill-opacity:1;stroke-width:0.264583"
+         x="48.284561"
+         y="106.34029"
+         id="text7"><tspan
+           sodipodi:role="line"
+           id="tspan7"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#1a1a1a;fill-opacity:1;stroke-width:0.264583"
+           x="48.284561"
+           y="106.34029">ux</tspan></text>
+      <text
+         xml:space="preserve"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
+         x="46.969395"
+         y="112.52065"
+         id="text8"><tspan
+           sodipodi:role="line"
+           id="tspan8"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
+           x="46.969395"
+           y="112.52065">ow</tspan></text>
       <rect
-         style="fill:#621e62;fill-opacity:1;stroke-width:0.206105"
-         id="rect8-3-4-1"
+         style="fill:#d6ee00;fill-opacity:1;stroke-width:0.206105"
+         id="rect8"
          width="0.72029084"
          height="6.0097923"
-         x="63.065876"
-         y="68.076378"
+         x="70.294914"
+         y="109.28187"
          transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
       <rect
-         style="fill:#4e324e;fill-opacity:1;stroke-width:0.206105"
-         id="rect8-6-3"
+         style="fill:#1a1a1a;fill-opacity:1;stroke-width:0.206105"
+         id="rect8-3"
          width="0.72029084"
          height="6.0097923"
-         x="63.044533"
-         y="74.297539"
+         x="70.28405"
+         y="102.92052"
          transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
     </g>
     <g
@@ -280,8 +370,9 @@
        inkscape:export-filename="./condensed-400.png"
        inkscape:export-xdpi="461.79001"
        inkscape:export-ydpi="461.79001"
-       transform="translate(-24.548681,-36.990783)"
-       style="fill:#000000">
+       transform="translate(63.081304,-53.077445)"
+       style="fill:#000000"
+       inkscape:label="light-condensed-bw">
       <text
          xml:space="preserve"
          style="font-size:3.34491px;fill:#000000;fill-opacity:1;stroke-width:0.278742"
@@ -353,18 +444,9 @@
        id="g2"
        inkscape:export-filename="condensed-white-black-200.png"
        inkscape:export-xdpi="221.05273"
-       inkscape:export-ydpi="221.05273">
-      <rect
-         style="display:inline;fill:#000000;stroke-width:0.149493"
-         id="rect1"
-         width="22.980944"
-         height="13.055298"
-         x="58.677017"
-         y="64.875832"
-         inkscape:label="white-logo-bg"
-         inkscape:export-filename="condensed-white-transparent-100.png"
-         inkscape:export-xdpi="110.52637"
-         inkscape:export-ydpi="110.52637" />
+       inkscape:export-ydpi="221.05273"
+       transform="translate(-45.629271,27.456196)"
+       inkscape:label="dark-condensed">
       <g
          id="g15-0-8"
          inkscape:export-filename="./condensed-400.png"
@@ -413,17 +495,17 @@
              y="106.34029">ux</tspan></text>
         <text
            xml:space="preserve"
-           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
            x="46.969395"
            y="112.52065"
            id="text8-2-1"><tspan
              sodipodi:role="line"
              id="tspan8-3-9"
-             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
              x="46.969395"
              y="112.52065">ow</tspan></text>
         <rect
-           style="fill:#ffffff;fill-opacity:1;stroke-width:0.206105"
+           style="fill:#d6ee00;fill-opacity:1;stroke-width:0.206105"
            id="rect8-7-4"
            width="0.72029084"
            height="6.0097923"
@@ -437,6 +519,90 @@
            height="6.0097923"
            x="70.28405"
            y="102.92052"
+           transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
+      </g>
+    </g>
+    <g
+       id="g17-8"
+       transform="translate(-2.7947666,35.297724)"
+       inkscape:export-filename="./wide-600.png"
+       inkscape:export-xdpi="499.17999"
+       inkscape:export-ydpi="499.17999"
+       inkscape:label="light-full">
+      <g
+         id="g16-7"
+         style="fill:#d6ee00;fill-opacity:1"
+         transform="translate(-4.1426227,-63.227855)">
+        <text
+           xml:space="preserve"
+           style="font-size:3.34491px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+           x="72.534225"
+           y="85.187714"
+           id="text1-8-9-9"
+           transform="skewX(1.4996953)"><tspan
+             sodipodi:role="line"
+             id="tspan1-5-6-2"
+             style="fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+             x="72.534225"
+             y="85.187714"><tspan
+   style="font-size:13.3796px;fill:#d6ee00;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-4-0">𝆑</tspan> </tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
+           x="79.502151"
+           y="84.996849"
+           id="text8-7-2"><tspan
+             sodipodi:role="line"
+             id="tspan8-4-3"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;baseline-shift:baseline;fill:#d6ee00;fill-opacity:1;stroke-width:0.264583"
+             x="79.502151"
+             y="84.996849">ow</tspan></text>
+        <rect
+           style="fill:#d6ee00;fill-opacity:1;stroke-width:0.206105"
+           id="rect8-6-7"
+           width="0.72029084"
+           height="6.0097923"
+           x="96.831429"
+           y="81.082497"
+           transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
+      </g>
+      <g
+         id="g10-5"
+         transform="translate(22.39189,-69.620941)"
+         style="fill:#d6ee00;fill-opacity:1">
+        <text
+           xml:space="preserve"
+           style="font-size:3.34491px;fill:#000000;fill-opacity:1;stroke-width:0.278742"
+           x="33.042168"
+           y="91.574432"
+           id="text1-8-0-2-9"
+           transform="skewX(1.4996953)"><tspan
+             sodipodi:role="line"
+             id="tspan1-5-3-0-2"
+             style="fill:#000000;fill-opacity:1;stroke-width:0.278742"
+             x="33.042168"
+             y="91.574432"><tspan
+   style="font-size:13.3796px;fill:#000000;fill-opacity:1;stroke-width:0.278742"
+   id="tspan3-9-1-2-2">𝆑</tspan> </tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+           x="40.179741"
+           y="91.399513"
+           id="text7-9-8"><tspan
+             sodipodi:role="line"
+             id="tspan7-5-9"
+             style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Sans;-inkscape-font-specification:'Sans, Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:-0.529167px;fill:#000000;fill-opacity:1;stroke-width:0.264583"
+             x="40.179741"
+             y="91.399513">ux</tspan></text>
+        <rect
+           style="fill:#000000;fill-opacity:1;stroke-width:0.206105"
+           id="rect8-3-4-7"
+           width="0.72029084"
+           height="6.0097923"
+           x="58.889931"
+           y="87.621956"
            transform="matrix(1,0,-0.21500713,0.97661248,0,0)" />
       </g>
     </g>

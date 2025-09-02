@@ -5,17 +5,18 @@ import de.lise.fluxflow.api.step.InvalidStepStateException
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.data.*
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
+import de.lise.fluxflow.engine.event.step.data.StepDataEvent
 import de.lise.fluxflow.engine.step.StepServiceImpl
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.*
 
 class StepDataServiceImplTest {
-
-
     private fun defaultService(
         allowInactiveModification: Boolean,
         eventService: EventService? = null,
@@ -78,7 +79,9 @@ class StepDataServiceImplTest {
     fun `setValue should not throw an exception if inactive modification is enabled and step is canceled`() {
         // Arrange
         val dataService = defaultService(true)
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Canceled
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -100,7 +103,9 @@ class StepDataServiceImplTest {
     fun `setValue should throw no exception if step is active`() {
         // Arrange
         val dataService = defaultService(false)
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Active
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -151,7 +156,9 @@ class StepDataServiceImplTest {
             eventService = eventService,
             stepServiceImpl = stepServiceImpl
         )
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Active
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -186,7 +193,9 @@ class StepDataServiceImplTest {
             eventService = eventService,
             stepServiceImpl = stepServiceImpl
         )
+        val testWorkflow = mock<Workflow<Any>> { }
         val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
             on { status } doReturn Status.Completed
         }
         val dataDefinition = mock<DataDefinition<String>> {
@@ -233,5 +242,74 @@ class StepDataServiceImplTest {
         }
 
         verify(stepServiceImpl, never()).saveChanges(any<Step>())
+    }
+
+    @Test
+    fun `setValue should publish a StepDataEvent containing the provided context information`() {
+        // Arrange
+        val stepServiceImpl = mock<StepServiceImpl> {}
+        val eventService = mock<EventService> {}
+        val eventCaptor = argumentCaptor<StepDataEvent>()
+        val dataService = defaultService(
+            false,
+            eventService = eventService,
+            stepServiceImpl = stepServiceImpl
+        )
+        val testWorkflow = mock<Workflow<Any>> { }
+        val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
+            on { status } doReturn Status.Active
+        }
+        val dataDefinition = mock<DataDefinition<String>> {
+            on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
+        }
+        val data = mock<ModifiableData<String>> {
+            on { step } doReturn stepMock
+            on { definition } doReturn dataDefinition
+        }
+        val testContext = "TestContext"
+
+        // Act
+        dataService.setValue(testContext, data, "Test")
+
+        // Assert
+        verify(eventService, times(1)).publish(eventCaptor.capture())
+        val publishedEvent = eventCaptor.firstValue
+        assertThat(publishedEvent.context).isEqualTo(testContext)
+    }
+
+    @Test
+    fun `setValue should publish a StepDataEvent without context information if none has been provided`() {
+        // Arrange
+        val stepServiceImpl = mock<StepServiceImpl> {}
+        val eventService = mock<EventService> {}
+        val eventCaptor = argumentCaptor<StepDataEvent>()
+        val dataService = defaultService(
+            false,
+            eventService = eventService,
+            stepServiceImpl = stepServiceImpl
+        )
+        val testWorkflow = mock<Workflow<Any>> { }
+        val stepMock = mock<Step> {
+            on { workflow } doReturn testWorkflow
+            on { status } doReturn Status.Active
+        }
+        val dataDefinition = mock<DataDefinition<String>> {
+            on { updateListeners } doReturn emptyList()
+            on { modificationPolicy } doReturn ModificationPolicy.InheritSetting
+        }
+        val data = mock<ModifiableData<String>> {
+            on { step } doReturn stepMock
+            on { definition } doReturn dataDefinition
+        }
+
+        // Act
+        dataService.setValue(data, "Test")
+
+        // Assert
+        verify(eventService, times(1)).publish(eventCaptor.capture())
+        val publishedEvent = eventCaptor.firstValue
+        assertThat(publishedEvent.context).isNull()
     }
 }

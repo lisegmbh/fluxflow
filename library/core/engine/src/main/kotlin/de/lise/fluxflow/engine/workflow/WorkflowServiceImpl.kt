@@ -13,7 +13,7 @@ class WorkflowServiceImpl(
     private val workflowUpdateService: WorkflowUpdateService,
     private val workflowRemovalService: WorkflowRemovalService
 ) : WorkflowService {
-    override fun <TWorkflowModel, TContinuation> start(
+    override fun <TWorkflowModel : Any, TContinuation> start(
         workflowModel: TWorkflowModel,
         continuation: Continuation<TContinuation>,
         originatingObject: ReferredWorkflowObject<*>?,
@@ -48,6 +48,10 @@ class WorkflowServiceImpl(
 
     override fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel> {
         return workflowQueryService.get(identifier)
+    }
+
+    override fun <TWorkflowModel> getOrNull(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>? {
+        return workflowQueryService.getOrNull(identifier)
     }
 
     override fun <TWorkflowModel> saveChanges(workflow: Workflow<TWorkflowModel>): Workflow<TWorkflowModel> {

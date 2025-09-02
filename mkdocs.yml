@@ -9,6 +9,8 @@ theme:
     - kotlin
 extra_css:
   - style.css
+markdown_extensions:
+  - admonition
 nav:
   - Home: index.md
   - Getting started: getting-started/getting-started.md
@@ -19,12 +21,15 @@ nav:
     - Steps: steps.md
     - Jobs: jobs.md
   - Features:
-    - Automation: automation.md
-    - Injection: injection.md
-    - Validation: validation.md
-    - Queries: queries.md
+    - Automation: features/automation.md
+    - Injection: features/injection.md
+    - Validation: features/validation.md
+    - Versioning: features/versioning.md
+    - Queries: features/queries.md
   - Spring:
     - Settings: spring/settings.md
+  - Migration guides:
+    - v0.2.0: migrations/v0.2.0.md
   - Other resources:
     - Sources: https://github.com/lisegmbh/fluxflow
     - Issues: https://github.com/lisegmbh/fluxflow/issues

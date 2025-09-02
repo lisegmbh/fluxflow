@@ -9,6 +9,7 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.data.*
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowUpdateService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.event.step.data.StepDataEvent
@@ -26,7 +27,7 @@ class StepDataServiceImpl(
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T> getData(step: Step, kind: DataKind): Data<T>? {
+    override fun <T> getDataOrNull(step: Step, kind: DataKind): Data<T>? {
         return getData(step).firstOrNull {
             it.definition.kind == kind
         }?.let {
@@ -34,7 +35,20 @@ class StepDataServiceImpl(
         }
     }
 
+    override fun <T> getData(step: Step, kind: DataKind): Data<T> {
+        return getDataOrNull(step, kind)
+            ?: throw DataNotFoundException(step, kind)
+    }
+
     override fun <T> setValue(data: Data<T>, value: T) {
+        doSetValue(null, data, value)
+    }
+
+    override fun <T> setValue(context: Any, data: Data<T>, value: T) {
+        doSetValue(context, data, value)
+    }
+
+    private fun <T> doSetValue(context: Any?, data: Data<T>, value: T) {
         if (modificationRequiresActiveStep(data)) {
             when (data.step.status) {
                 Status.Canceled -> throw InvalidStepStateException("Unable to invoke action on canceled step '${data.step.identifier}'")
@@ -63,14 +77,15 @@ class StepDataServiceImpl(
         }
 
         stepServiceImpl.saveChanges(data.step)
-        workflowUpdateService.saveChanges(data.step.workflow)
+        @Suppress("UNCHECKED_CAST")
+        workflowUpdateService.saveChanges(data.step.workflow as Workflow<Any>)
 
         /*
             When publishing the StepDataEvent,
             the workflow should be in a clean state (= all changes should be persisted).
             Listeners should not expect that their changes will be persisted implicitly.
          */
-        eventService.publish(StepDataEvent(data, oldValue, value))
+        eventService.publish(StepDataEvent(data, oldValue, value, context))
     }
 
     private fun modificationRequiresActiveStep(data: Data<*>): Boolean {

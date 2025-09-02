@@ -14,7 +14,7 @@ interface MongoSort<TModel> {
                     sort.property,
                     toMongoSort(sort.sortForProperty) as MongoSort<Any?>
                 )
-
+                is OfTypeSort<TModel, *> -> toMongoSort(sort.sort) as MongoSort<TModel>
                 else -> throw UnsupportedSortException(sort)
             }
         }

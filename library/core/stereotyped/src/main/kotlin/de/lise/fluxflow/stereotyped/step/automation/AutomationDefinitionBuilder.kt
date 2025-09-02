@@ -12,7 +12,6 @@ class AutomationDefinitionBuilder(
     private val continuationBuilder: ContinuationBuilder,
     private val parameterResolver: ParameterResolver
 ) {
-    
     fun isAutomation(function: KFunction<*>): Boolean {
         return function.annotations.any {
             isAutomationAnnotation(it)
@@ -21,7 +20,7 @@ class AutomationDefinitionBuilder(
     
     fun <T : Any> build(
         function: KFunction<*>
-    ): Map<Trigger, ((T) -> AutomationDefinition)> {
+    ): Map<Trigger, AutomationDefinition> {
         if (
             function.visibility != KVisibility.PUBLIC ||
             function.isAbstract
@@ -37,22 +36,18 @@ class AutomationDefinitionBuilder(
             false, 
             function
         )
-
-        val definitionCreator: (T) -> AutomationDefinition = { obj ->
-            ReflectedAutomationDefinition(
-                obj
-            ) { currentStep, instance ->
-                val callable = AutomationFunctionResolver(
-                    parameterResolver,
-                    function,
-                    { instance },
-                    { currentStep },
-                ).resolve()
-                converter.toContinuation(callable.call())
-            }
+        
+        val definition = ReflectedAutomationDefinition<T> { currentStep, instance ->
+            val callable = AutomationFunctionResolver(
+                parameterResolver,
+                function,
+                { instance },
+                { currentStep },
+            ).resolve()
+            converter.toContinuation(callable.call())
         }
 
-        return triggers.associateWith { definitionCreator }
+        return triggers.associateWith { definition }
     }
 
     private fun getTriggers(function: KFunction<*>): Set<Trigger> {

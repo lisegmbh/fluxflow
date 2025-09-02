@@ -65,10 +65,10 @@ pipeline {
                                 string(credentialsId: 'fluxflow-keyring-password', variable: 'KEYRING_PASSWORD'),
                                 usernamePassword(credentialsId: 'fluxflow-maven-central-publish-user', passwordVariable: 'MAVEN_PASSWORD', usernameVariable: 'MAVEN_USER')
                         ]) {
-                            sh "gradle publishMavenPublicationToStagingRepository" +
+                            sh "gradle publishToMavenCentral" +
                                     " -PprojVersion=\"$TAG_NAME\"" +
-                                    " -PstagingUsername=\"\$MAVEN_USER\"" +
-                                    " -PstagingPassword=\"\$MAVEN_PASSWORD\"" +
+                                    " -PmavenCentralUsername=\"\$MAVEN_USER\"" +
+                                    " -PmavenCentralPassword=\"\$MAVEN_PASSWORD\"" +
                                     " -Psigning.keyId=73F5D362" +
                                     " -Psigning.password=\"\$KEYRING_PASSWORD\"" +
                                     " -Psigning.secretKeyRingFile=\"\$KEYRING_FILE\""

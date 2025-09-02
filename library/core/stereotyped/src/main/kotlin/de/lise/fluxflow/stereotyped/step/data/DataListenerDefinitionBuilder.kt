@@ -16,11 +16,11 @@ class DataListenerDefinitionBuilder(
     private val continuationBuilder: ContinuationBuilder,
     private val parameterResolver: ParameterResolver,
 ) {
-    fun <TFunctionOwner: Any, TProp> build(
+    fun <TFunctionOwner : Any, TProp> build(
         dataKind: DataKind,
         dataType: Type,
-        instanceType: KClass<*>
-    ): Set<(TFunctionOwner) -> DataListenerDefinition<TProp>> {
+        instanceType: KClass<*>,
+    ): Set<DataListenerDefinition<TProp>> {
         return instanceType.functions
             .mapNotNull {
                 build<TFunctionOwner, TProp>(
@@ -31,13 +31,14 @@ class DataListenerDefinitionBuilder(
             }
             .toSet()
     }
-
-    private fun <TFunctionOwner: Any, TProp> build(
+    
+    
+    private fun <TFunctionOwner : Any, TProp> build(
         dataKind: DataKind,
         dataType: Type,
-        function: KFunction<*>
-    ): ((TFunctionOwner) -> DataListenerDefinition<TProp>)? {
-        if(!function.isInvokableInstanceFunction()) {
+        function: KFunction<*>,
+    ): DataListenerDefinition<TProp>? {
+        if (!function.isInvokableInstanceFunction()) {
             return null
         }
 
@@ -46,7 +47,7 @@ class DataListenerDefinitionBuilder(
                 DataKind(it.dataKind) == dataKind
             }
 
-        if(
+        if (
             listenerAnnotations.isEmpty()
         ) {
             return null
@@ -58,23 +59,19 @@ class DataListenerDefinitionBuilder(
             function
         )
 
-        return {obj ->
-            ReflectedDataListenerDefinition(
-                obj
-            ) { step, instance, old, new ->
-                val callable = DataListenerFunctionResolver(
-                    parameterResolver,
-                    function,
-                    dataKind,
-                    dataType,
-                    { step },
-                    { instance },
-                    { old },
-                    { new }
-                ).resolve()
+        return ReflectedDataListenerDefinition<TFunctionOwner, TProp> { step, instance, old, new ->
+            val callable = DataListenerFunctionResolver(
+                parameterResolver,
+                function,
+                dataKind,
+                dataType,
+                { step },
+                { instance },
+                { old },
+                { new }
+            ).resolve()
 
-                continuationConverter.toContinuation(callable.call())
-            }
+            continuationConverter.toContinuation(callable.call())
         }
     }
 }

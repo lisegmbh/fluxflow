@@ -21,7 +21,7 @@ class WorkflowQueryServiceImpl(
     override fun getAll(): List<Workflow<*>> {
         return persistence.findAll()
             .map {
-                activationService.activate<Any?>(it)
+                activationService.activate<Any>(it)
             }
     }
 
@@ -43,7 +43,7 @@ class WorkflowQueryServiceImpl(
         return persistence.findAll(
             query.toDataQuery()
         ).map {
-            activationService.activate<Any?>(it)
+            activationService.activate<Any>(it)
         }
     }
 
@@ -64,10 +64,15 @@ class WorkflowQueryServiceImpl(
         }
     }
 
-    override fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel> {
+    override fun <TWorkflowModel> getOrNull(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>? {
         return persistence.find(identifier)
             ?.let {
                 activationService.activate(it)
-            } ?: throw WorkflowNotFoundException(identifier)
+            }
+    }
+
+    override fun <TWorkflowModel> get(identifier: WorkflowIdentifier): Workflow<TWorkflowModel> {
+        return getOrNull(identifier)
+            ?: throw WorkflowNotFoundException(identifier)
     }
 }

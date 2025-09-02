@@ -4,7 +4,7 @@ import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
-import kotlin.reflect.javaType
+import kotlin.reflect.jvm.javaType
 
 class ReflectionUtils private constructor() {
     companion object {
@@ -16,7 +16,6 @@ class ReflectionUtils private constructor() {
             return prop.returnType.classifier as KClass<TProp>
         }
 
-        @OptIn(ExperimentalStdlibApi::class)
         @JvmStatic
         fun <TObject, TProp : Any> findReturnType(
             prop: KProperty1<out TObject, TProp?>

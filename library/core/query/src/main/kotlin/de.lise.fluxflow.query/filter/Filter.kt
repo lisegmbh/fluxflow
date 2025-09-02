@@ -85,6 +85,18 @@ interface Filter<in TModel> {
         }
 
         /**
+         * Creates a filter that matches, if the provided [filter] does not match.
+         * @param filter The filter to be negated.
+         * @return A filter that matches if the provided [filter] does not match.
+         */
+        @JvmStatic
+        fun <TModel> not(
+            filter: Filter<TModel>
+        ): Filter<TModel> {
+            return NotFilter(filter)
+        }
+
+        /**
          * Creates a filter that matches values equal to the provided [value].
          * @param value The expected value.
          * @return A filter that matches every value, that is equal to the provided [value].
@@ -153,6 +165,32 @@ interface Filter<in TModel> {
         }
 
         /**
+         * Returns a filter that matches collections with objects having the specified [property] matching the supplied [propertyFilter].
+         * @param property Specifies the collection element's property.
+         * @param propertyFilter The filter to be applied to the collection element's [property].
+         * @return A filter that is matching for collections if [propertyFilter] matches the `property` of any collection element.
+         */
+        @JvmStatic
+        fun <TObject, TProperty> elemMatch(
+            property: KProperty1<TObject, TProperty>,
+            propertyFilter: Filter<TProperty>
+        ): Filter<Collection<TObject>> {
+            return ElemMatchFilter(property, propertyFilter)
+        }
+
+        /**
+         * Creates a filter that matches collections not containing the given [element].
+         * @param element The element to be absent within matching collections.
+         * @return A filter matching all collections not containing the given [element].
+         */
+        @JvmStatic
+        fun <TCollection : Collection<TModel>, TModel> doesNotContainElement(
+            element: TModel
+        ): Filter<TCollection> {
+            return DoesNotContainElementFilter(element)
+        }
+
+        /**
          * Creates a filter that matches numeric values that are greater than or equal to the supplied [value].
          * @param value The value matching elements must be equal to or greater than.
          * @return A filter matching if `actual >= value`.
@@ -178,7 +216,7 @@ interface Filter<in TModel> {
 
         /**
          * Creates a filter matching instants occurring after or at the same time as [value].
-         * 
+         *
          * This is an alias for [Filter.afterOrEqual].
          * @param value The instant to compare to.
          * @return A filter matching all instants occurring after or at the same time as [value].
@@ -198,14 +236,14 @@ interface Filter<in TModel> {
          */
         @JvmStatic
         fun afterOrEqual(
-            instant: Instant 
+            instant: Instant
         ): Filter<Instant> {
             return GreaterThanEqualsFilter(instant)
         }
-        
+
         /**
          * Creates a filter matching instants occurring before or at the same time as [value].
-         * 
+         *
          * This is an alias for [Filter.beforeOrEqual]
          * @param value The instant to compare to.
          * @return A filter matching all instants occurring before or at the same time as [value].
@@ -232,11 +270,11 @@ interface Filter<in TModel> {
 
         /**
          * Creates a filter that matches values that are equal to at least one of the supplied [values].
-         * 
+         *
          * This is an alias for [Filter.in].
          * @param values A list of possible values.
          * @return A filter matching values that are contained within [values].
-         * @see [Filter.in] 
+         * @see [Filter.in]
          */
         @JvmStatic
         fun <TModel> anyOf(
@@ -244,7 +282,7 @@ interface Filter<in TModel> {
         ): Filter<TModel> {
             return `in`(values)
         }
-        
+
         /**
          * Creates a filter that matches values that are equal to at least one of the supplied [values].
          *
@@ -252,13 +290,29 @@ interface Filter<in TModel> {
          * @param values A list of possible values.
          * @return A filter matching values that are contained within [values].
          * @see [Filter.in]
-         */        @JvmStatic
+         */
+        @JvmStatic
         fun <TModel> anyOf(
             values: Set<TModel>
         ): Filter<TModel> {
             return `in`(values)
         }
-        
+
+        /**
+         * Creates a filter that matches values that are equal to at least one of the supplied [values].
+         * 
+         * This is an alias for [Filter.in].
+         * @param values A list of possible values.
+         * @return A filter matching values that are contained within [values].
+         * @see [Filter.in]
+         */
+        @JvmStatic
+        fun <TModel> anyOf(
+            vararg values: TModel
+        ): Filter<TModel> {
+            return `in`(values)
+        }
+
         /**
          * Creates a filter that matches values that are equal to at least one of the supplied [values].
          * @param values A list of possible values.
@@ -270,7 +324,7 @@ interface Filter<in TModel> {
         ): Filter<TModel> {
             // The cast within the `when` block is specified explicitly to avoid mistaking it for an infinite recursion
             @Suppress("USELESS_CAST")
-            return when(values) {
+            return when (values) {
                 is Set<TModel> -> `in`(values as Set<TModel>)
                 else -> `in`(values.toSet())
             }
@@ -287,7 +341,19 @@ interface Filter<in TModel> {
         ): Filter<TModel> {
             return InFilter(values)
         }
-        
+
+        /**
+         * Creates a filter that matches values that are equal to at least one of the supplied [values].
+         * @param values A list of possible values.
+         * @return A filter matching values that are contained within [values].
+         */
+        @JvmStatic
+        fun <TModel> `in`(
+            vararg values: TModel
+        ): Filter<TModel> {
+            return `in`(values.toSet())
+        }
+
         /**
          * Returns a filter
          * that is matching maps containing an entry for [key] associated to a value
@@ -332,7 +398,7 @@ interface Filter<in TModel> {
             property: KProperty1<TObject, TProperty?>,
             propertyFilter: Filter<TProperty>
         ): Filter<TObject> {
-            return PropertyFilter(
+            return NullablePropertyFilter(
                 property as KProperty1<TObject, TProperty>,
                 propertyFilter
             )

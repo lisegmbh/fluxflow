@@ -19,10 +19,14 @@ import kotlin.reflect.KClass
 class JobDefinitionBuilderTest {
 
     private val parameterResolver = mock<ParameterResolver> {}
-
+    
+    private val continuationBuilder = mock<ContinuationBuilder> {
+        on { createResultConverter<Any?>(any(), any(), any()) } doReturn mock<ContinuationConverter<Any?>> {  }
+    }
+    
     private val jobDefinitionBuilder = JobDefinitionBuilder(
         mock {},
-        mock {},
+        continuationBuilder,
         parameterResolver,
         mock {},
         mutableMapOf()
@@ -172,7 +176,7 @@ class JobDefinitionBuilderTest {
         }
         val jobDefinitionBuilder = JobDefinitionBuilder(
             mock {},
-            mock {},
+            continuationBuilder,
             parameterResolver,
             metadataBuilder,
             mutableMapOf()

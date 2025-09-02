@@ -29,12 +29,26 @@ class StepTestPersistence(
         }
     }
 
+    override fun findAll(query: StepDataQuery): Page<StepData> {
+        return applyQuery(entities.values, query)
+    }
+
     override fun findForWorkflow(workflowIdentifier: WorkflowIdentifier, query: StepDataQuery): Page<StepData> {
+        return applyQuery(
+            findForWorkflow(workflowIdentifier),
+            query
+        )
+    }
+    
+    private fun applyQuery(
+        baseCollection: Collection<StepData>,
+        query: StepDataQuery,
+    ): Page<StepData> {
         val predicate = query.filter?.let {
             StepTestFilter(it).toPredicate()
         } ?: InMemoryPredicate { true }
 
-        val unsortedResult = findForWorkflow(workflowIdentifier)
+        val unsortedResult = baseCollection
             .filter { predicate.test(it) }
 
         val allResults = when (query.sort.isEmpty()) {
@@ -53,7 +67,7 @@ class StepTestPersistence(
             query.page
         )
     }
-
+    
     override fun findForWorkflowAndId(
         workflowIdentifier: WorkflowIdentifier,
         stepIdentifier: StepIdentifier

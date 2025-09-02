@@ -2,10 +2,17 @@ package de.lise.fluxflow.engine.job
 
 import de.lise.fluxflow.api.job.*
 import de.lise.fluxflow.api.job.continuation.JobContinuation
+import de.lise.fluxflow.api.job.query.JobQuery
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.query.WorkflowQuery
+import de.lise.fluxflow.api.workflow.query.filter.WorkflowFilter
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.job.query.toDataQuery
+import de.lise.fluxflow.query.filter.Filter
+import de.lise.fluxflow.query.pagination.Page
 import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.scheduling.SchedulingService
 
@@ -13,8 +20,8 @@ class JobServiceImpl(
     private val jobActivationService: JobActivationService,
     private val jobPersistence: JobPersistence,
     private val schedulingService: SchedulingService,
+    private val workflowService: WorkflowService,
 ) : JobService {
-
     override fun <TWorkflowModel, TJobModel> schedule(
         workflow: Workflow<TWorkflowModel>,
         jobContinuation: JobContinuation<TJobModel>
@@ -54,8 +61,49 @@ class JobServiceImpl(
                 job,
             )
         )
-        
+
         return job
+    }
+
+    override fun <TWorkflowModel> duplicateJob(
+        workflow: Workflow<TWorkflowModel>,
+        job: Job
+    ): Job {
+        val duplicatedJob = job.definition.createJob(
+            JobIdentifier(jobPersistence.randomId()),
+            workflow,
+            job.scheduledTime,
+            job.cancellationKey,
+            job.status,
+        )
+
+        duplicatedJob.cancellationKey?.let {
+            cancelAll(workflow, it)
+        }
+
+        val persistedJobData = jobPersistence.create(
+            JobData(
+                duplicatedJob.identifier.value,
+                workflow.identifier.value,
+                duplicatedJob.definition.kind.value,
+                fetchParameters(duplicatedJob),
+                duplicatedJob.scheduledTime,
+                duplicatedJob.cancellationKey?.value,
+                duplicatedJob.status,
+            )
+        )
+
+        schedulingService.schedule(
+            duplicatedJob.scheduledTime,
+            SchedulingReference(
+                workflow.identifier,
+                JobIdentifier(persistedJobData.id),
+                duplicatedJob.cancellationKey,
+                job,
+            )
+        )
+
+        return duplicatedJob
     }
 
     override fun <TWorkflowModel> cancelAll(
@@ -83,7 +131,26 @@ class JobServiceImpl(
         return jobActivationService.activate(job.workflow, updatedJobData)
     }
 
+    @Deprecated(
+        "In order to align the API naming, this function will be replace by .getJob() or .getJobOrNull()",
+        replaceWith = ReplaceWith("getJobOrNull<TWorkflowModel>(workflow, jobIdentifier)")
+    )
     override fun <TWorkflowModel> findJob(workflow: Workflow<TWorkflowModel>, jobIdentifier: JobIdentifier): Job? {
+        return getJobOrNull(workflow, jobIdentifier)
+    }
+
+    override fun <TWorkflowModel> getJob(
+        workflow: Workflow<TWorkflowModel>,
+        jobIdentifier: JobIdentifier
+    ): Job {
+        return getJobOrNull(workflow, jobIdentifier)
+            ?: throw JobNotFoundException(workflow, jobIdentifier)
+    }
+
+    override fun <TWorkflowModel> getJobOrNull(
+        workflow: Workflow<TWorkflowModel>,
+        jobIdentifier: JobIdentifier
+    ): Job? {
         return jobPersistence.findForWorkflowAndId(workflow.identifier, jobIdentifier)
             ?.let { jobActivationService.activate(workflow, it) }
     }
@@ -91,6 +158,32 @@ class JobServiceImpl(
     override fun <TWorkflowModel> findAllJobs(workflow: Workflow<TWorkflowModel>): List<Job> {
         return jobPersistence.findForWorkflow(workflow.identifier)
             .map { jobActivationService.activate(workflow, it) }
+    }
+
+    override fun findAll(query: JobQuery): Page<Job> {
+        val jobPage = jobPersistence.findAll(query.toDataQuery())
+        val workflowIds = jobPage.items.map { it.workflowId }.toSet()
+
+        val workflows = workflowService.getAll(
+            WorkflowQuery.withFilter(
+                WorkflowFilter.empty<Any>().withIdFilter(
+                    Filter.anyOf(workflowIds)
+                )
+            )
+        )
+
+        return jobPage.map { job ->
+            val workflow = workflows.items.single { workflow -> workflow.identifier.value == job.workflowId }
+
+            jobActivationService.activate(
+                workflow,
+                job
+            )
+        }
+    }
+
+    override fun deleteAll(jobsIdentifiers: Set<JobIdentifier>) {
+        jobPersistence.deleteAll(jobsIdentifiers)
     }
 
     fun deleteAllForWorkflow(workflowIdentifier: WorkflowIdentifier) {

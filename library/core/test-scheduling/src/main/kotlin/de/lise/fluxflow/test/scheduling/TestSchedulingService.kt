@@ -74,6 +74,17 @@ class TestSchedulingService(
         callbacks.add(callback)
     }
 
+    override fun isJobScheduled(schedulingReference: SchedulingReference): Boolean {
+        return schedulingReference.cancellationKey?.let {
+            concurrentCancellationMap.containsKey(
+                TestCancellationKey(
+                    schedulingReference.workflowIdentifier,
+                    it
+                )
+            )
+        } ?: false
+    }
+
     private fun notify(schedulingReference: SchedulingReference) {
         callbacks.forEach {
             try {

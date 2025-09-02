@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":core:persistence"))
     implementation(project(":core:scheduling"))
     implementation(project(":core:validation"))
+    implementation(project(":core:migration"))
 
 
     runtimeOnly(project(":springboot:springboot-test-scheduling"))

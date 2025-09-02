@@ -17,11 +17,14 @@ class MongoFilterTest {
             Filter.property(String::length, Filter.eq(3)) to MongoPropertyFilter::class,
             Filter.or<Any>() to MongoOrFilter::class,
             Filter.and<Any>() to MongoAndFilter::class,
+            Filter.not(Filter.eq("Hallo")) to MongoNotFilter::class,
             Filter.endsWith("") to MongoEndsWithFilter::class,
             Filter.startsWith("") to MongoStartsWithFilter::class,
             Filter.contains("") to MongoContainsFilter::class,
             Filter.anyOf(listOf("")) to MongoInFilter::class,
-            Filter.containsElement("") to MongoContainsElementFiler::class,
+            Filter.containsElement("") to MongoContainsElementFilter::class,
+            Filter.elemMatch(String::length, Filter.eq(3)) to MongoElemMatchFilter::class,
+            Filter.doesNotContainElement("") to MongoDoesNotContainElementFilter::class,
         )
 
         // Act

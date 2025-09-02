@@ -1,5 +1,6 @@
 package de.lise.fluxflow.mongo.continuation.history
 
+import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.continuation.history.query.ContinuationRecordDocumentQuery
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
@@ -26,5 +27,9 @@ class ContinuationRecordMongoPersistence(
         return continuationRecordRepository.findAll(
             ContinuationRecordDocumentQuery(query)
         ).map{ it.toRecordData() }
+    }
+
+    override fun deleteAllForWorkflow(identifierToDelete: WorkflowIdentifier) {
+        continuationRecordRepository.deleteAllByWorkflowId(identifierToDelete.value)
     }
 }

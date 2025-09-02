@@ -1,6 +1,7 @@
 package de.lise.fluxflow.api.step
 
 import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.workflow.Workflow
 
 /**
@@ -17,6 +18,13 @@ interface Step {
      * It is possible that different workflows are having steps with the same identifier.
      */
     val identifier: StepIdentifier
+
+    /**
+     * This is the version of the step definition that has been used to create this step.
+     * If there is a newer but still compatible version, 
+     * there might be a difference between [version] and [StepDefinition.version].
+     */
+    val version: Version
 
     /**
      * The [StepDefinition] describing this step.

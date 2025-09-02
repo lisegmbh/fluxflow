@@ -1,10 +1,12 @@
 package de.lise.fluxflow.mongo.bootstrapping
 
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
+import de.lise.fluxflow.mongo.job.JobDocument
+import de.lise.fluxflow.mongo.migration.MigrationDocument
 import de.lise.fluxflow.mongo.step.StepDocument
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import org.springframework.data.mongodb.core.MongoTemplate
-
 
 class CreateIndexesBootstrapAction(
     mongoTemplate: MongoTemplate
@@ -50,6 +52,32 @@ class CreateIndexesBootstrapAction(
             "idx_continuation_record_target",
             false,
             ContinuationRecordDocument::targetObject
+        )
+
+        ensureIndex<MigrationDocument>(
+            "idx_migration_key",
+            true,
+            MigrationDocument::key
+        )
+        
+        ensureIndex<StepDefinitionDocument>(
+            "idx_step_definition_kind_version",
+            true,
+            StepDefinitionDocument::kind,
+            StepDefinitionDocument::version
+        )
+
+        ensureIndex<JobDocument>(
+            "idx_job_workflow_id",
+            false,
+            JobDocument::workflowId
+        )
+
+        ensureIndex<JobDocument>(
+            "idx_job_scheduled_time_status",
+            false,
+            JobDocument::scheduledTime,
+            JobDocument::jobStatus,
         )
     }
 }

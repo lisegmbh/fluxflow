@@ -1,7 +1,7 @@
 package de.lise.fluxflow.stereotyped.step
 
 import de.lise.fluxflow.api.continuation.Continuation
-import de.lise.fluxflow.api.step.Step
+import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.continuation.ContinuationConverter
@@ -35,6 +35,9 @@ class StepDefinitionBuilderIT {
         }
         val parameterResolver = mock<ParameterResolver> {}
         val builder = StepDefinitionBuilder(
+            mock {
+                 on { build(any()) } doReturn NoVersion()
+            },
             actionDefinitionBuilder,
             mock {},
             mock {},
@@ -42,10 +45,12 @@ class StepDefinitionBuilderIT {
             mutableMapOf()
         )
         val stepModel = TestClassWithAutomation()
-        val step = mock<Step> {}
+        val step = mock<ReflectedStatefulStep> {
+            on { instance } doReturn stepModel
+        }
 
         // Act
-        val stepDefinition = builder.build(stepModel)
+        val stepDefinition = builder.build(stepModel::class)
 
         // Assert
         assertThat(stepDefinition.onCreatedAutomations).hasSize(2)

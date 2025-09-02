@@ -1,5 +1,9 @@
 package de.lise.fluxflow.mongo.generic
 
+import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
+import de.lise.fluxflow.mongo.generic.record.RecordContext
+import de.lise.fluxflow.mongo.generic.record.TypeName
+import de.lise.fluxflow.mongo.generic.record.TypeRecord
 import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.util.*
@@ -11,7 +15,12 @@ class SimpleType(val typeName: String) : TypeSpec {
 
     override fun assertType(value: Any?): Any? {
         val type = try {
-             Thread.currentThread().contextClassLoader.loadClass(typeName).kotlin
+            when (typeName) {
+                // resolve names of internal singleton types to avoid ClassNotFoundException
+                "java.util.Collections.SingletonList" -> List::class
+                "java.util.Collections.SingletonSet" -> Set::class
+                else -> Thread.currentThread().contextClassLoader.loadClass(typeName).kotlin
+            }
         } catch (e: ClassNotFoundException) {
             Logger.warn("Could not load type {}. We will try to use the value anyway.", typeName, e)
             return value
@@ -42,6 +51,12 @@ class SimpleType(val typeName: String) : TypeSpec {
         }
 
         return value
+    }
+
+    override fun toRecord(context: RecordContext): TypeRecord {
+        return JvmTypeRecord(
+            context.registerType(TypeName(typeName))
+        )
     }
 
     private companion object {
