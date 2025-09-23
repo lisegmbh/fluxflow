@@ -22,7 +22,7 @@ val intermediateProjectPaths = setOf(":core", ":springboot")
 
 subprojects {
     val subProject = this
-    val springBootVersion = "3.5.5"
+    val springBootVersion = "3.5.6"
 
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "io.spring.dependency-management")
