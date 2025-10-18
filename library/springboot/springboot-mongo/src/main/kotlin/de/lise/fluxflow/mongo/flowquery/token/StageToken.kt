@@ -1,0 +1,7 @@
+package de.lise.fluxflow.mongo.flowquery.token
+
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation
+
+internal interface StageToken : MongoToken {
+    fun toStage(): AggregationOperation
+}

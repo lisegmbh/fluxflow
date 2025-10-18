@@ -4,11 +4,11 @@ class IsEqual<TRoot, TLeft, TRight>(
     val leftSide: Expression<TRoot, TLeft>,
     val rightSide: Expression<TRoot, TRight>
 ): Expression<TRoot, Boolean> {
-    override fun asText(): String {
-        return "${leftSide.asText()} == ${rightSide.asText()}"
+    override fun toText(): String {
+        return "${leftSide.toText()} == ${rightSide.toText()}"
     }
 
     override fun toString(): String {
-        return asText()
+        return toText()
     }
 }

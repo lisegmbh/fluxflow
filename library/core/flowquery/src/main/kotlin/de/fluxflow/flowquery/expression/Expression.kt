@@ -3,7 +3,7 @@ package de.fluxflow.flowquery.expression
 import kotlin.reflect.KProperty1
 
 sealed interface Expression<TRoot, TCurrent> {
-    fun asText(): String
+    fun toText(): String
 
     // Projections
     fun <TProperty : Any?> get(

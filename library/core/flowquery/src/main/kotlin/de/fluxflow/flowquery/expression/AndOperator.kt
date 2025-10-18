@@ -14,11 +14,11 @@ class AndOperator<TRoot>(predicates: List<FlowPredicate<TRoot>>) : FlowPredicate
         }
     }
 
-    override fun asText(): String {
-        return "AND(${predicates.joinToString(", ") { it.asText() }})"
+    override fun toText(): String {
+        return "AND(${predicates.joinToString(", ") { it.toText() }})"
     }
 
     override fun toString(): String {
-        return asText()
+        return toText()
     }
 }

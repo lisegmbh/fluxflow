@@ -1,0 +1,77 @@
+package de.lise.fluxflow.mongo.flowquery
+
+import de.fluxflow.flowquery.expression.*
+import de.lise.fluxflow.mongo.flowquery.token.*
+
+internal typealias MongoCompilerResult = MongoToken
+
+internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
+    override fun <TRoot, TResult> compile(
+        expression: Expression<TRoot, TResult>
+    ): CompilationResult<MongoCompilerResult> {
+        return CompilationResult(
+            doCompile(
+                expression,
+                expression
+            )
+        )
+    }
+
+    private fun <TRoot, TCurrent> doCompile(
+        root: Expression<TRoot, *>,
+        current: Expression<TRoot, TCurrent>
+    ): MongoToken {
+        return when (current) {
+            is IsEqual<TRoot, *, *> -> IsEqualToken(
+                doCompile(root, current.leftSide).toType<StatementToken>(root, current.leftSide),
+                doCompile(root, current.rightSide).toType<ValueToken>(root, current.rightSide)
+            )
+            is PropertyExpression<TRoot, *, *> -> PropertyToken(
+                doCompile(root, current.instance).toType<StatementToken>(root, current.instance),
+                current.property
+            )
+
+            is Root<*>, is ConjunctionExpression<TRoot, *> -> RootToken()
+            is AndOperator<TRoot> -> AndToken(
+                current.predicates.map {
+                    doCompile(root, it).toType<ExpressionToken>(root, it)
+                }
+            )
+
+            is OrOperator<TRoot> -> OrToken(
+                current.predicates.map {
+                    doCompile(root, it).toType<ExpressionToken>(root, it)
+                }
+            )
+
+            is NotOperator<TRoot> -> NotToken(
+                doCompile(root, current.expression).toType<ExpressionToken>(root, current.expression)
+            )
+            is IsAnyOfOperator<TRoot, *> -> AnyOfToken(
+                doCompile(root, current.valueToTest).toType<StatementToken>(root, current.valueToTest),
+                current.anyOf
+            )
+            is Constant -> ConstantToken(current.value)
+            else -> throw CompilationException(
+                root,
+                current,
+                "Unsupported expression of type '${current::class.simpleName}'."
+            )
+        }
+    }
+
+
+    companion object {
+        inline fun <reified T : MongoToken> MongoToken.toType(
+            root: Expression<*,*>,
+            current: Expression<*, *>,
+            message: String? = null
+        ): T {
+            return this as? T ?: throw CompilationException(
+                root,
+                current,
+                message ?: "Expected a ${T::class.simpleName}, but got ${this::class.simpleName}."
+            )
+        }
+    }
+}

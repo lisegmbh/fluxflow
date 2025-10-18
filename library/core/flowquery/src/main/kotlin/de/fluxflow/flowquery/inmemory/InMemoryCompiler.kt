@@ -53,6 +53,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 )
             }
             is Constant<*, *> -> ConstOp(exp.value)
+            is ConjunctionExpression<*,*> -> ConjunctionOp()
             else -> throw CompilationException(rootExpression, exp)
         } as InMemoryOperation<TRoot, TResult>
     }

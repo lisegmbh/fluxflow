@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.expression
 
-class Root<T> : Expression<T, T> {
+class ConjunctionExpression<TRoot, TCurrent> : Expression<TRoot, TCurrent> {
     override fun toText(): String {
         return "$"
     }

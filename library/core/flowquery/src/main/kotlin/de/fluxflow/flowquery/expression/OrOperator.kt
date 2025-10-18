@@ -16,11 +16,11 @@ class OrOperator<TRoot>(
         }
     }
 
-    override fun asText(): String {
-        return "OR(${predicates.joinToString(", "){ it.asText() }})"
+    override fun toText(): String {
+        return "OR(${predicates.joinToString(", "){ it.toText() }})"
     }
 
     override fun toString(): String {
-        return asText()
+        return toText()
     }
 }

@@ -1,0 +1,150 @@
+package de.lise.fluxflow.mongo.flowquery.repository
+
+import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
+import de.lise.fluxflow.mongo.MongoIntegrationTest
+import de.lise.fluxflow.mongo.flowquery.MongoCompiler
+import org.assertj.core.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.core.query.Query
+import java.util.*
+
+@MongoIntegrationTest
+class MongoQueryRepositoryIT {
+    @Autowired
+    lateinit var template: MongoTemplate
+
+    val repo: MongoQueryRepository<TestDocument> by lazy {
+        MongoQueryRepository(
+            TestDocument::class,
+            MongoCompiler(),
+            template
+        )
+    }
+
+    @BeforeEach
+    fun setupRepo() {
+        template.findAllAndRemove(
+            Query(),
+            TestDocument::class.java
+        )
+        template.insertAll(testDocuments)
+    }
+
+    @Test
+    fun `find with an empty query should return all documents`() {
+        // Act
+        val result = repo.find(
+            de.fluxflow.flowquery.query.Query.Companion.of()
+        )
+
+        // Assert
+        Assertions.assertThat(result).hasSize(testDocuments.size)
+    }
+
+    @Test
+    fun `find with equals filter should only return matching documents`() {
+        // Act
+        val result = repo.find  {
+            where {
+                get(TestDocument::someStringProp).isEqual("a")
+            }
+        }
+
+        // Assert
+        Assertions.assertThat(result).hasSize(1)
+        Assertions.assertThat(result.first().someStringProp).isEqualTo("a")
+    }
+
+    @Test
+    fun `find should apply the specified sorting`() {
+        // Act
+        val result = repo.find {
+            sort {
+                get(TestDocument::anotherStringProp).asc()
+            }
+        }
+
+        // Assert
+        Assertions.assertThat(result).hasSize(testDocuments.size)
+        Assertions.assertThat(
+            result.map { it.anotherStringProp }
+        ).containsExactly("x", "y", "z")
+    }
+
+    @Test
+    fun `find should apply the specified filter and sorting`() {
+        // Act
+        val result = repo.find {
+            where {
+                get(TestDocument::someStringProp).isAnyOf("a", "b")
+            }.sort {
+                get(TestDocument::anotherStringProp).asc()
+            }
+        }
+
+        // Assert
+        Assertions.assertThat(result).hasSize(2)
+        Assertions.assertThat(
+            result.map { it.anotherStringProp }
+        ).containsExactly("y", "z")
+    }
+
+    @Test
+    fun `find should support projection`() {
+        // Act
+        val result = repo.find(NestedTestDocument::class) {
+            where {
+                get(TestDocument::someStringProp).isAnyOf("b", "c")
+            }.project {
+                get(TestDocument::nestedProperty)
+            }.where {
+                get(NestedTestDocument::anIntProperty).isEqual(3)
+            }
+        }
+
+        // Assert
+        Assertions.assertThat(result).hasSize(1)
+        Assertions.assertThat(result.first().anIntProperty).isEqualTo(3)
+    }
+
+    private val testDocuments = listOf(
+        TestDocument(
+            id = UUID.randomUUID(),
+            someStringProp = "a",
+            anotherStringProp = "z",
+            nestedProperty = NestedTestDocument(
+                anIntProperty = 1
+            )
+        ),
+        TestDocument(
+            id = UUID.randomUUID(),
+            someStringProp = "b",
+            anotherStringProp = "y",
+            nestedProperty = NestedTestDocument(
+                anIntProperty = 2
+            )
+        ),
+        TestDocument(
+            id = UUID.randomUUID(),
+            someStringProp = "c",
+            anotherStringProp = "x",
+            nestedProperty = NestedTestDocument(
+                anIntProperty = 3
+            )
+        )
+    )
+
+    data class TestDocument(
+        val id: UUID,
+        val someStringProp: String,
+        val anotherStringProp: String,
+        val nestedProperty: NestedTestDocument,
+    )
+
+    data class NestedTestDocument(
+        val anIntProperty: Int,
+    )
+}

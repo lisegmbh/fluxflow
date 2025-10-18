@@ -14,11 +14,11 @@ class NotOperator<TRoot>(
         }
     }
 
-    override fun asText(): String {
-        return "NOT(${expression.asText()})"
+    override fun toText(): String {
+        return "NOT(${expression.toText()})"
     }
 
     override fun toString(): String {
-        return asText()
+        return toText()
     }
 }
