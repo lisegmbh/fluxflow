@@ -8,4 +8,12 @@ class Root<T> : Expression<T, T> {
     override fun toString(): String {
         return toText()
     }
+
+    override fun equals(other: Any?): Boolean {
+        return other is Root<*>
+    }
+
+    override fun hashCode(): Int {
+        return javaClass.hashCode()
+    }
 }

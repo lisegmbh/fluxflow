@@ -21,4 +21,15 @@ class NotOperator<TRoot>(
     override fun toString(): String {
         return toText()
     }
+
+    override fun equals(other: Any?): Boolean {
+        if(other !is NotOperator<*>) {
+            return false
+        }
+        return expression == other.expression
+    }
+
+    override fun hashCode(): Int {
+        return expression.hashCode()
+    }
 }

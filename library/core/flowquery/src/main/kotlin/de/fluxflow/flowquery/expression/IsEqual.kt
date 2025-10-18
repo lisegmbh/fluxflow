@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.expression
 
-class IsEqual<TRoot, TLeft, TRight>(
+data class IsEqual<TRoot, TLeft, TRight>(
     val leftSide: Expression<TRoot, TLeft>,
     val rightSide: Expression<TRoot, TRight>
 ): Expression<TRoot, Boolean> {

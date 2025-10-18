@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.expression
 
-class IsAnyOfOperator<TRoot, T>(
+data class IsAnyOfOperator<TRoot, T>(
     val valueToTest: Expression<TRoot, T>,
     val anyOf: Set<T>
 ): FlowPredicate<TRoot> {

@@ -21,4 +21,15 @@ class AndOperator<TRoot>(predicates: List<FlowPredicate<TRoot>>) : FlowPredicate
     override fun toString(): String {
         return toText()
     }
+
+    override fun equals(other: Any?): Boolean {
+        if(other !is AndOperator<*>) {
+            return false
+        }
+        return predicates == other.predicates
+    }
+
+    override fun hashCode(): Int {
+        return predicates.hashCode()
+    }
 }

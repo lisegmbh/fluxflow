@@ -2,7 +2,7 @@ package de.fluxflow.flowquery.expression
 
 import kotlin.reflect.KProperty1
 
-class PropertyExpression<TRoot, TInstance, TProperty>(
+data class PropertyExpression<TRoot, TInstance, TProperty>(
     val instance: Expression<TRoot, TInstance>,
     val property: KProperty1<TInstance, TProperty?>
 ) : Expression<TRoot, TProperty> {

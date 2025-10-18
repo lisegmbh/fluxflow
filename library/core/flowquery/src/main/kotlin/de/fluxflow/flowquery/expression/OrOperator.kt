@@ -23,4 +23,15 @@ class OrOperator<TRoot>(
     override fun toString(): String {
         return toText()
     }
+
+    override fun equals(other: Any?): Boolean {
+        if(other !is OrOperator<*>) {
+            return false
+        }
+        return predicates == other.predicates
+    }
+
+    override fun hashCode(): Int {
+        return super.hashCode()
+    }
 }
