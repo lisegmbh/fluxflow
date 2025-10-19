@@ -1,5 +1,6 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
@@ -147,12 +148,27 @@ class MongoQueryRepositoryIT {
         // Act
         val result = repo.findSingle {
             where {
-                get(TestDocument::longStringProperty).endsWith("hi")
+                get(TestDocument::longStringProperty).endsWith("de")
             }
         }
 
         // Assert
-        assertThat(result.longStringProperty).isEqualTo("ghi")
+        assertThat(result.longStringProperty).isEqualTo("cde")
+    }
+
+    @Test
+    fun `find should support contains expressions`() {
+        // Act
+        val result = repo.find {
+            where {
+                get(TestDocument::longStringProperty).contains("c")
+            }
+        }
+
+        // Assert
+        assertThat(
+            result.items.map { it.longStringProperty }
+        ).containsExactlyInAnyOrder("abc", "cde")
     }
 
     private val testDocuments = listOf(
@@ -160,7 +176,7 @@ class MongoQueryRepositoryIT {
             id = UUID.randomUUID(),
             someStringProp = "a",
             anotherStringProp = "z",
-            longStringProperty = "ghi",
+            longStringProperty = "efg",
             nestedProperty = NestedTestDocument(
                 anIntProperty = 1
             )
@@ -169,7 +185,7 @@ class MongoQueryRepositoryIT {
             id = UUID.randomUUID(),
             someStringProp = "b",
             anotherStringProp = "y",
-            longStringProperty = "def",
+            longStringProperty = "cde",
             nestedProperty = NestedTestDocument(
                 anIntProperty = 2
             )

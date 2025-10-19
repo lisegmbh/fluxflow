@@ -1,12 +1,12 @@
 package de.fluxflow.flowquery.expression
 
-data class EndsWithExpression<TRoot>(
+data class ContainsExpression<TRoot>(
     val value: Expression<TRoot, String>,
-    val suffix: Expression<TRoot, String>,
+    val substring: Expression<TRoot, String>,
     val ignoreCasing: Boolean
 ) : FlowPredicate<TRoot> {
     override fun toText(): String {
-        return "(${value.toText()}).endsWith(${suffix.toText()}, ${
+        return "(${value.toText()}).contains(${substring.toText()}, ${
             when (ignoreCasing) {
                 true -> "CASE_INSENSITIVE"
                 false -> "CASE_SENSITIVE"

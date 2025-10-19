@@ -68,5 +68,25 @@ object ExpressionExtensions {
                 ignoreCasing
             )
         }
+
+        fun <TRoot> Expression<TRoot, String>.contains(
+            substring: Expression<TRoot, String>,
+            ignoreCasing: Boolean = true
+        ): ContainsExpression<TRoot> {
+            return ContainsExpression(
+                value = this,
+                substring = substring,
+                ignoreCasing = ignoreCasing
+            )
+        }
+        fun <TRoot> Expression<TRoot, String>.contains(
+            substring: String,
+            ignoreCasing: Boolean = true
+        ): ContainsExpression<TRoot> {
+            return this.contains(
+                substring = Expression.const(substring),
+                ignoreCasing = ignoreCasing
+            )
+        }
     }
 }

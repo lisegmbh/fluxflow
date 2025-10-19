@@ -12,3 +12,4 @@ data class EndsWithOperator<TRoot>(
         )
     }
 }
+

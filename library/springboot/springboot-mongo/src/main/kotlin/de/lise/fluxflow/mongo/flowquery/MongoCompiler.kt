@@ -67,6 +67,16 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 }
             )
 
+            is ContainsExpression<TRoot> -> RegexToken(
+                value = doCompile(root, current.value).toType<StatementToken>(root, current.value),
+                ignoreCasing = current.ignoreCasing,
+                pattern = ConvertingStatementToken(
+                    doCompile(root, current.substring).toType<StatementToken>(root, current.value)
+                ) {
+                    ".*${Pattern.quote("$it")}.*"
+                }
+            )
+
             is PropertyExpression<TRoot, *, *> -> PropertyToken(
                 doCompile(root, current.instance).toType<StatementToken>(root, current.instance),
                 current.property

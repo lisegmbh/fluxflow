@@ -14,7 +14,7 @@ class ExpressionWalker {
         }
 
         return when (expression) {
-           is AndOperator<*> -> {
+            is AndOperator<*> -> {
                 val replacements = expression.predicates.associate { it to walk(it, callback).replaceWith }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
@@ -56,6 +56,7 @@ class ExpressionWalker {
                         prefix = (prefixReplacement ?: expression.prefix) as Expression<Any?, String>,
                         ignoreCasing = expression.ignoreCasing
                     ).let { ExpressionWalkerResult.Replace(it) }
+
                     else -> ExpressionWalkerResult.Continue
                 }
             }
@@ -70,6 +71,22 @@ class ExpressionWalker {
                         suffix = (suffixReplacement ?: expression.suffix) as Expression<Any?, String>,
                         ignoreCasing = expression.ignoreCasing
                     ).let { ExpressionWalkerResult.Replace(it) }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is ContainsExpression<*> -> {
+                val valueReplacement = walk(expression.value, callback).replaceWith
+                val substringReplacement = walk(expression.substring, callback).replaceWith
+
+                when {
+                    valueReplacement != null || substringReplacement != null -> ContainsExpression(
+                        value = (valueReplacement ?: expression.value) as Expression<Any?, String>,
+                        substring = (substringReplacement ?: expression.substring) as Expression<Any?, String>,
+                        ignoreCasing = expression.ignoreCasing
+                    ).let { ExpressionWalkerResult.Replace(it) }
+
                     else -> ExpressionWalkerResult.Continue
                 }
             }
