@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Query
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.*
 
 @MongoIntegrationTest
@@ -230,6 +232,25 @@ class MongoQueryRepositoryIT {
         ).containsExactlyInAnyOrder("a", "b")
     }
 
+    @Test
+    fun `find should support comparisons on instants`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::nestedProperty)
+                    .get(NestedTestDocument::someInstant)
+                    .isGreaterThan(Instant.now().minus(1, ChronoUnit.MINUTES))
+            }
+        }
+
+        // Assert
+        assertThat(
+            result.someStringProp
+        ).isEqualTo("b")
+    }
+
+    private val testInstant = Instant.now()
+
     private val testDocuments = listOf(
         TestDocument(
             id = UUID.randomUUID(),
@@ -246,7 +267,8 @@ class MongoQueryRepositoryIT {
             anotherStringProp = "y",
             longStringProperty = "cde",
             nestedProperty = NestedTestDocument(
-                anIntProperty = 2
+                anIntProperty = 2,
+                someInstant = testInstant
             )
         ),
         TestDocument(
@@ -282,5 +304,6 @@ class MongoQueryRepositoryIT {
 
     data class NestedTestDocument(
         val anIntProperty: Int,
+        val someInstant: Instant? = null
     )
 }

@@ -45,7 +45,7 @@ sealed interface Expression<TRoot, TCurrent> {
         )
     }
 
-    fun isEqual(value: TCurrent): FlowPredicate<TRoot> {
+    fun isEqual(value: TCurrent?): FlowPredicate<TRoot> {
         return isEqual(
             const(value)
         )
