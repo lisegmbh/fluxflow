@@ -1,6 +1,8 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.containsElementThat
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
@@ -51,7 +53,7 @@ class MongoQueryRepositoryIT {
     @Test
     fun `find with equals filter should support return matching documents`() {
         // Act
-        val result = repo.find  {
+        val result = repo.find {
             where {
                 get(TestDocument::someStringProp).isEqual("a")
             }
@@ -65,7 +67,7 @@ class MongoQueryRepositoryIT {
     @Test
     fun `find with lessThan filter should support return matching documents`() {
         // Act
-        val result = repo.find  {
+        val result = repo.find {
             where {
                 get(TestDocument::nestedProperty)
                     .get(NestedTestDocument::anIntProperty)
@@ -188,6 +190,44 @@ class MongoQueryRepositoryIT {
         assertThat(
             result.items.map { it.someStringProp }
         ).containsExactlyInAnyOrder("c")
+    }
+
+    @Test
+    fun `find should support contains expressions on collections`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::collectionProp).contains(
+                    NestedTestDocument(
+                        anIntProperty = 2
+                    )
+                )
+            }
+        }
+
+        // Assert
+        assertThat(
+            result.someStringProp
+        ).isEqualTo("c")
+    }
+
+    @Test
+    fun `find should support negated contains expressions on collections`() {
+        // Act
+        val result = repo.find {
+            where {
+                get(TestDocument::collectionProp).contains(
+                    NestedTestDocument(
+                        anIntProperty = 2
+                    )
+                ).not()
+            }
+        }.items
+
+        // Assert
+        assertThat(
+            result.map { it.someStringProp }
+        ).containsExactlyInAnyOrder("a", "b")
     }
 
     private val testDocuments = listOf(

@@ -88,6 +88,18 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 )
             )
 
+            is ContainsElementExpression<TRoot, *, *> -> ExpressionTokenImpl(
+                Document(
+                    doCompile(root, current.collection).toType<StatementToken>(root, current.collection).toStatement(),
+                    Document(
+                        $$"$in",
+                        listOf(
+                            doCompile(Expression.root(), current.element).toType<ValueToken>(root, current.element).toValue()
+                        )
+                    )
+                )
+            )
+
             is PropertyExpression<TRoot, *, *> -> PropertyToken(
                 doCompile(root, current.instance).toType<StatementToken>(root, current.instance),
                 current.property

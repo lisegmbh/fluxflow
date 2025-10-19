@@ -107,5 +107,23 @@ object ExpressionExtensions {
                 builder(Expression.root())
             )
         }
+
+        fun <TRoot, TCollection: Collection<TElement>, TElement> Expression<TRoot, TCollection>.contains(
+            element: Expression<TRoot, TElement>
+        ): ContainsElementExpression<TRoot, TCollection, TElement> {
+            return ContainsElementExpression(
+                this,
+                element
+            )
+        }
+
+        fun <TRoot, TCollection: Collection<TElement>, TElement> Expression<TRoot, TCollection>.contains(
+            element: TElement
+        ): ContainsElementExpression<TRoot, TCollection, TElement> {
+            return contains(
+                Expression.const(element)
+            )
+        }
     }
 }
+
