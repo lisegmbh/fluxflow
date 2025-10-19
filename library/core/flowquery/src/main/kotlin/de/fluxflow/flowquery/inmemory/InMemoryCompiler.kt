@@ -79,6 +79,21 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
             }
             is Constant<*, *> -> ConstOp(exp.value)
             is ConjunctionExpression<*,*> -> ConjunctionOp()
+            is StartsWithExpression<TRoot> -> {
+                StartsWithOperator(
+                    doCompile(rootExpression, exp.value),
+                    doCompile(rootExpression, exp.value),
+                    exp.ignoreCasing
+                )
+            }
+            is EndsWithExpression<TRoot> -> {
+                EndsWithOperator(
+                    doCompile(rootExpression, exp.value),
+                    doCompile(rootExpression, exp.value),
+                    exp.ignoreCasing
+                )
+            }
         } as InMemoryOperation<TRoot, TResult>
     }
 }
+

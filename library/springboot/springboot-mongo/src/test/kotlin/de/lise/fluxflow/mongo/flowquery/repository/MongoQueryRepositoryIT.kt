@@ -1,5 +1,7 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
@@ -127,11 +129,38 @@ class MongoQueryRepositoryIT {
         assertThat(result.first().anIntProperty).isEqualTo(3)
     }
 
+    @Test
+    fun `find should support startsWith expressions`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::longStringProperty).startsWith("ab")
+            }
+        }
+
+        // Assert
+        assertThat(result.longStringProperty).isEqualTo("abc")
+    }
+
+    @Test
+    fun `find should support endsWith expressions`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::longStringProperty).endsWith("hi")
+            }
+        }
+
+        // Assert
+        assertThat(result.longStringProperty).isEqualTo("ghi")
+    }
+
     private val testDocuments = listOf(
         TestDocument(
             id = UUID.randomUUID(),
             someStringProp = "a",
             anotherStringProp = "z",
+            longStringProperty = "ghi",
             nestedProperty = NestedTestDocument(
                 anIntProperty = 1
             )
@@ -140,6 +169,7 @@ class MongoQueryRepositoryIT {
             id = UUID.randomUUID(),
             someStringProp = "b",
             anotherStringProp = "y",
+            longStringProperty = "def",
             nestedProperty = NestedTestDocument(
                 anIntProperty = 2
             )
@@ -148,6 +178,7 @@ class MongoQueryRepositoryIT {
             id = UUID.randomUUID(),
             someStringProp = "c",
             anotherStringProp = "x",
+            longStringProperty = "abc",
             nestedProperty = NestedTestDocument(
                 anIntProperty = 3
             )
@@ -158,6 +189,7 @@ class MongoQueryRepositoryIT {
         val id: UUID,
         val someStringProp: String,
         val anotherStringProp: String,
+        val longStringProperty: String,
         val nestedProperty: NestedTestDocument,
     )
 

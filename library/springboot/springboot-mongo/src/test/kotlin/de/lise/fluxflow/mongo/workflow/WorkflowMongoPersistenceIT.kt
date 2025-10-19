@@ -1,7 +1,7 @@
 package de.lise.fluxflow.mongo.workflow
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.expression.not
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.query.Query
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.desc
 import de.lise.fluxflow.mongo.MongoIntegrationTest

@@ -14,7 +14,7 @@ class ExpressionWalker {
         }
 
         return when (expression) {
-            is AndOperator<*> -> {
+           is AndOperator<*> -> {
                 val replacements = expression.predicates.associate { it to walk(it, callback).replaceWith }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
@@ -43,6 +43,34 @@ class ExpressionWalker {
                     )
                 } else {
                     ExpressionWalkerResult.Continue
+                }
+            }
+
+            is StartsWithExpression<*> -> {
+                val valueReplacement = walk(expression.value, callback).replaceWith
+                val prefixReplacement = walk(expression.prefix, callback).replaceWith
+
+                when {
+                    valueReplacement != null || prefixReplacement != null -> StartsWithExpression(
+                        value = (valueReplacement ?: expression.value) as Expression<Any?, String>,
+                        prefix = (prefixReplacement ?: expression.prefix) as Expression<Any?, String>,
+                        ignoreCasing = expression.ignoreCasing
+                    ).let { ExpressionWalkerResult.Replace(it) }
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is EndsWithExpression<*> -> {
+                val valueReplacement = walk(expression.value, callback).replaceWith
+                val suffixReplacement = walk(expression.suffix, callback).replaceWith
+
+                when {
+                    valueReplacement != null || suffixReplacement != null -> EndsWithExpression(
+                        value = (valueReplacement ?: expression.value) as Expression<Any?, String>,
+                        suffix = (suffixReplacement ?: expression.suffix) as Expression<Any?, String>,
+                        ignoreCasing = expression.ignoreCasing
+                    ).let { ExpressionWalkerResult.Replace(it) }
+                    else -> ExpressionWalkerResult.Continue
                 }
             }
 

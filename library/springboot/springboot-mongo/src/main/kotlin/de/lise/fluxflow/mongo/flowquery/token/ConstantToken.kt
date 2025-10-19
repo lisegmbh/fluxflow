@@ -7,3 +7,4 @@ internal class ConstantToken(
         return value
     }
 }
+

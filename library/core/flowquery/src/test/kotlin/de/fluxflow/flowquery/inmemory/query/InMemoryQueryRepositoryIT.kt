@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.inmemory.query
 
-import de.fluxflow.flowquery.expression.not
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.inmemory.InMemoryCompiler
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.desc
 import org.assertj.core.api.Assertions.assertThat
