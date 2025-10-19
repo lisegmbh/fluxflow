@@ -45,7 +45,7 @@ class MongoQueryRepositoryIT {
     }
 
     @Test
-    fun `find with equals filter should only return matching documents`() {
+    fun `find with equals filter should support return matching documents`() {
         // Act
         val result = repo.find  {
             where {
@@ -56,6 +56,22 @@ class MongoQueryRepositoryIT {
         // Assert
         assertThat(result).hasSize(1)
         assertThat(result.first().someStringProp).isEqualTo("a")
+    }
+
+    @Test
+    fun `find with lessThan filter should support return matching documents`() {
+        // Act
+        val result = repo.find  {
+            where {
+                get(TestDocument::nestedProperty)
+                    .get(NestedTestDocument::anIntProperty)
+                    .isLessThan(3)
+            }
+        }.items
+
+        // Assert
+        assertThat(result).hasSize(2)
+        assertThat(result.map { it.nestedProperty.anIntProperty }).containsExactly(1, 2)
     }
 
     @Test

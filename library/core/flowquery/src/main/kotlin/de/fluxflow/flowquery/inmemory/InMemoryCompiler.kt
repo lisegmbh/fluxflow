@@ -1,6 +1,7 @@
 package de.fluxflow.flowquery.inmemory
 
 import de.fluxflow.flowquery.expression.*
+import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import kotlin.reflect.KProperty1
 
 class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
@@ -36,10 +37,34 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                     expression
                 )
             }
-            is IsEqual<TRoot, *, *> -> {
-                val res1 = doCompile(rootExpression, exp.leftSide)
-                val res2 = doCompile(rootExpression, exp.rightSide)
-                IsEqualOp(res1, res2)
+            is BinaryOperationExpression<TRoot, *, *, *> -> {
+                when(exp.operation) {
+                    else -> BinaryOperatorOp(
+                        when(exp.operation) {
+                            BinaryOperation.Equal -> BinaryOperatorOp.Operation("=") { a, b ->
+                                a == b
+                            }
+                            BinaryOperation.NotEqual -> BinaryOperatorOp.Operation("!=") { a,b ->
+                                a != b
+                            }
+                            BinaryOperation.LessThan -> BinaryOperatorOp.Operation("<") { a, b ->
+                                InMemoryComparator().compare(a,b) < 0
+                            }
+                            BinaryOperation.LessThanOrEqual -> BinaryOperatorOp.Operation("<=") { a, b ->
+                                InMemoryComparator().compare(a,b) <= 0
+                            }
+                            BinaryOperation.GreaterThan -> BinaryOperatorOp.Operation(">") { a,b ->
+                                InMemoryComparator().compare(a,b) > 0
+                            }
+                            BinaryOperation.GreaterThanOrEqual -> BinaryOperatorOp.Operation(">=") { a,b ->
+                                InMemoryComparator().compare(a,b) >= 0
+                            }
+                            else -> throw CompilationException(rootExpression, exp)
+                        },
+                        doCompile(rootExpression, exp.leftOperand),
+                        doCompile(rootExpression, exp.rightOperand)
+                    )
+                }
             }
             is IsAnyOfOperator<TRoot, *> -> {
                 val valueAccessor = doCompile(rootExpression, exp.valueToTest)
@@ -54,7 +79,6 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
             }
             is Constant<*, *> -> ConstOp(exp.value)
             is ConjunctionExpression<*,*> -> ConjunctionOp()
-            else -> throw CompilationException(rootExpression, exp)
         } as InMemoryOperation<TRoot, TResult>
     }
 }

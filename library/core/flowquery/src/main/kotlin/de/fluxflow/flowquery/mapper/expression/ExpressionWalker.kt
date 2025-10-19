@@ -46,26 +46,29 @@ class ExpressionWalker {
                 }
             }
 
-            is IsEqual<*, *, *> -> {
-                val leftReplacement = walk(expression.leftSide, callback).replaceWith
-                val rightReplacement = walk(expression.rightSide, callback).replaceWith
+            is BinaryOperationExpression<*, *, *, *> -> {
+                val leftReplacement = walk(expression.leftOperand, callback).replaceWith
+                val rightReplacement = walk(expression.rightOperand, callback).replaceWith
                 when {
-                    leftReplacement != null && rightReplacement != null -> IsEqual(
+                    leftReplacement != null && rightReplacement != null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
                         leftReplacement as Expression<Any?, Any?>,
+                        expression.operation,
                         rightReplacement as Expression<Any?, Any?>
                     ).let {
                         ExpressionWalkerResult.Replace(it)
                     }
 
-                    leftReplacement != null && rightReplacement == null -> IsEqual(
+                    leftReplacement != null && rightReplacement == null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
                         leftReplacement as Expression<Any?, Any?>,
-                        expression.rightSide as Expression<Any?, Any?>
+                        expression.operation,
+                        expression.rightOperand as Expression<Any?, Any?>
                     ).let {
                         ExpressionWalkerResult.Replace(it)
                     }
 
-                    leftReplacement == null && rightReplacement != null -> IsEqual(
-                        expression.leftSide as Expression<Any?, Any?>,
+                    leftReplacement == null && rightReplacement != null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
+                        expression.leftOperand as Expression<Any?, Any?>,
+                        expression.operation,
                         rightReplacement as Expression<Any?, Any?>
                     ).let {
                         ExpressionWalkerResult.Replace(it)
@@ -74,6 +77,7 @@ class ExpressionWalker {
                     else -> ExpressionWalkerResult.Continue
                 }
             }
+
             is NotOperator<*> -> walk(expression.expression, callback).replaceWith
                 ?.let {
                     ExpressionWalkerResult.Replace(
@@ -83,7 +87,7 @@ class ExpressionWalker {
                     )
                 } ?: ExpressionWalkerResult.Continue
 
-            is OrOperator<*> ->  {
+            is OrOperator<*> -> {
                 val replacements = expression.predicates.associate { it to walk(it, callback).replaceWith }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
@@ -98,6 +102,7 @@ class ExpressionWalker {
                     )
                 }
             }
+
             is PropertyExpression<*, *, *> -> walk(expression.instance, callback).replaceWith
                 ?.let {
                     ExpressionWalkerResult.Replace(
@@ -108,6 +113,7 @@ class ExpressionWalker {
                     )
                 }
                 ?: ExpressionWalkerResult.Continue
+
             is ConjunctionExpression<*, *>, is Constant<*, *>, is Root<*> -> result
         }
     }

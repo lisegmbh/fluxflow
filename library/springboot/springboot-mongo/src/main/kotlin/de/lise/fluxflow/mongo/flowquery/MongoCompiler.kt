@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.flowquery
 
 import de.fluxflow.flowquery.expression.*
 import de.lise.fluxflow.mongo.flowquery.token.*
+import kotlin.reflect.full.isSubclassOf
 
 internal typealias MongoCompilerResult = MongoToken
 
@@ -17,15 +18,33 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
         )
     }
 
+
     private fun <TRoot, TCurrent> doCompile(
         root: Expression<TRoot, *>,
         current: Expression<TRoot, TCurrent>
     ): MongoToken {
         return when (current) {
-            is IsEqual<TRoot, *, *> -> IsEqualToken(
-                doCompile(root, current.leftSide).toType<StatementToken>(root, current.leftSide),
-                doCompile(root, current.rightSide).toType<ValueToken>(root, current.rightSide)
-            )
+            is BinaryOperationExpression<TRoot, *, *, *> -> when(current.operation) {
+                else -> MatchToken(
+                    StatementOperationToken(
+                        doCompile(root, current.leftOperand).toType<StatementToken>(root, current.leftOperand),
+                        when(current.operation) {
+                            BinaryOperation.Equal -> "eq"
+                            BinaryOperation.NotEqual -> "ne"
+                            BinaryOperation.LessThan ->  "lt"
+                            BinaryOperation.LessThanOrEqual -> "lte"
+                            BinaryOperation.GreaterThan -> "gt"
+                            BinaryOperation.GreaterThanOrEqual -> "gte"
+                            else -> throw CompilationException(
+                                root,
+                                current,
+                                "Unsupported expression of type '${current::class.simpleName}'."
+                            )
+                        },
+                        doCompile(root, current.rightOperand).toType<ValueToken>(root, current.rightOperand)
+                    )
+                )
+            }
             is PropertyExpression<TRoot, *, *> -> PropertyToken(
                 doCompile(root, current.instance).toType<StatementToken>(root, current.instance),
                 current.property
@@ -55,11 +74,6 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 ).toType<ValueToken>(root, anyOfElement ) }
             )
             is Constant -> ConstantToken(current.value)
-            else -> throw CompilationException(
-                root,
-                current,
-                "Unsupported expression of type '${current::class.simpleName}'."
-            )
         }
     }
 
@@ -69,6 +83,9 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
             current: Expression<*, *>,
             message: String? = null
         ): T {
+            if(T::class.isSubclassOf(ExpressionToken::class) && this is MatchToken) {
+                return this.expression as T
+            }
             return this as? T ?: throw CompilationException(
                 root,
                 current,

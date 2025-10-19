@@ -39,6 +39,33 @@ class InMemoryQueryRepositoryIT {
     }
 
 
+    @Test
+    fun `find should support lessThan filter`() {
+        // Arrange
+        val data = listOf(
+            TestClass("a", 1),
+            TestClass("b", 2),
+            TestClass("c", 3)
+        )
+        val repo = InMemoryQueryRepository(
+            InMemoryCompiler()
+        ) { data }
+
+        // Act
+        val result = repo.find {
+            where {
+                get(TestClass::someOtherProperty)
+                    .isLessThan(3)
+            }
+        }
+
+        // Assert
+        assertThat(
+            result.items.map { it.someOtherProperty }
+        ).containsExactlyInAnyOrder(1, 2)
+    }
+
+
     private data class TestClass(
         val someProperty: String,
         val someOtherProperty: Int

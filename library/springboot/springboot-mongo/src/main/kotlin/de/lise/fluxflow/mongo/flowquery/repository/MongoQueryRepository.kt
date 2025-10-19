@@ -312,7 +312,6 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         operation: FilterOperation,
         token: MongoToken,
     ): AggregationOperation {
-
         return when (token) {
             is ExpressionToken -> MatchToken(token).toStage()
             is MatchToken -> token.toStage()
