@@ -6,9 +6,11 @@ import de.fluxflow.flowquery.repository.FlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.token.*
 import org.bson.Document
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.aggregation.Aggregation
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation
+import org.springframework.data.support.PageableExecutionUtils
 import kotlin.reflect.KClass
 
 class MongoQueryRepository<TRoot : Any> internal constructor(
@@ -33,14 +35,25 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         return execute(
             query,
             resultType
-        ).toList() as List<TResult>
+        ).elements.toList() as List<TResult>
     }
 
-    override fun find(query: Query<TRoot, TRoot>): List<TRoot> {
-        return find(
-            rootType,
-            query
-        )
+
+    override fun find(query: Query<TRoot, TRoot>): de.lise.fluxflow.query.pagination.Page<TRoot> {
+       return execute(
+           query,
+           rootType,
+        ).page.let {
+            de.lise.fluxflow.query.pagination.Page(
+                items = it.content,
+                pageSize = query.pagination?.pageSize ?: it.totalElements.toInt(),
+                pageIndex = query.pagination?.pageIndex ?: 0,
+                totalPages = it.totalPages,
+                totalItems = it.totalElements,
+                isFirstPage = it.isFirst,
+                isLastPage = it.isLast
+            )
+       }
     }
 
     override fun <TResult> findFirst(
@@ -48,9 +61,9 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         query: Query<TRoot, TResult>,
     ): TResult {
         return execute(
-            query,
+            query.limit(1), // We only need the first entry
             resultType
-        ).first()!!
+        ).elements.first()!!
     }
 
     override fun findFirst(query: Query<TRoot, TRoot>): TRoot {
@@ -65,15 +78,15 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         query: Query<TRoot, TResult>,
     ): TResult? {
         return execute(
-            query,
-            resultType
-        ).firstOrNull()
+            query.limit(1), // We only need the first entry
+            resultType,
+        ).elements.firstOrNull()
     }
 
     override fun findFirstOrNull(query: Query<TRoot, TRoot>): TRoot? {
         return findFirstOrNull(
             rootType,
-            query
+            query,
         )
     }
 
@@ -82,9 +95,9 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         query: Query<TRoot, TResult>,
     ): TResult {
         return execute(
-            query,
-            resultType
-        ).single()!!
+            query.limit(2), // We need to over-fetch by one, so we can detect non-distinct results
+            resultType,
+        ).elements.single()!!
     }
 
     override fun findSingle(query: Query<TRoot, TRoot>): TRoot {
@@ -99,9 +112,9 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         query: Query<TRoot, TResult>,
     ): TResult? {
         return execute(
-            query,
+            query.limit(2), // We need to over-fetch by one, so we can detect non-distinct results
             resultType
-        ).singleOrNull()
+        ).elements.singleOrNull()
     }
 
     override fun findSingleOrNull(query: Query<TRoot, TRoot>): TRoot? {
@@ -113,8 +126,9 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
 
     private fun <TResult> execute(
         query: Query<TRoot, TResult>,
-        resultType: Class<TResult>,
-    ): Iterable<TResult?> {
+        resultType: Class<TResult>
+    ): MongoExecutionResults<TResult> {
+        val pagination = query.pagination
         if (
             resultType.isPrimitive ||
             resultType.isArray ||
@@ -123,15 +137,79 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         ) {
             throw QueryExecutionException("Results must be a document/object type. The actual result type is: ${resultType.canonicalName}")
         }
-        if(query.operations.isEmpty()) {
-          return mongoTemplate.findAll(resultType)
+
+        val pageRequest = pagination?.let {
+            PageRequest.of(
+                it.pageIndex,
+                it.pageSize
+            )
         }
 
-        val aggregation = toAggregation(query)
-        return mongoTemplate.aggregate(
-            aggregation,
+        if (query.operations.isEmpty()) {
+            return when (pageRequest) {
+                null -> UnpagedMongoResults(
+                    elements = mongoTemplate.findAll(resultType) as List<TResult>,
+                )
+
+                else -> {
+                    @Suppress("UNCHECKED_CAST")
+                    PageableExecutionUtils.getPage(
+                        mongoTemplate.find(
+                            org.springframework.data.mongodb.core.query.Query()
+                                .with(pageRequest),
+                            rootType
+                        ) as List<TResult>,
+                        pageRequest
+                    ) {
+                        mongoTemplate.count(
+                            org.springframework.data.mongodb.core.query.Query(),
+                            rootType
+                        )
+                    }.let {
+                        PagedMongoResults(it)
+                    }
+                }
+            }
+        }
+
+        val rawAggregation = toAggregation(query)
+        if (pageRequest == null) {
+            return UnpagedMongoResults(
+                mongoTemplate.aggregate(
+                    rawAggregation,
+                    rootType,
+                    resultType
+                ).mappedResults as List<TResult>
+            )
+        }
+
+        val pagedAggregation = (
+                rawAggregation.pipeline.operations
+                        + Aggregation.skip(pagination.pageIndex.toLong() * pagination.pageSize.toLong())
+                        + Aggregation.limit(pageRequest.pageSize.toLong())
+                ).let { Aggregation.newAggregation(it) }
+        val countAggregation = (
+                rawAggregation.pipeline.operations
+                        + Aggregation.count().`as`(MongoCountResult::totalElements.name)
+                ).let { Aggregation.newAggregation(it) }
+
+        val resultElements = mongoTemplate.aggregate(
+            pagedAggregation,
             rootType,
             resultType
+        ).mappedResults as List<TResult>
+
+        return PagedMongoResults(
+            PageableExecutionUtils.getPage(
+                resultElements,
+                pageRequest
+            ) {
+                mongoTemplate.aggregate(
+                    countAggregation,
+                    rootType,
+                    MongoCountResult::class.java
+                ).uniqueMappedResult?.totalElements!!
+            }
         )
     }
 
@@ -150,7 +228,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
     ): List<AggregationOperation> {
         return when (operation) {
             is FilterOperation -> {
-                compiler.compile(operation.predicated).result.let {
+                compiler.compile(operation.predicate).result.let {
                     listOf(
                         toMatch(
                             operation,
@@ -191,7 +269,11 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
                 }
             }
 
-            else -> throw UnsupportedQueryOperationException(operation)
+            is LimitOperation -> {
+                listOf(
+                    Aggregation.limit(operation.amount)
+                )
+            }
         }
     }
 

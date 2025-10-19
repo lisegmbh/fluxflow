@@ -3,20 +3,23 @@ package de.fluxflow.flowquery.inmemory.query
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.FlowPredicate
 import de.fluxflow.flowquery.inmemory.InMemoryCompiler
+import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import de.fluxflow.flowquery.query.*
+import de.fluxflow.flowquery.query.sorting.SortDirection
 import de.fluxflow.flowquery.repository.FlowQueryRepository
+import de.lise.fluxflow.query.pagination.Page
 
 class InMemoryQueryRepository<TRoot>(
     private val compiler: InMemoryCompiler,
-    private val elements: Collection<TRoot>
-): FlowQueryRepository<TRoot> {
+    private val elementGetter: () -> Collection<TRoot>
+) : FlowQueryRepository<TRoot> {
     override fun <TResult> find(
         resultType: Class<TResult>,
         query: Query<TRoot, TResult>
     ): List<TResult> {
-        var currentTransform: () -> Collection<Any?> = { elements }
+        var currentTransform: () -> Collection<Any?> = { elementGetter() }
 
-        for(currentOperation in query.operations) {
+        for (currentOperation in query.operations) {
             currentTransform = attachOperation(
                 currentTransform,
                 currentOperation
@@ -29,25 +32,28 @@ class InMemoryQueryRepository<TRoot>(
         }.toList()
     }
 
-    override fun find(query: Query<TRoot, TRoot>): List<TRoot> {
-        var currentTransform: () -> Collection<Any?> = { elements }
+    override fun find(query: Query<TRoot, TRoot>): Page<TRoot> {
+        var currentTransform: () -> Collection<Any?> = { elementGetter() }
 
-        for(currentOperation in query.operations) {
+        for (currentOperation in query.operations) {
             currentTransform = attachOperation(
                 currentTransform,
                 currentOperation
             )
         }
 
-        return currentTransform().map {
+        val allResults = currentTransform().map {
             @Suppress("UNCHECKED_CAST")
             it as TRoot
         }.toList()
+
+        return Page.fromResult(allResults, query.pagination)
     }
 
     override fun <TResult> findFirst(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>): TResult {
+        query: Query<TRoot, TResult>
+    ): TResult {
         return find(
             resultType,
             query
@@ -55,7 +61,7 @@ class InMemoryQueryRepository<TRoot>(
     }
 
     override fun findFirst(query: Query<TRoot, TRoot>): TRoot {
-        return find(query).first()
+        return find(query).items.first()
     }
 
     override fun <TResult> findFirstOrNull(
@@ -69,7 +75,7 @@ class InMemoryQueryRepository<TRoot>(
     }
 
     override fun findFirstOrNull(query: Query<TRoot, TRoot>): TRoot? {
-        return find(query).firstOrNull()
+        return find(query).items.firstOrNull()
     }
 
     override fun <TResult> findSingle(
@@ -83,7 +89,7 @@ class InMemoryQueryRepository<TRoot>(
     }
 
     override fun findSingle(query: Query<TRoot, TRoot>): TRoot {
-        return find(query).single()
+        return find(query).items.single()
     }
 
     override fun <TResult> findSingleOrNull(
@@ -97,16 +103,16 @@ class InMemoryQueryRepository<TRoot>(
     }
 
     override fun findSingleOrNull(query: Query<TRoot, TRoot>): TRoot? {
-        return find(query).singleOrNull()
+        return find(query).items.singleOrNull()
     }
 
     private fun attachOperation(
         currentTransform: () -> Collection<Any?>,
         operation: QueryOperation
     ): () -> Collection<Any?> {
-        return when(operation) {
+        return when (operation) {
             is FilterOperation -> {
-                val predicate = operation.predicated as FlowPredicate<Any?>
+                val predicate = operation.predicate as FlowPredicate<Any?>
                 val compiled = compiler.compile(predicate).result
 
                 return {
@@ -115,6 +121,7 @@ class InMemoryQueryRepository<TRoot>(
                     }
                 }
             }
+
             is ProjectionOperation -> {
                 val predicate = operation.projection as Expression<Any?, Any?>
                 val compiled = compiler.compile(predicate).result
@@ -125,7 +132,33 @@ class InMemoryQueryRepository<TRoot>(
                     }
                 }
             }
-            else -> throw UnsupportedQueryOperationException(operation)
+
+            is LimitOperation -> {
+                return {
+                    currentTransform().take(operation.amount.toInt())
+                }
+            }
+
+            is SortingOperation -> {
+                val sortCriteria = operation.sorting
+                val combinedComparator = sortCriteria.sorts.map { sort ->
+                    val sortExpression = sort.expression as Expression<Any?, Any?>
+                    val compiled = compiler.compile(sortExpression).result
+                    val comparator = Comparator.comparing<Any?, Any?>(
+                        { compiled.execute(it) },
+                        InMemoryComparator()
+                    )
+                    when(sort.direction) {
+                        SortDirection.Ascending -> comparator
+                        SortDirection.Descending -> comparator.reversed()
+                    }
+                }.reduce { a, b ->
+                    a.then(b)
+                }
+                return {
+                    currentTransform().sortedWith(combinedComparator)
+                }
+            }
         }
     }
 }

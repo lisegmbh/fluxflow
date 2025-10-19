@@ -39,6 +39,10 @@ class WorkflowServiceImpl(
         return workflowQueryService.getAll(query)
     }
 
+    override fun getAll(query: de.lise.fluxflow.api.workflow.flowquery.WorkflowQuery<*>): Page<Workflow<*>> {
+        return workflowQueryService.getAll(query)
+    }
+
     override fun <TWorkflowModel : Any> getAll(
         modelType: KClass<TWorkflowModel>,
         query: WorkflowQuery<TWorkflowModel>

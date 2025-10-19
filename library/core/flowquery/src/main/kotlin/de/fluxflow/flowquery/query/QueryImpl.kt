@@ -4,10 +4,12 @@ import de.fluxflow.flowquery.expression.ConjunctionExpression
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.FlowPredicate
 import de.fluxflow.flowquery.query.sorting.Sorting
+import de.lise.fluxflow.query.pagination.PaginationRequest
 
 data class QueryImpl<TRoot, TResult>(
-    private val cursor: Expression<TRoot, TResult>,
-    override val operations: List<QueryOperation>
+    override val cursor: Expression<TRoot, TResult>,
+    override val operations: List<QueryOperation>,
+    override val pagination: PaginationRequest?,
 ) : Query<TRoot, TResult> {
     override fun where(predicate: FlowPredicate<TRoot>): Query<TRoot, TResult> {
         return copy(
@@ -25,6 +27,7 @@ data class QueryImpl<TRoot, TResult>(
         return QueryImpl(
             cursor = ConjunctionExpression(),
             operations = operations + ProjectionOperation(projection),
+            pagination = pagination
         )
     }
 
@@ -43,6 +46,18 @@ data class QueryImpl<TRoot, TResult>(
     override fun sort(builder: Expression<TRoot, TResult>.() -> Sorting): Query<TRoot, TResult> {
         return sort(
             builder(cursor)
+        )
+    }
+
+    override fun limit(amount: Long): Query<TRoot, TResult> {
+        return copy(
+            operations = operations + LimitOperation(amount)
+        )
+    }
+
+    override fun paged(pagination: PaginationRequest): Query<TRoot, TResult> {
+        return copy(
+            pagination = pagination
         )
     }
 

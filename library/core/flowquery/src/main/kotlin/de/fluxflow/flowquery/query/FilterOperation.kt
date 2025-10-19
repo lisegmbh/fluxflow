@@ -2,16 +2,15 @@ package de.fluxflow.flowquery.query
 
 import de.fluxflow.flowquery.expression.FlowPredicate
 
-class FilterOperation(
-    val predicated: FlowPredicate<*>
+data class FilterOperation(
+    val predicate: FlowPredicate<*>
 ): QueryOperation {
-
     override fun toText(): String {
-        return "WHERE ${predicated.toText()}"
+        return "WHERE ${predicate.toText()}"
     }
 
     override fun toString(): String {
         return toText()
     }
-
 }
+

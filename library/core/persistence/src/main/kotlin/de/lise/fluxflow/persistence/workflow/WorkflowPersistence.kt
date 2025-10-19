@@ -1,5 +1,6 @@
 package de.lise.fluxflow.persistence.workflow
 
+import de.fluxflow.flowquery.query.Query
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.workflow.query.WorkflowDataQuery
 import de.lise.fluxflow.query.pagination.Page
@@ -24,6 +25,7 @@ interface WorkflowPersistence {
      */
     fun findAll(): List<WorkflowData>
     fun findAll(query: WorkflowDataQuery): Page<WorkflowData>
+    fun findAll(query: Query<WorkflowData, WorkflowData>): Page<WorkflowData>
     fun find(id: WorkflowIdentifier): WorkflowData?
     fun save(workflowData: WorkflowData): WorkflowData
     fun delete(id: WorkflowIdentifier)

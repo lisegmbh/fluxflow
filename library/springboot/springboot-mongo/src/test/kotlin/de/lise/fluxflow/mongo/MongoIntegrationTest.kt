@@ -8,10 +8,16 @@ import org.springframework.context.annotation.Import
 import org.testcontainers.containers.MongoDBContainer
 
 @Import(
-    IntegrationTestConfig::class
+    IntegrationTestConfig::class,
 )
 @ConditionalOnBean(MongoDBContainer::class)
-@SpringBootTest
+@SpringBootTest(
+    properties = ["fluxflow.mongo.enabled=true"],
+    classes = [
+        IntegrationTestConfig::class,
+        MongoConfiguration::class
+    ]
+)
 @Target(AnnotationTarget.TYPE, AnnotationTarget.CLASS)
 @ExtendWith(DockerAvailableCondition::class)
 @Retention(AnnotationRetention.RUNTIME)

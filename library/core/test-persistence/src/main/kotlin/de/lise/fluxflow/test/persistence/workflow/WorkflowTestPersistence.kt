@@ -1,5 +1,8 @@
 package de.lise.fluxflow.test.persistence.workflow
 
+import de.fluxflow.flowquery.inmemory.InMemoryCompiler
+import de.fluxflow.flowquery.inmemory.query.InMemoryQueryRepository
+import de.fluxflow.flowquery.query.Query
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
@@ -13,8 +16,15 @@ import de.lise.fluxflow.test.persistence.workflow.query.sort.WorkflowTestSort
 
 class WorkflowTestPersistence(
     private val idGenerator: TestIdGenerator = TestIdGenerator(0),
-    private val persistence: CloningTestPersistence<String, WorkflowData> = CloningTestPersistence()
+    private val persistence: CloningTestPersistence<String, WorkflowData> = CloningTestPersistence(),
+    inMemoryCompiler: InMemoryCompiler
 ) : WorkflowPersistence {
+    private val inMemoryQueryRepository = InMemoryQueryRepository(
+        inMemoryCompiler
+    ) {
+        persistence.all()
+    }
+
     override fun create(model: Any?, forcedId: WorkflowIdentifier?): WorkflowData {
         return save(
             WorkflowData(
@@ -51,6 +61,10 @@ class WorkflowTestPersistence(
             allResults,
             query.page
         )
+    }
+
+    override fun findAll(query: Query<WorkflowData, WorkflowData>): Page<WorkflowData> {
+        return inMemoryQueryRepository.find(query)
     }
 
     override fun find(id: WorkflowIdentifier): WorkflowData? {

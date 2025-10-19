@@ -1,5 +1,6 @@
 package de.lise.fluxflow.springboot
 
+import de.fluxflow.flowquery.inmemory.InMemoryCompiler
 import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
@@ -26,10 +27,19 @@ open class InMemoryPersistenceConfiguration {
     }
 
     @Bean
+    open fun inMemoryCompiler(): InMemoryCompiler {
+        return InMemoryCompiler()
+    }
+
+    @Bean
     open fun workflowPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): WorkflowPersistence {
-        return WorkflowTestPersistence(idGenerator)
+        return WorkflowTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler
+        )
     }
 
     @Bean

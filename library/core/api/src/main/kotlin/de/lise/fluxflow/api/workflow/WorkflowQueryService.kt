@@ -1,5 +1,6 @@
 package de.lise.fluxflow.api.workflow
 
+import de.fluxflow.flowquery.query.Query
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
@@ -41,6 +42,18 @@ interface WorkflowQueryService {
      * @return a page of workflows matching the given query
      */
     fun getAll(query: WorkflowQuery<*>): Page<Workflow<*>>
+
+    fun getAll(query: de.lise.fluxflow.api.workflow.flowquery.WorkflowQuery<*>): Page<Workflow<*>>
+
+    fun getAll(
+        queryBuilder: de.lise.fluxflow.api.workflow.flowquery.WorkflowQuery<*>.() -> de.lise.fluxflow.api.workflow.flowquery.WorkflowQuery<*>
+    ): Page<Workflow<*>> {
+        return getAll(
+            queryBuilder(
+                Query.of()
+            )
+        )
+    }
 
     /**
      * Returns all workflows matching the given query.

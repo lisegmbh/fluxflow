@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.query
 
-interface QueryOperation {
+sealed interface QueryOperation {
     fun toText(): String
 }
 

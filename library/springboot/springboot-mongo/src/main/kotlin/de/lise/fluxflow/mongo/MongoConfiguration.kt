@@ -1,11 +1,16 @@
 package de.lise.fluxflow.mongo
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.mapper.query.QueryMapperImpl
 import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.mongo.bootstrapping.*
 import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfiguration
 import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfigurer
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersistence
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
+import de.lise.fluxflow.mongo.flowquery.DataDocumentMapper
+import de.lise.fluxflow.mongo.flowquery.MongoCompiler
+import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
 import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.migration.MigrationMongoPersistence
@@ -15,6 +20,7 @@ import de.lise.fluxflow.mongo.step.StepMongoPersistence
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionMongoPersistence
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionRepository
+import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistence
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
@@ -22,6 +28,7 @@ import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
+import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -38,12 +45,41 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @ConditionalOnFluxFlowMongo
 @EnableConfigurationProperties(CollationConfiguration::class)
 open class MongoConfiguration {
+
+    @Bean
+    internal open fun mongoQueryCompiler(): MongoCompiler {
+        return MongoCompiler()
+    }
+
+    @Bean
+    internal open fun workflowFlowQueryRepository(
+        mongoCompiler: MongoCompiler,
+        mongoTemplate: MongoTemplate
+    ): MongoQueryRepository<WorkflowDocument> {
+        return MongoQueryRepository(
+            WorkflowDocument::class,
+            mongoCompiler,
+            mongoTemplate
+        )
+    }
+
+    @Bean
+    open fun workflowDocumentMapper(): QueryMapper<WorkflowData, WorkflowDocument> {
+        return QueryMapperImpl(
+            DataDocumentMapper()
+        )
+    }
+
     @Bean
     open fun workflowPersistence(
         workflowRepository: WorkflowRepository,
+        queryableRepository: MongoQueryRepository<WorkflowDocument>,
+        queryMapper: QueryMapper<WorkflowData, WorkflowDocument>
     ): WorkflowPersistence {
         return WorkflowMongoPersistence(
             workflowRepository,
+            queryableRepository,
+            queryMapper
         )
     }
 

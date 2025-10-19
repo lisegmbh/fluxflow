@@ -51,7 +51,7 @@ sealed interface Expression<TRoot, TCurrent> {
     fun isAnyOf(others: Collection<TCurrent>): IsAnyOfOperator<TRoot, TCurrent> {
         return IsAnyOfOperator(
             this,
-            others.toSet()
+            others.map { Constant<TRoot,TCurrent>(it) }.toSet()
         )
     }
 

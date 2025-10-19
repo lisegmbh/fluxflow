@@ -2,7 +2,7 @@ package de.fluxflow.flowquery.query
 
 import de.fluxflow.flowquery.expression.Expression
 
-class ProjectionOperation(
+data class ProjectionOperation(
     val projection: Expression<*, *>
 ): QueryOperation {
     override fun toText(): String {

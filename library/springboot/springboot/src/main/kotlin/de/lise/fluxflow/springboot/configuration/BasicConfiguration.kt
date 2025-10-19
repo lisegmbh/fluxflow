@@ -1,5 +1,7 @@
 package de.lise.fluxflow.springboot.configuration
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.mapper.query.QueryMapperImpl
 import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
 import de.lise.fluxflow.api.event.EventService
@@ -42,6 +44,7 @@ import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowToDataMapper
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
@@ -165,7 +168,7 @@ open class BasicConfiguration {
     ): WorkflowActionFunctionResolver {
         return WorkflowActionFunctionResolverImpl(parameterResolver)
     }
-    
+
     @Bean
     open fun workflowActionDefinitionBuilder(
         metadataBuilder: MetadataBuilder,
@@ -178,7 +181,7 @@ open class BasicConfiguration {
             actionFunctionResolver
         )
     }
-    
+
     @Bean
     open fun workflowDefinitionBuilder(
         modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder,
@@ -191,7 +194,7 @@ open class BasicConfiguration {
             actionDefinitionBuilder
         )
     }
-    
+
     @Bean
     open fun workflowActivationService(
         workflowDefinitionBuilder: WorkflowDefinitionBuilder
@@ -218,14 +221,24 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun workflowToDataMapper(
+    ): QueryMapper<Workflow<*>, WorkflowData> {
+        return QueryMapperImpl(
+            WorkflowToDataMapper()
+        )
+    }
+
+    @Bean
     @Primary
     open fun workflowQueryService(
         persistence: WorkflowPersistence,
-        activationService: WorkflowActivationService
+        activationService: WorkflowActivationService,
+        queryMapper: QueryMapper<Workflow<*>, WorkflowData>
     ): WorkflowQueryServiceImpl {
         return WorkflowQueryServiceImpl(
             persistence,
-            activationService
+            activationService,
+            queryMapper
         )
     }
 
@@ -420,13 +433,13 @@ open class BasicConfiguration {
             false
         )
     }
-    
+
     @Bean
     @ConfigurationProperties("fluxflow.versioning.comparison")
     open fun compatibilityConfiguration(): CompatibilityConfiguration {
         return CompatibilityConfiguration()
     }
-    
+
     @Bean
     open fun compatibilityTester(
         compatibilityConfiguration: CompatibilityConfiguration
@@ -623,7 +636,7 @@ open class BasicConfiguration {
         )
     }
 
-    
+
     @Bean
     open fun jobSchedulingCallback(
         schedulingService: SchedulingService,

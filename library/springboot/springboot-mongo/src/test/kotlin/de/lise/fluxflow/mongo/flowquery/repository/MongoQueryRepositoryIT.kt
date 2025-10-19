@@ -3,7 +3,7 @@ package de.lise.fluxflow.mongo.flowquery.repository
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -38,10 +38,10 @@ class MongoQueryRepositoryIT {
         // Act
         val result = repo.find(
             de.fluxflow.flowquery.query.Query.Companion.of()
-        )
+        ).items
 
         // Assert
-        Assertions.assertThat(result).hasSize(testDocuments.size)
+        assertThat(result).hasSize(testDocuments.size)
     }
 
     @Test
@@ -51,11 +51,11 @@ class MongoQueryRepositoryIT {
             where {
                 get(TestDocument::someStringProp).isEqual("a")
             }
-        }
+        }.items
 
         // Assert
-        Assertions.assertThat(result).hasSize(1)
-        Assertions.assertThat(result.first().someStringProp).isEqualTo("a")
+        assertThat(result).hasSize(1)
+        assertThat(result.first().someStringProp).isEqualTo("a")
     }
 
     @Test
@@ -68,9 +68,10 @@ class MongoQueryRepositoryIT {
         }
 
         // Assert
-        Assertions.assertThat(result).hasSize(testDocuments.size)
-        Assertions.assertThat(
-            result.map { it.anotherStringProp }
+        assertThat(result.items).hasSize(testDocuments.size)
+        assertThat(result.pageSize)
+        assertThat(
+            result.items.map { it.anotherStringProp }
         ).containsExactly("x", "y", "z")
     }
 
@@ -83,11 +84,11 @@ class MongoQueryRepositoryIT {
             }.sort {
                 get(TestDocument::anotherStringProp).asc()
             }
-        }
+        }.items
 
         // Assert
-        Assertions.assertThat(result).hasSize(2)
-        Assertions.assertThat(
+        assertThat(result).hasSize(2)
+        assertThat(
             result.map { it.anotherStringProp }
         ).containsExactly("y", "z")
     }
@@ -106,8 +107,8 @@ class MongoQueryRepositoryIT {
         }
 
         // Assert
-        Assertions.assertThat(result).hasSize(1)
-        Assertions.assertThat(result.first().anIntProperty).isEqualTo(3)
+        assertThat(result).hasSize(1)
+        assertThat(result.first().anIntProperty).isEqualTo(3)
     }
 
     private val testDocuments = listOf(

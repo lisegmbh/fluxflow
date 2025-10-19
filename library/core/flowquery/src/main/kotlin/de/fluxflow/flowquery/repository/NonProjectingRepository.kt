@@ -1,12 +1,13 @@
 package de.fluxflow.flowquery.repository
 
 import de.fluxflow.flowquery.query.Query
+import de.lise.fluxflow.query.pagination.Page
 
 interface NonProjectingRepository<TRoot> {
-    fun find(query: Query<TRoot, TRoot>): List<TRoot>
+    fun find(query: Query<TRoot, TRoot>): Page<TRoot>
     fun find(
         builder: Query<TRoot, TRoot>.() -> Query<TRoot, TRoot>
-    ): List<TRoot> {
+    ): Page<TRoot> {
         return find(
             builder(Query.Companion.of())
         )

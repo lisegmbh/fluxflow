@@ -15,8 +15,11 @@ class WorkflowMongoPersistenceTest {
                 inv.arguments.first() as WorkflowDocument
             }
         }
+
         val workflowMongoPersistence = WorkflowMongoPersistence(
             workflowRepository,
+            mock {  },
+            mock {  }
         )
         val testWorkflow = WorkflowData(
             "test-id",
@@ -43,6 +46,8 @@ class WorkflowMongoPersistenceTest {
         }
         val workflowMongoPersistence = WorkflowMongoPersistence(
             workflowRepository,
+            mock {  },
+            mock {  }
         )
         val testWorkflow = WorkflowData(
             "test-id",

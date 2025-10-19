@@ -49,7 +49,10 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
             )
             is IsAnyOfOperator<TRoot, *> -> AnyOfToken(
                 doCompile(root, current.valueToTest).toType<StatementToken>(root, current.valueToTest),
-                current.anyOf
+                current.anyOf.map { anyOfElement -> doCompile(
+                    root,
+                    anyOfElement as Expression<TRoot, Any?>
+                ).toType<ValueToken>(root, anyOfElement ) }
             )
             is Constant -> ConstantToken(current.value)
             else -> throw CompilationException(
@@ -59,7 +62,6 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
             )
         }
     }
-
 
     companion object {
         inline fun <reified T : MongoToken> MongoToken.toType(
