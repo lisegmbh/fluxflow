@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.flowquery
 
 import de.fluxflow.flowquery.expression.*
 import de.lise.fluxflow.mongo.flowquery.token.*
+import org.bson.Document
 import java.util.regex.Pattern
 import kotlin.reflect.full.isSubclassOf
 
@@ -51,7 +52,7 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 value = doCompile(root, current.value).toType<StatementToken>(root, current.value),
                 ignoreCasing = current.ignoreCasing,
                 pattern = ConvertingStatementToken(
-                    doCompile(root, current.prefix).toType<StatementToken>(root, current.value)
+                    doCompile(root, current.prefix).toType<StatementToken>(root, current.prefix)
                 ) {
                    "^${Pattern.quote("$it")}.*"
                 }
@@ -61,7 +62,7 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 value = doCompile(root, current.value).toType<StatementToken>(root, current.value),
                 ignoreCasing = current.ignoreCasing,
                 pattern = ConvertingStatementToken(
-                    doCompile(root, current.suffix).toType<StatementToken>(root, current.value)
+                    doCompile(root, current.suffix).toType<StatementToken>(root, current.suffix)
                 ) {
                     ".*${Pattern.quote("$it")}$"
                 }
@@ -71,10 +72,20 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 value = doCompile(root, current.value).toType<StatementToken>(root, current.value),
                 ignoreCasing = current.ignoreCasing,
                 pattern = ConvertingStatementToken(
-                    doCompile(root, current.substring).toType<StatementToken>(root, current.value)
+                    doCompile(root, current.substring).toType<StatementToken>(root, current.substring)
                 ) {
                     ".*${Pattern.quote("$it")}.*"
                 }
+            )
+
+            is ContainsElementThatExpression<TRoot, *, *> -> ExpressionTokenImpl(
+                Document(
+                    doCompile(root, current.collection).toType<StatementToken>(root, current.collection).toStatement(),
+                    Document(
+                        $$"$elemMatch",
+                        doCompile(Expression.root(), current.elementPredicate).toType<ExpressionToken>(root, current.elementPredicate).toExpression()
+                    )
+                )
             )
 
             is PropertyExpression<TRoot, *, *> -> PropertyToken(

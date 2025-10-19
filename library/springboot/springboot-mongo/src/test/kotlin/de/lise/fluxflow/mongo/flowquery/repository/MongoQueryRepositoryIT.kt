@@ -1,5 +1,6 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.containsElementThat
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
@@ -171,6 +172,24 @@ class MongoQueryRepositoryIT {
         ).containsExactlyInAnyOrder("abc", "cde")
     }
 
+    @Test
+    fun `find should support containsElementThat expressions`() {
+        // Act
+        val result = repo.find {
+            where {
+                get(TestDocument::collectionProp).containsElementThat {
+                    get(NestedTestDocument::anIntProperty)
+                        .isGreaterThan(1)
+                }
+            }
+        }
+
+        // Assert
+        assertThat(
+            result.items.map { it.someStringProp }
+        ).containsExactlyInAnyOrder("c")
+    }
+
     private val testDocuments = listOf(
         TestDocument(
             id = UUID.randomUUID(),
@@ -195,6 +214,17 @@ class MongoQueryRepositoryIT {
             someStringProp = "c",
             anotherStringProp = "x",
             longStringProperty = "abc",
+            collectionProp = listOf(
+                NestedTestDocument(
+                    anIntProperty = 1
+                ),
+                NestedTestDocument(
+                    anIntProperty = 2
+                ),
+                NestedTestDocument(
+                    anIntProperty = 3
+                )
+            ),
             nestedProperty = NestedTestDocument(
                 anIntProperty = 3
             )
@@ -206,6 +236,7 @@ class MongoQueryRepositoryIT {
         val someStringProp: String,
         val anotherStringProp: String,
         val longStringProperty: String,
+        val collectionProp: List<NestedTestDocument> = emptyList(),
         val nestedProperty: NestedTestDocument,
     )
 

@@ -91,6 +91,22 @@ class ExpressionWalker {
                 }
             }
 
+            is ContainsElementThatExpression<*, *, *> -> {
+                val collectionReplacement = walk(expression.collection, callback).replaceWith
+                val predicateReplacement = walk(expression.elementPredicate, callback).replaceWith
+                when {
+                    collectionReplacement != null || predicateReplacement != null -> ContainsElementThatExpression(
+                        collection = (collectionReplacement
+                            ?: expression.collection) as Expression<Any?, Collection<Any?>>,
+                        elementPredicate = (predicateReplacement
+                            ?: expression.elementPredicate) as Expression<Any?, Boolean>,
+                    ).let { ExpressionWalkerResult.Replace(it) }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+
             is BinaryOperationExpression<*, *, *, *> -> {
                 val leftReplacement = walk(expression.leftOperand, callback).replaceWith
                 val rightReplacement = walk(expression.rightOperand, callback).replaceWith

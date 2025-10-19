@@ -89,4 +89,23 @@ object ExpressionExtensions {
             )
         }
     }
+
+    object Collections {
+        fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.containsElementThat(
+            elementPredicate: FlowPredicate<TElement>
+        ): FlowPredicate<TRoot> {
+            return ContainsElementThatExpression(
+                this,
+                elementPredicate
+            )
+        }
+
+        fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.containsElementThat(
+            builder: Root<TElement>.() -> FlowPredicate<TElement>
+        ): FlowPredicate<TRoot> {
+            return this.containsElementThat(
+                builder(Expression.root())
+            )
+        }
+    }
 }

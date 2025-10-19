@@ -5,3 +5,4 @@ import org.bson.Document
 internal interface ExpressionToken : MongoToken {
     fun toExpression(): Document
 }
+

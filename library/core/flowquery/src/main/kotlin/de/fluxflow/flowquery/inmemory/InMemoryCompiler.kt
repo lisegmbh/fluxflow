@@ -111,7 +111,10 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 exp.ignoreCasing
             )
 
+            is ContainsElementThatExpression<TRoot, *, *> -> ContainsElementThatOperation(
+                doCompile(rootExpression, exp.collection) as InMemoryOperation<TRoot, Collection<*>>,
+                doCompile(rootExpression, exp.elementPredicate) as InMemoryOperation<Any?, Boolean>
+            )
         } as InMemoryOperation<TRoot, TResult>
     }
 }
-
