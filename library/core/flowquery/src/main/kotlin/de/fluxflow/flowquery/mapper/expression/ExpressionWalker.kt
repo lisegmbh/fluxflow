@@ -1,6 +1,7 @@
 package de.fluxflow.flowquery.mapper.expression
 
 import de.fluxflow.flowquery.expression.*
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
 class ExpressionWalker {
@@ -14,8 +15,21 @@ class ExpressionWalker {
         }
 
         return when (expression) {
+            is IsTypeExpression<*, *, *> -> {
+                val instanceReplacement = walk(expression.instance, callback).replaceWith
+                when(instanceReplacement){
+                    null -> ExpressionWalkerResult.Continue
+                    else -> ExpressionWalkerResult.Replace(
+                        IsTypeExpression(
+                            instanceReplacement as Expression<Any?, Any?>,
+                            expression.requiredType as KClass<Any>
+                        )
+                    )
+                }
+            }
+
             is AndOperator<*> -> {
-                val replacements = expression.predicates.associate { it to walk(it, callback).replaceWith }
+                val replacements = expression.predicates.associateWith { walk(it, callback).replaceWith }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
                 } else {

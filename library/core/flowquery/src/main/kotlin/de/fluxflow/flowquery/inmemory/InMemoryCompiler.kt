@@ -121,7 +121,11 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 doCompile(rootExpression, exp.element) as InMemoryOperation<TRoot, Any?>
             )
 
+            is IsTypeExpression<TRoot, *, *> -> IsTypeOperation(
+                doCompile(rootExpression, exp.instance) as InMemoryOperation<TRoot, Any?>,
+                exp.requiredType
+            )
+
         } as InMemoryOperation<TRoot, TResult>
     }
 }
-

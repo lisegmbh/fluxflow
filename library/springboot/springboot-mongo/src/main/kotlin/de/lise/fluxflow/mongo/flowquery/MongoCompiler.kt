@@ -9,7 +9,9 @@ import kotlin.reflect.typeOf
 
 internal typealias MongoCompilerResult = MongoToken
 
-internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
+internal class MongoCompiler(
+    private val subclassProvider: SubclassProvider
+) : ExpressionCompiler<MongoCompilerResult> {
     override fun <TRoot, TResult> compile(
         expression: Expression<TRoot, TResult>
     ): CompilationResult<MongoCompilerResult> {
@@ -26,6 +28,21 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
         current: Expression<TRoot, TCurrent>
     ): MongoToken {
         return when (current) {
+            is IsTypeExpression<TRoot, *, *> -> {
+                val allKnownTypes = subclassProvider.findSubclasses(current.requiredType)
+                StatementOperationToken(
+                    ConvertingStatementToken(
+                        doCompile(root, current.instance).toType<StatementToken>(root, current.instance)
+                    ) {
+                        "${it}._class"
+                    },
+                    "in",
+                     ConstantToken(
+                         allKnownTypes.map { it.name }
+                     )
+                )
+            }
+
             is BinaryOperationExpression<TRoot, *, *, *> -> when (current.operation) {
                 else -> MatchToken(
                     StatementOperationToken(

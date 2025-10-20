@@ -6,9 +6,12 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
+import de.lise.fluxflow.mongo.flowquery.SubclassProvider
+import de.lise.fluxflow.mongo.flowquery.SubclassProviderImpl
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -24,10 +27,20 @@ class MongoQueryRepositoryIT {
     @Autowired
     lateinit var template: MongoTemplate
 
+    @Autowired
+    lateinit var subclassProvider: SubclassProvider /*
+    SubclassProviderImpl(
+                    "de.fluxflow",
+                    "java"
+                )
+    */
+
     val repo: MongoQueryRepository<TestDocument> by lazy {
         MongoQueryRepository(
             TestDocument::class,
-            MongoCompiler(),
+            MongoCompiler(
+                subclassProvider
+            ),
             template
         )
     }
@@ -279,6 +292,32 @@ class MongoQueryRepositoryIT {
         assertThat(result.someStringProp).isEqualTo("a")
     }
 
+    @Test
+    fun `find should support filtering on types`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::anAnyProperty).isType(NestedTestDocument::class)
+            }
+        }
+
+        // Assert
+        assertThat(result.anAnyProperty).isInstanceOf(NestedTestDocument::class.java)
+    }
+
+    @Test
+    fun `find should support filtering on types supporting inheritance`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::anAnyProperty).isType(NestedDocument::class)
+            }
+        }
+
+        // Assert
+        assertThat(result.anAnyProperty).isInstanceOf(NestedTestDocument::class.java)
+    }
+
     private val testInstant = Instant.now()
 
     private val testDocuments = listOf(
@@ -298,6 +337,9 @@ class MongoQueryRepositoryIT {
             anotherStringProp = "y",
             longStringProperty = "cde",
             aBooleanProperty = false,
+            anAnyProperty = NestedTestDocument(
+                anIntProperty = 3
+            ),
             nestedProperty = NestedTestDocument(
                 anIntProperty = 2,
                 someInstant = testInstant
@@ -332,6 +374,7 @@ class MongoQueryRepositoryIT {
         val anotherStringProp: String,
         val longStringProperty: String,
         val aBooleanProperty: Boolean?,
+        val anAnyProperty: Any? = null,
         val collectionProp: List<NestedTestDocument> = emptyList(),
         val nestedProperty: NestedTestDocument,
     )
@@ -339,5 +382,7 @@ class MongoQueryRepositoryIT {
     data class NestedTestDocument(
         val anIntProperty: Int,
         val someInstant: Instant? = null
-    )
+    ) : NestedDocument
+
+    internal interface NestedDocument
 }

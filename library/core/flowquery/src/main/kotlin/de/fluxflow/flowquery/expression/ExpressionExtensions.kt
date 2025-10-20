@@ -1,5 +1,7 @@
 package de.fluxflow.flowquery.expression
 
+import kotlin.reflect.KClass
+
 object ExpressionExtensions {
     object Logical {
         fun <TRoot> FlowPredicate<TRoot>.and(vararg others: FlowPredicate<TRoot>): AndOperator<TRoot> {
@@ -38,6 +40,7 @@ object ExpressionExtensions {
                 ignoreCasing = ignoreCasing
             )
         }
+
         fun <TRoot> Expression<TRoot, String>.startsWith(
             prefix: String,
             ignoreCasing: Boolean = true
@@ -58,6 +61,7 @@ object ExpressionExtensions {
                 ignoreCasing = ignoreCasing
             )
         }
+
         fun <TRoot> Expression<TRoot, String>.endsWith(
             suffix: String,
             ignoreCasing: Boolean = true
@@ -78,6 +82,7 @@ object ExpressionExtensions {
                 ignoreCasing = ignoreCasing
             )
         }
+
         fun <TRoot> Expression<TRoot, String>.contains(
             substring: String,
             ignoreCasing: Boolean = true
@@ -107,7 +112,7 @@ object ExpressionExtensions {
             )
         }
 
-        fun <TRoot, TCollection: Collection<TElement>, TElement> Expression<TRoot, TCollection>.contains(
+        fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.contains(
             element: Expression<TRoot, TElement>
         ): ContainsElementExpression<TRoot, TCollection, TElement> {
             return ContainsElementExpression(
@@ -116,11 +121,22 @@ object ExpressionExtensions {
             )
         }
 
-        fun <TRoot, TCollection: Collection<TElement>, TElement> Expression<TRoot, TCollection>.contains(
+        fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.contains(
             element: TElement
         ): ContainsElementExpression<TRoot, TCollection, TElement> {
             return contains(
                 Expression.const(element)
+            )
+        }
+    }
+
+    object Types {
+        fun <TRoot, TCurrent: Any, TRequiredType: TCurrent> Expression<TRoot, TCurrent>.isType(
+            type: KClass<TRequiredType>
+        ): FlowPredicate<TRoot> {
+            return IsTypeExpression(
+                this,
+                type
             )
         }
     }

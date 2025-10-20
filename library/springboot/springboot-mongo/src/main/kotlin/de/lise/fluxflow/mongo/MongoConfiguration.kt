@@ -10,6 +10,8 @@ import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersis
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
 import de.lise.fluxflow.mongo.flowquery.DataDocumentMapper
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
+import de.lise.fluxflow.mongo.flowquery.SubclassProvider
+import de.lise.fluxflow.mongo.flowquery.SubclassProviderImpl
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
 import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
@@ -30,7 +32,9 @@ import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.AutoConfigurationPackages
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -45,10 +49,20 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @ConditionalOnFluxFlowMongo
 @EnableConfigurationProperties(CollationConfiguration::class)
 open class MongoConfiguration {
+    @Bean
+    open fun subclassProvider(factory: BeanFactory): SubclassProvider {
+        return SubclassProviderImpl(
+            AutoConfigurationPackages.get(factory).toSet()
+        )
+    }
 
     @Bean
-    internal open fun mongoQueryCompiler(): MongoCompiler {
-        return MongoCompiler()
+    internal open fun mongoQueryCompiler(
+        subclassProvider: SubclassProvider
+    ): MongoCompiler {
+        return MongoCompiler(
+            subclassProvider
+        )
     }
 
     @Bean
@@ -111,7 +125,7 @@ open class MongoConfiguration {
             mongoTemplate
         )
     }
-    
+
     @Bean
     open fun continuationRecordPersistence(
         continuationRecordRepository: ContinuationRecordRepository
@@ -131,7 +145,7 @@ open class MongoConfiguration {
             mongoTemplate
         )
     }
-    
+
     @Bean
     open fun mongoMigrationProvider(
         mongoTemplate: MongoTemplate
@@ -140,7 +154,7 @@ open class MongoConfiguration {
             mongoTemplate
         )
     }
-    
+
     @Bean
     @Order(99)
     open fun createCollectionsWithCollationBootstrapper(
@@ -168,7 +182,7 @@ open class MongoConfiguration {
     ): BootstrapAction {
         return MigrateDataTypesMapBootstrapAction(mongoTemplate)
     }
-    
+
     @Bean
     @Order(102)
     open fun metadataTypeMapBootstrapper(
@@ -176,7 +190,7 @@ open class MongoConfiguration {
     ): BootstrapAction {
         return MigrateMetadataTypesMapBootstrapAction(mongoTemplate)
     }
-    
+
     @Bean
     @Order(103)
     open fun parameterTypeMapBootstrapper(
