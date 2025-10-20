@@ -249,6 +249,36 @@ class MongoQueryRepositoryIT {
         ).isEqualTo("b")
     }
 
+    @Test
+    fun `find should support filtering on boolean properties`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::aBooleanProperty)
+            }
+        }
+
+        // Assert
+        assertThat(result.someStringProp).isEqualTo("a")
+    }
+
+    @Test
+    fun `find should support filtering on boolean properties combined with other filters`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::someStringProp).isEqual("a").and(
+                    {
+                        get(TestDocument::aBooleanProperty)
+                    }
+                )
+            }
+        }
+
+        // Assert
+        assertThat(result.someStringProp).isEqualTo("a")
+    }
+
     private val testInstant = Instant.now()
 
     private val testDocuments = listOf(
@@ -257,6 +287,7 @@ class MongoQueryRepositoryIT {
             someStringProp = "a",
             anotherStringProp = "z",
             longStringProperty = "efg",
+            aBooleanProperty = true,
             nestedProperty = NestedTestDocument(
                 anIntProperty = 1
             )
@@ -266,6 +297,7 @@ class MongoQueryRepositoryIT {
             someStringProp = "b",
             anotherStringProp = "y",
             longStringProperty = "cde",
+            aBooleanProperty = false,
             nestedProperty = NestedTestDocument(
                 anIntProperty = 2,
                 someInstant = testInstant
@@ -287,6 +319,7 @@ class MongoQueryRepositoryIT {
                     anIntProperty = 3
                 )
             ),
+            aBooleanProperty = null,
             nestedProperty = NestedTestDocument(
                 anIntProperty = 3
             )
@@ -298,6 +331,7 @@ class MongoQueryRepositoryIT {
         val someStringProp: String,
         val anotherStringProp: String,
         val longStringProperty: String,
+        val aBooleanProperty: Boolean?,
         val collectionProp: List<NestedTestDocument> = emptyList(),
         val nestedProperty: NestedTestDocument,
     )

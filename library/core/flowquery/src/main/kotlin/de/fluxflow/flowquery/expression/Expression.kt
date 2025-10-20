@@ -127,7 +127,6 @@ sealed interface Expression<TRoot, TCurrent> {
         )
     }
 
-
     companion object {
         fun <TRoot> not(
             predicate: FlowPredicate<TRoot>

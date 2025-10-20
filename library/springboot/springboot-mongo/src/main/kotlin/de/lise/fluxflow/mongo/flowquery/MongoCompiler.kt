@@ -5,6 +5,7 @@ import de.lise.fluxflow.mongo.flowquery.token.*
 import org.bson.Document
 import java.util.regex.Pattern
 import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.typeOf
 
 internal typealias MongoCompilerResult = MongoToken
 
@@ -19,7 +20,6 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
             )
         )
     }
-
 
     private fun <TRoot, TCurrent> doCompile(
         root: Expression<TRoot, *>,
@@ -54,7 +54,7 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 pattern = ConvertingStatementToken(
                     doCompile(root, current.prefix).toType<StatementToken>(root, current.prefix)
                 ) {
-                   "^${Pattern.quote("$it")}.*"
+                    "^${Pattern.quote(it)}.*"
                 }
             )
 
@@ -64,7 +64,7 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 pattern = ConvertingStatementToken(
                     doCompile(root, current.suffix).toType<StatementToken>(root, current.suffix)
                 ) {
-                    ".*${Pattern.quote("$it")}$"
+                    ".*${Pattern.quote(it)}$"
                 }
             )
 
@@ -74,7 +74,7 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                 pattern = ConvertingStatementToken(
                     doCompile(root, current.substring).toType<StatementToken>(root, current.substring)
                 ) {
-                    ".*${Pattern.quote("$it")}.*"
+                    ".*${Pattern.quote(it)}.*"
                 }
             )
 
@@ -83,7 +83,10 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                     doCompile(root, current.collection).toType<StatementToken>(root, current.collection).toStatement(),
                     Document(
                         $$"$elemMatch",
-                        doCompile(Expression.root(), current.elementPredicate).toType<ExpressionToken>(root, current.elementPredicate).toExpression()
+                        doCompile(Expression.root(), current.elementPredicate).toType<ExpressionToken>(
+                            root,
+                            current.elementPredicate
+                        ).toExpression()
                     )
                 )
             )
@@ -94,7 +97,8 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
                     Document(
                         $$"$in",
                         listOf(
-                            doCompile(Expression.root(), current.element).toType<ValueToken>(root, current.element).toValue()
+                            doCompile(Expression.root(), current.element).toType<ValueToken>(root, current.element)
+                                .toValue()
                         )
                     )
                 )
@@ -143,18 +147,30 @@ internal class MongoCompiler : ExpressionCompiler<MongoCompilerResult> {
             message: String? = null
         ): T {
             val directResult = this as? T
-            if(directResult != null) {
+            if (directResult != null) {
                 return directResult
             }
 
-            if(this is ValueToken && StatementToken::class.isSubclassOf(T::class)) {
+            if (this is ValueToken && StatementToken::class.isSubclassOf(T::class)) {
                 val actualValue = this.toValue()
-                if(actualValue is String) {
+                if (actualValue is String) {
                     return SimpleStatementTokenImpl(actualValue) as T
                 }
             }
             if (T::class.isSubclassOf(ExpressionToken::class) && this is MatchToken) {
                 return this.expression as T
+            }
+
+            if (
+                ExpressionToken::class.isSubclassOf(T::class)
+                && this is PropertyToken
+                && property.returnType in listOf(typeOf<Boolean>(), typeOf<Boolean?>())
+            ) {
+                return StatementOperationToken(
+                    this,
+                    "eq",
+                    ConstantToken(true)
+                ) as T
             }
 
             throw CompilationException(

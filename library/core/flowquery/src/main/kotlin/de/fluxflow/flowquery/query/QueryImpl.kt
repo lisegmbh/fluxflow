@@ -3,6 +3,7 @@ package de.fluxflow.flowquery.query
 import de.fluxflow.flowquery.expression.ConjunctionExpression
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.FlowPredicate
+import de.fluxflow.flowquery.expression.PropertyExpression
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
@@ -11,9 +12,19 @@ data class QueryImpl<TRoot, TResult>(
     override val operations: List<QueryOperation>,
     override val pagination: PaginationRequest?,
 ) : Query<TRoot, TResult> {
+
+    private fun simplifyFilter(
+        op: FlowPredicate<TRoot>
+    ): FlowPredicate<TRoot> {
+        return when (op) {
+            is PropertyExpression<TRoot, *, Boolean> -> op.isEqual(true)
+            else -> op
+        }
+    }
+
     override fun where(predicate: FlowPredicate<TRoot>): Query<TRoot, TResult> {
         return copy(
-            operations = operations + FilterOperation(predicate)
+            operations = operations + FilterOperation(simplifyFilter(predicate))
         )
     }
 

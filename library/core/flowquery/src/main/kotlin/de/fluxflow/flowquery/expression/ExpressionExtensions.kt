@@ -1,7 +1,6 @@
 package de.fluxflow.flowquery.expression
 
 object ExpressionExtensions {
-
     object Logical {
         fun <TRoot> FlowPredicate<TRoot>.and(vararg others: FlowPredicate<TRoot>): AndOperator<TRoot> {
             return AndOperator(

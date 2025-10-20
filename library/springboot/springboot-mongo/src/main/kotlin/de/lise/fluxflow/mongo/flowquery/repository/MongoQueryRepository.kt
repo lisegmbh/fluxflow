@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.aggregation.Aggregation
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation
 import org.springframework.data.support.PageableExecutionUtils
 import kotlin.reflect.KClass
+import kotlin.reflect.typeOf
 
 class MongoQueryRepository<TRoot : Any> internal constructor(
     private val rootType: Class<TRoot>,
@@ -35,7 +36,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         return execute(
             query,
             resultType
-        ).elements.toList() as List<TResult>
+        ).elements.toList()
     }
 
 
@@ -315,6 +316,15 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         return when (token) {
             is ExpressionToken -> MatchToken(token).toStage()
             is MatchToken -> token.toStage()
+            is PropertyToken if token.property.returnType in listOf(typeOf<Boolean?>(), typeOf<Boolean>()) -> {
+                MatchToken(
+                    StatementOperationToken(
+                        token,
+                        "eq",
+                        ConstantToken(true)
+                    )
+                ).toStage()
+            }
             else -> throw QueryExecutionException(
                 "Can not filter by '${operation.toText()}', as an expression is expected (actual type is: ${token::class.simpleName})."
             )
