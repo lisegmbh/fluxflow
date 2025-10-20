@@ -15,6 +15,19 @@ class ExpressionWalker {
         }
 
         return when (expression) {
+            is CastExpression<*, *, *> -> {
+                val instanceReplacement = walk(expression.instance, callback).replaceWith
+                when(instanceReplacement){
+                    null -> ExpressionWalkerResult.Continue
+                    else -> ExpressionWalkerResult.Replace(
+                        CastExpression(
+                            instanceReplacement as Expression<Any?, Any>,
+                            expression.requiredType as KClass<Any>
+                        )
+                    )
+                }
+            }
+
             is IsTypeExpression<*, *, *> -> {
                 val instanceReplacement = walk(expression.instance, callback).replaceWith
                 when(instanceReplacement){

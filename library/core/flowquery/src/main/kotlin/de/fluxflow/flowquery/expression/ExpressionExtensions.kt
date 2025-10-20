@@ -139,6 +139,14 @@ object ExpressionExtensions {
                 type
             )
         }
+
+        fun <TRoot, TCurrent: Any, TRequiredType: TCurrent> Expression<TRoot, TCurrent>.asType(
+            type: KClass<TRequiredType>
+        ): CastExpression<TRoot, TCurrent, TRequiredType> {
+            return CastExpression(
+                this,
+                type
+            )
+        }
     }
 }
-

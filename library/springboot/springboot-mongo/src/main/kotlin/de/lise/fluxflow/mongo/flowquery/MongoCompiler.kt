@@ -28,6 +28,7 @@ internal class MongoCompiler(
         current: Expression<TRoot, TCurrent>
     ): MongoToken {
         return when (current) {
+            is CastExpression<TRoot, *, *> -> doCompile(root, current.instance)
             is IsTypeExpression<TRoot, *, *> -> {
                 val allKnownTypes = subclassProvider.findSubclasses(current.requiredType)
                 StatementOperationToken(

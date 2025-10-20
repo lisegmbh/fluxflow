@@ -6,12 +6,12 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.SubclassProvider
-import de.lise.fluxflow.mongo.flowquery.SubclassProviderImpl
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -28,12 +28,7 @@ class MongoQueryRepositoryIT {
     lateinit var template: MongoTemplate
 
     @Autowired
-    lateinit var subclassProvider: SubclassProvider /*
-    SubclassProviderImpl(
-                    "de.fluxflow",
-                    "java"
-                )
-    */
+    lateinit var subclassProvider: SubclassProvider
 
     val repo: MongoQueryRepository<TestDocument> by lazy {
         MongoQueryRepository(
@@ -316,6 +311,22 @@ class MongoQueryRepositoryIT {
 
         // Assert
         assertThat(result.anAnyProperty).isInstanceOf(NestedTestDocument::class.java)
+    }
+
+    @Test
+    fun `find should support filtering on casted properties`() {
+        // Act
+        val result = repo.findSingle {
+            where {
+                get(TestDocument::anAnyProperty)
+                    .asType(NestedTestDocument::class)
+                    .get(NestedTestDocument::anIntProperty)
+                    .isGreaterThan(2)
+            }
+        }
+
+        // Assert
+        assertThat((result.anAnyProperty as NestedTestDocument).anIntProperty).isEqualTo(3)
     }
 
     private val testInstant = Instant.now()

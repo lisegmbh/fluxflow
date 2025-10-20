@@ -126,6 +126,11 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 exp.requiredType
             )
 
+            is CastExpression<TRoot, *, *> -> CastOperation(
+                doCompile(rootExpression, exp.instance) as InMemoryOperation<TRoot, Any?>,
+                exp.requiredType
+            )
+
         } as InMemoryOperation<TRoot, TResult>
     }
 }
