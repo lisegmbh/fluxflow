@@ -88,6 +88,22 @@ class ExpressionWalker {
                 }
             }
 
+            is MapAccessExpression<*, *, *, *> -> {
+                val instanceReplacement = walk(expression.instance, callback).replaceWith
+                val keyReplacement = walk(expression.key, callback).replaceWith
+
+                when {
+                    instanceReplacement != null || keyReplacement != null -> MapAccessExpression(
+                        instance = (instanceReplacement ?: expression.instance) as Expression<Any?, Map<Any?, Any?>>,
+                        key = (keyReplacement ?: expression.key) as Expression<Any?, Any?>
+                    ).let {
+                        ExpressionWalkerResult.Replace(it)
+                    }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
             is EndsWithExpression<*> -> {
                 val valueReplacement = walk(expression.value, callback).replaceWith
                 val suffixReplacement = walk(expression.suffix, callback).replaceWith

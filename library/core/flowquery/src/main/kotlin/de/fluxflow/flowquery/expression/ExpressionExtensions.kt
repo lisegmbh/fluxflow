@@ -140,13 +140,25 @@ object ExpressionExtensions {
             )
         }
 
-        fun <TRoot, TCurrent: Any, TRequiredType: TCurrent> Expression<TRoot, TCurrent>.asType(
+        fun <TRoot, TCurrent: Any, TRequiredType: TCurrent> Expression<TRoot, in TCurrent>.asType(
             type: KClass<TRequiredType>
         ): CastExpression<TRoot, TCurrent, TRequiredType> {
             return CastExpression(
-                this,
+                this as Expression<TRoot, TCurrent>,
                 type
             )
         }
     }
+
+    object Maps {
+        fun <TRoot, TCurrent : Map<TKey, TValue>, TKey, TValue> Expression<TRoot, TCurrent>.get(
+            key: Expression<TRoot, TKey>
+        ): Expression<TRoot, TValue> {
+            return MapAccessExpression(
+                this,
+                key
+            )
+        }
+    }
 }
+

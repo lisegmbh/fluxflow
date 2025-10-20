@@ -131,6 +131,12 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 exp.requiredType
             )
 
+            is MapAccessExpression<TRoot, *, *, *> -> InMemoryMapAccessOperation(
+                doCompile(rootExpression, exp.instance) as InMemoryOperation<TRoot, Map<Any?, Any?>>,
+                doCompile(rootExpression, exp.key) as InMemoryOperation<TRoot, Any?>
+            )
+
         } as InMemoryOperation<TRoot, TResult>
     }
 }
+

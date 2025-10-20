@@ -127,6 +127,11 @@ internal class MongoCompiler(
                 current.property
             )
 
+            is MapAccessExpression<TRoot, *, *, *> -> AnonymousPropertyToken(
+                doCompile(root, current.instance).toType<StatementToken>(root, current.instance),
+                doCompile(root, current.key).toType<ValueToken>(root, current.key)
+            )
+
             is Root<*>, is ConjunctionExpression<TRoot, *> -> RootToken()
             is AndOperator<TRoot> -> AndToken(
                 current.predicates.map {

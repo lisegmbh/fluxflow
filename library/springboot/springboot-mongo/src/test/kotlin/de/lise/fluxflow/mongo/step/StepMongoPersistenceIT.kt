@@ -1,5 +1,9 @@
 package de.lise.fluxflow.mongo.step
 
+import de.fluxflow.flowquery.expression.Constant
+import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.query.Query
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.api.step.Status
@@ -31,6 +35,10 @@ class StepMongoPersistenceIT {
                     get(StepData::workflowId).isEqual(workflowId1)
                 }.sort {
                     get(StepData::version).asc()
+                }.where {
+                    get(StepData::data).get(
+                        Expression.const("someKey")
+                    ).asType(Int::class).isGreaterThan(3)
                 }
             }
         )
