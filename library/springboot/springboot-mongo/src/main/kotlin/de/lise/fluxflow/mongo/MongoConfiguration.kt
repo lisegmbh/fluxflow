@@ -8,8 +8,9 @@ import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfiguration
 import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfigurer
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersistence
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
-import de.lise.fluxflow.mongo.flowquery.DataDocumentMapper
+import de.lise.fluxflow.mongo.flowquery.WorkflowDataToDocumentMapper
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
+import de.lise.fluxflow.mongo.flowquery.StepDataToDocumentMapper
 import de.lise.fluxflow.mongo.flowquery.SubclassProvider
 import de.lise.fluxflow.mongo.flowquery.SubclassProviderImpl
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
@@ -18,6 +19,7 @@ import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.migration.MigrationMongoPersistence
 import de.lise.fluxflow.mongo.migration.MigrationRepository
 import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
+import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.StepMongoPersistence
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionMongoPersistence
@@ -28,6 +30,7 @@ import de.lise.fluxflow.mongo.workflow.WorkflowRepository
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
+import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowData
@@ -80,7 +83,7 @@ open class MongoConfiguration {
     @Bean
     open fun workflowDocumentMapper(): QueryMapper<WorkflowData, WorkflowDocument> {
         return QueryMapperImpl(
-            DataDocumentMapper()
+            WorkflowDataToDocumentMapper()
         )
     }
 
@@ -98,11 +101,34 @@ open class MongoConfiguration {
     }
 
     @Bean
+    internal open fun stepQueryRepository(
+        mongoCompiler: MongoCompiler,
+        mongoTemplate: MongoTemplate
+    ): MongoQueryRepository<StepDocument> {
+        return MongoQueryRepository(
+            StepDocument::class,
+            mongoCompiler,
+            mongoTemplate
+        )
+    }
+
+    @Bean
+    open fun stepDocumentMapper(): QueryMapper<StepData, StepDocument> {
+        return QueryMapperImpl(
+            StepDataToDocumentMapper()
+        )
+    }
+
+    @Bean
     open fun stepPersistence(
         stepRepository: StepRepository,
+        queryableRepository: MongoQueryRepository<StepDocument>,
+        queryMapper: QueryMapper<StepData, StepDocument>
     ): StepPersistence {
         return StepMongoPersistence(
-            stepRepository,
+            stepRepository = stepRepository,
+            queryableRepository = queryableRepository,
+            queryMapper = queryMapper
         )
     }
 

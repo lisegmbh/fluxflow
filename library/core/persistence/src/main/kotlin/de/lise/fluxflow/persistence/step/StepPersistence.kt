@@ -1,5 +1,6 @@
 package de.lise.fluxflow.persistence.step
 
+import de.fluxflow.flowquery.query.Query
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.step.query.StepDataQuery
@@ -25,6 +26,8 @@ interface StepPersistence {
      * @param query The query specifying the steps to be returned.
      */
     fun findAll(query: StepDataQuery): Page<StepData>
+
+    fun findAll(query: Query<StepData, StepData>): Page<StepData>
 
     /**
      * Returns all steps associated to the given workflow.

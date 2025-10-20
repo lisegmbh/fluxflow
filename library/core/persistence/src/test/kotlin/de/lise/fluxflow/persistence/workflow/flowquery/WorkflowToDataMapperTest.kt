@@ -36,7 +36,7 @@ class WorkflowToDataMapperTest {
 
         // Act
         val results = testExpressions.mapValues {
-            mapper.mapExpression(it.key)
+            mapper.mapOrKeep(it.key)
         }
 
         // Assert

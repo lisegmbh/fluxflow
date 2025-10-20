@@ -34,5 +34,17 @@ fun interface ExpressionReplacer {
                 }
             }
         }
+
+        fun <TSource, TTarget, TProperty> property(
+            sourceProperty: KProperty1<TSource, TProperty>,
+            targetProperty: KProperty1<TTarget, TProperty>
+        ): ExpressionReplacer {
+            return property(sourceProperty) {
+                PropertyExpression(
+                    it.instance as Expression<Any, TTarget>,
+                    targetProperty
+                )
+            }
+        }
     }
 }

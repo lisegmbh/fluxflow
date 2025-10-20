@@ -13,7 +13,7 @@ class QueryMapperImpl<TFromRoot, TToRoot>(
 
     override fun <TNewResult> map(query: Query<TFromRoot, *>): Query<TToRoot, TNewResult> {
         return QueryImpl(
-            cursor = expressionMapper.replace(query.cursor) as Expression<TToRoot, TNewResult>,
+            cursor = expressionMapper.mapOrKeep(query.cursor) as Expression<TToRoot, TNewResult>,
             operations = query.operations.map {
                 mapOperation(it)
             },
@@ -24,16 +24,16 @@ class QueryMapperImpl<TFromRoot, TToRoot>(
     private fun mapOperation(operation: QueryOperation): QueryOperation {
         return when(operation) {
             is FilterOperation -> FilterOperation(
-                predicate = expressionMapper.replace(operation.predicate) as Expression<*, Boolean>
+                predicate = expressionMapper.mapOrKeep(operation.predicate) as Expression<*, Boolean>
             )
             is ProjectionOperation -> ProjectionOperation(
-                projection = expressionMapper.replace(operation.projection)
+                projection = expressionMapper.mapOrKeep(operation.projection)
             )
             is SortingOperation -> SortingOperation(
                 sorting = Sorting(
                     sorts = operation.sorting.sorts.map {
                         Sort(
-                            expression = expressionMapper.replace(it.expression),
+                            expression = expressionMapper.mapOrKeep(it.expression),
                             direction = it.direction
                         )
                     }

@@ -1,10 +1,12 @@
 package de.lise.fluxflow.engine.step
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.*
 import de.lise.fluxflow.api.step.query.StepQuery
+import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.versioning.CompatibilityTester
 import de.lise.fluxflow.api.versioning.VersionCompatibility
@@ -37,6 +39,7 @@ class StepServiceImpl(
     private val enableAutomaticVersionUpgrade: Boolean,
     private val requiredCompatibility: VersionCompatibility,
     private val compatibilityTester: CompatibilityTester,
+    private val queryMapper: QueryMapper<StepQueryable, StepData>
 ) : StepService {
     fun create(workflow: Workflow<*>, invokableStepDefinition: InvokableStepDefinition): StepCreationResult {
         stepDefinitionVersionRecorder.record(invokableStepDefinition.definition)
@@ -100,6 +103,31 @@ class StepServiceImpl(
 
     override fun findSteps(query: StepQuery): Page<Step> {
         val page = persistence.findAll(query.toDataQuery())
+        return fromPage(page)
+    }
+
+    override fun findSteps(query: de.fluxflow.flowquery.query.Query<StepQueryable, StepQueryable>): Page<Step> {
+        val page = persistence.findAll(
+            queryMapper.map(query)
+        )
+        return fromPage(page)
+    }
+
+    override fun <TWorkflowModel> findSteps(
+        workflow: Workflow<TWorkflowModel>,
+        query: de.fluxflow.flowquery.query.Query<StepQueryable, StepQueryable>
+    ): Page<Step> {
+        return persistence.findAll(
+            queryMapper.map(
+                query.where { // Appending filter for workflow identifier
+                    // TODO Put before?
+                    get(StepQueryable::workflowIdentifier).isEqual(workflow.identifier)
+                }
+            )
+        ).map { stepActivationService.activateFromPersistence(workflow, it) }
+    }
+
+    private fun fromPage(page: Page<StepData>): Page<Step> {
         val stepsByWorkflow = page.items.groupBy { step -> step.workflowId }
         val workflows = workflowQueryService.getAll(
             Query.withFilter(

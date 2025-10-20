@@ -1,6 +1,8 @@
 package de.lise.fluxflow.api.step
 
+import de.fluxflow.flowquery.query.Query
 import de.lise.fluxflow.api.step.query.StepQuery
+import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.query.pagination.Page
 
@@ -8,7 +10,8 @@ interface StepService {
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>): List<Step>
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: StepQuery): Page<Step>
     fun findSteps(query: StepQuery): Page<Step>
-    
+    fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: Query<StepQueryable, StepQueryable>): Page<Step>
+    fun findSteps(query: Query<StepQueryable, StepQueryable>): Page<Step>
     fun <TWorkflowModel> findStep(workflow: Workflow<TWorkflowModel>, stepIdentifier: StepIdentifier): Step?
 
     /**

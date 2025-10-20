@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.workflow
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.query.Query
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.desc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
@@ -28,7 +29,7 @@ class WorkflowMongoPersistenceIT {
         val result = workflowPersistence.findAll(
             Query.of {
                 where {
-                    (get(WorkflowData::model) as Expression<WorkflowData, TestModel>)
+                    get(WorkflowData::model).asType(TestModel::class)
                         .get(TestModel::aStringProperty)
                         .isEqual("a")
                         .not()

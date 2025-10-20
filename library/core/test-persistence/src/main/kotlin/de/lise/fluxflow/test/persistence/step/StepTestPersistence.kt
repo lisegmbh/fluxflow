@@ -1,5 +1,8 @@
 package de.lise.fluxflow.test.persistence.step
 
+import de.fluxflow.flowquery.inmemory.InMemoryCompiler
+import de.fluxflow.flowquery.inmemory.query.InMemoryQueryRepository
+import de.fluxflow.flowquery.query.Query
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.step.StepData
@@ -13,8 +16,16 @@ import de.lise.fluxflow.test.persistence.step.query.sort.StepTestSort
 
 class StepTestPersistence(
     private val idGenerator: TestIdGenerator = TestIdGenerator(),
-    private val entities: MutableMap<String, StepData> = mutableMapOf()
+    private val entities: MutableMap<String, StepData> = mutableMapOf(),
+    inMemoryCompiler: InMemoryCompiler
 ) : StepPersistence {
+
+    private val inMemoryQueryRepository = InMemoryQueryRepository(
+        inMemoryCompiler
+    ) {
+        entities.values
+    }
+
     override fun randomId(): String {
         return idGenerator.newId()
     }
@@ -31,6 +42,10 @@ class StepTestPersistence(
 
     override fun findAll(query: StepDataQuery): Page<StepData> {
         return applyQuery(entities.values, query)
+    }
+
+    override fun findAll(query: Query<StepData, StepData>): Page<StepData> {
+        return inMemoryQueryRepository.find(query)
     }
 
     override fun findForWorkflow(workflowIdentifier: WorkflowIdentifier, query: StepDataQuery): Page<StepData> {

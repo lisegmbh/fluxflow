@@ -44,9 +44,13 @@ open class InMemoryPersistenceConfiguration {
 
     @Bean
     open fun stepPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): StepPersistence {
-        return StepTestPersistence(idGenerator)
+        return StepTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler
+        )
     }
 
     @Bean

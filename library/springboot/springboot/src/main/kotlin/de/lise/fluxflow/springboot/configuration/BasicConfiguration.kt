@@ -12,6 +12,7 @@ import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
+import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.versioning.*
 import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.api.workflow.action.WorkflowActionService
@@ -42,6 +43,7 @@ import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
+import de.lise.fluxflow.persistence.step.flowquery.StepQueryableToDataMapper
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowToDataMapper
@@ -528,6 +530,13 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun stepDataMapper(): QueryMapper<StepQueryable, StepData> {
+        return QueryMapperImpl(
+            StepQueryableToDataMapper()
+        )
+    }
+
+    @Bean
     open fun stepService(
         persistence: StepPersistence,
         stepActivationService: StepActivationService,
@@ -539,19 +548,21 @@ open class BasicConfiguration {
         enableAutomaticUpgrade: Boolean,
         @Value("\${fluxflow.versioning.steps.requiredUpgradeCompatibility:Unknown}")
         requiredUpgradeCompatibility: VersionCompatibility,
-        compatibilityTester: CompatibilityTester
+        compatibilityTester: CompatibilityTester,
+        queryMapper: QueryMapper<StepQueryable, StepData>
     ): StepServiceImpl {
         return StepServiceImpl(
-            persistence,
-            stepActivationService,
-            eventService,
-            continuationService!!,
-            changeDetector,
-            stepDefinitionVersionRecorder,
-            workflowQueryService,
-            enableAutomaticUpgrade,
-            requiredUpgradeCompatibility,
-            compatibilityTester
+            persistence = persistence,
+            stepActivationService = stepActivationService,
+            eventService = eventService,
+            continuationService = continuationService!!,
+            changeDetector = changeDetector,
+            stepDefinitionVersionRecorder = stepDefinitionVersionRecorder,
+            workflowQueryService = workflowQueryService,
+            enableAutomaticVersionUpgrade = enableAutomaticUpgrade,
+            requiredCompatibility = requiredUpgradeCompatibility,
+            compatibilityTester = compatibilityTester,
+            queryMapper = queryMapper
         )
     }
 
