@@ -9,6 +9,7 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
+import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
 import de.lise.fluxflow.mongo.flowquery.MongoCompiler
@@ -54,7 +55,7 @@ class MongoQueryRepositoryIT {
     fun `find with an empty query should return all documents`() {
         // Act
         val result = repo.find(
-            de.fluxflow.flowquery.query.FlowQuery.Companion.of()
+            FlowQuery.Companion.of()
         ).items
 
         // Assert
@@ -327,6 +328,21 @@ class MongoQueryRepositoryIT {
         // Assert
         assertThat((result.anAnyProperty as NestedTestDocument).anIntProperty).isEqualTo(3)
     }
+    
+    @Test
+    fun `find should support filtering on nullable properties`() {
+        // Act
+        val result = repo.findSingle { 
+            where { 
+                get(TestDocument::nullableNestedProperty)
+                    .get(NestedTestDocument::anIntProperty)
+                    .isGreaterThan(2)
+            }
+        }
+        
+        // Assert
+        assertThat(result.nullableNestedProperty?.anIntProperty).isEqualTo(4)
+    }
 
     private val testInstant = Instant.now()
 
@@ -374,6 +390,9 @@ class MongoQueryRepositoryIT {
             aBooleanProperty = null,
             nestedProperty = NestedTestDocument(
                 anIntProperty = 3
+            ),
+            nullableNestedProperty = NestedTestDocument(
+                anIntProperty = 4                
             )
         )
     )
@@ -387,6 +406,7 @@ class MongoQueryRepositoryIT {
         val anAnyProperty: Any? = null,
         val collectionProp: List<NestedTestDocument> = emptyList(),
         val nestedProperty: NestedTestDocument,
+        val nullableNestedProperty: NestedTestDocument? = null,
     )
 
     data class NestedTestDocument(

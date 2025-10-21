@@ -27,7 +27,7 @@ sealed interface Expression<TRoot, TCurrent> {
     }
     
     // Projections
-    fun <TProperty : Any?> get(
+    fun <TProperty> get(
         prop: KProperty1<TCurrent, TProperty?>
     ): PropertyExpression<TRoot, TCurrent, TProperty> {
         return PropertyExpression(
