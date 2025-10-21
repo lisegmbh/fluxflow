@@ -14,7 +14,7 @@ fun interface ExpressionReplacer {
         ): ExpressionReplacer {
             return ExpressionReplacer {
                 when(it) {
-                    is Constant<*,*> if it.value is T -> replacement(it.value as T)
+                    is Constant<*,*> if it.value is T -> replacement(it.value)
                     else -> null
                 }
             }

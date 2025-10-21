@@ -9,7 +9,7 @@ import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfigurer
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersistence
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
 import de.lise.fluxflow.mongo.flowquery.*
-import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
+import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
@@ -69,8 +69,8 @@ open class MongoConfiguration {
     internal open fun workflowFlowQueryRepository(
         mongoCompiler: MongoCompiler,
         mongoTemplate: MongoTemplate
-    ): MongoQueryRepository<WorkflowDocument> {
-        return MongoQueryRepository(
+    ): MongoFlowQueryRepository<WorkflowDocument> {
+        return MongoFlowQueryRepository(
             WorkflowDocument::class,
             mongoCompiler,
             mongoTemplate
@@ -87,7 +87,7 @@ open class MongoConfiguration {
     @Bean
     open fun workflowPersistence(
         workflowRepository: WorkflowRepository,
-        queryableRepository: MongoQueryRepository<WorkflowDocument>,
+        queryableRepository: MongoFlowQueryRepository<WorkflowDocument>,
         queryMapper: QueryMapper<WorkflowData, WorkflowDocument>
     ): WorkflowPersistence {
         return WorkflowMongoPersistence(
@@ -101,8 +101,8 @@ open class MongoConfiguration {
     internal open fun stepQueryRepository(
         mongoCompiler: MongoCompiler,
         mongoTemplate: MongoTemplate
-    ): MongoQueryRepository<StepDocument> {
-        return MongoQueryRepository(
+    ): MongoFlowQueryRepository<StepDocument> {
+        return MongoFlowQueryRepository(
             StepDocument::class,
             mongoCompiler,
             mongoTemplate
@@ -119,7 +119,7 @@ open class MongoConfiguration {
     @Bean
     open fun stepPersistence(
         stepRepository: StepRepository,
-        queryableRepository: MongoQueryRepository<StepDocument>,
+        queryableRepository: MongoFlowQueryRepository<StepDocument>,
         queryMapper: QueryMapper<StepData, StepDocument>
     ): StepPersistence {
         return StepMongoPersistence(
@@ -133,8 +133,8 @@ open class MongoConfiguration {
     internal open fun jobQueryRepository(
         mongoCompiler: MongoCompiler,
         mongoTemplate: MongoTemplate
-    ): MongoQueryRepository<JobDocument> {
-        return MongoQueryRepository(
+    ): MongoFlowQueryRepository<JobDocument> {
+        return MongoFlowQueryRepository(
             rootType = JobDocument::class,
             compiler = mongoCompiler,
             template = mongoTemplate
@@ -151,7 +151,7 @@ open class MongoConfiguration {
     @Bean
     open fun jobPersistence(
         jobRepository: JobRepository,
-        queryableRepository: MongoQueryRepository<JobDocument>,
+        queryableRepository: MongoFlowQueryRepository<JobDocument>,
         queryMapper: QueryMapper<JobData, JobDocument>,
     ): JobPersistence {
         return JobMongoPersistence(

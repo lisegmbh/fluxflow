@@ -32,8 +32,8 @@ class MongoQueryRepositoryIT {
     @Autowired
     lateinit var subclassProvider: SubclassProvider
 
-    val repo: MongoQueryRepository<TestDocument> by lazy {
-        MongoQueryRepository(
+    val repo: MongoFlowQueryRepository<TestDocument> by lazy {
+        MongoFlowQueryRepository(
             TestDocument::class,
             MongoCompiler(
                 subclassProvider

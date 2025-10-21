@@ -6,7 +6,7 @@ import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
-import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
+import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.job.query.JobDataQuery
@@ -15,7 +15,7 @@ import org.bson.types.ObjectId
 
 class JobMongoPersistence(
     private val jobRepository: JobRepository,
-    private val queryableRepository: MongoQueryRepository<JobDocument>,
+    private val queryableRepository: MongoFlowQueryRepository<JobDocument>,
     private val queryMapper: QueryMapper<JobData, JobDocument>,
 ) : JobPersistence {
     override fun randomId(): String {

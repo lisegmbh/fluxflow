@@ -14,7 +14,7 @@ import org.springframework.data.support.PageableExecutionUtils
 import kotlin.reflect.KClass
 import kotlin.reflect.typeOf
 
-class MongoQueryRepository<TRoot : Any> internal constructor(
+class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     private val rootType: Class<TRoot>,
     private val compiler: MongoCompiler,
     private val mongoTemplate: MongoTemplate,

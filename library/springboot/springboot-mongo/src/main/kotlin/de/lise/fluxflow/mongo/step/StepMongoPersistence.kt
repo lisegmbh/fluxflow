@@ -4,7 +4,7 @@ import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
-import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
+import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.query.filter.MongoEqualFilter
 import de.lise.fluxflow.mongo.step.query.StepDocumentQuery
 import de.lise.fluxflow.mongo.step.query.filter.StepDocumentFilter
@@ -19,7 +19,7 @@ import kotlin.jvm.optionals.getOrNull
 
 class StepMongoPersistence(
     private val stepRepository: StepRepository,
-    private val queryableRepository: MongoQueryRepository<StepDocument>,
+    private val queryableRepository: MongoFlowQueryRepository<StepDocument>,
     private val queryMapper: QueryMapper<StepData, StepDocument>
 ) : StepPersistence {
 
