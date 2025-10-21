@@ -4,17 +4,28 @@ import kotlin.reflect.KClass
 
 object ExpressionExtensions {
     object Logical {
-        fun <TRoot> FlowPredicate<TRoot>.and(vararg others: FlowPredicate<TRoot>): AndOperator<TRoot> {
-            return AndOperator(
+        fun <TRoot> FlowPredicate<TRoot>.and(vararg others: FlowPredicate<TRoot>): AndExpression<TRoot> {
+            return AndExpression(
                 listOf(
                     this,
                     *others,
                 )
             )
         }
+        
+        fun <TRoot> FlowPredicate<TRoot>.and(
+            builder: ExpressionBuilder<TRoot, TRoot, Boolean>,
+        ): AndExpression<TRoot> {
+            return AndExpression(
+                listOf(
+                    this, 
+                    builder(Expression.root())
+                )
+            )
+        }
 
-        fun <TRoot> FlowPredicate<TRoot>.or(vararg others: FlowPredicate<TRoot>): OrOperator<TRoot> {
-            return OrOperator(
+        fun <TRoot> FlowPredicate<TRoot>.or(vararg others: FlowPredicate<TRoot>): OrExpression<TRoot> {
+            return OrExpression(
                 listOf(
                     this,
                     *others
@@ -22,6 +33,17 @@ object ExpressionExtensions {
             )
         }
 
+        fun <TRoot> FlowPredicate<TRoot>.or(
+            builder: ExpressionBuilder<TRoot, TRoot, Boolean>
+        ): FlowPredicate<TRoot> {
+            return OrExpression(
+                listOf(
+                    this,
+                    builder(Expression.root())
+                )
+            )
+        }
+        
         fun <TRoot> FlowPredicate<TRoot>.not(): NotOperator<TRoot> {
             return NotOperator(
                 this

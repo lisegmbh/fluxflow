@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.containsElementThat
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.and
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
@@ -275,11 +276,9 @@ class MongoQueryRepositoryIT {
         // Act
         val result = repo.findSingle {
             where {
-                get(TestDocument::someStringProp).isEqual("a").and(
-                    {
-                        get(TestDocument::aBooleanProperty)
-                    }
-                )
+                get(TestDocument::someStringProp).isEqual("a").and {
+                    get(TestDocument::aBooleanProperty)
+                }
             }
         }
 

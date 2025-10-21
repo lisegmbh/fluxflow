@@ -1,13 +1,15 @@
 package de.fluxflow.flowquery.expression
 
-class AndOperator<TRoot>(predicates: List<FlowPredicate<TRoot>>) : FlowPredicate<TRoot> {
+class OrExpression<TRoot>(
+    predicates: List<FlowPredicate<TRoot>>
+): FlowPredicate<TRoot> {
     val predicates = predicates.simplify()
 
     private companion object {
-        fun <TRoot> List<FlowPredicate<TRoot>>.simplify(): List<FlowPredicate<TRoot>> {
+        private fun <TRoot> List<FlowPredicate<TRoot>>.simplify(): List<FlowPredicate<TRoot>> {
             return this.flatMap {
                 when(it) {
-                    is AndOperator<TRoot> -> it.predicates
+                    is OrExpression<TRoot> -> it.predicates
                     else -> listOf(it)
                 }
             }
@@ -15,7 +17,7 @@ class AndOperator<TRoot>(predicates: List<FlowPredicate<TRoot>>) : FlowPredicate
     }
 
     override fun toText(): String {
-        return "AND(${predicates.joinToString(", ") { it.toText() }})"
+        return "OR(${predicates.joinToString(", "){ it.toText() }})"
     }
 
     override fun toString(): String {
@@ -23,13 +25,13 @@ class AndOperator<TRoot>(predicates: List<FlowPredicate<TRoot>>) : FlowPredicate
     }
 
     override fun equals(other: Any?): Boolean {
-        if(other !is AndOperator<*>) {
+        if(other !is OrExpression<*>) {
             return false
         }
         return predicates == other.predicates
     }
 
     override fun hashCode(): Int {
-        return predicates.hashCode()
+        return super.hashCode()
     }
 }

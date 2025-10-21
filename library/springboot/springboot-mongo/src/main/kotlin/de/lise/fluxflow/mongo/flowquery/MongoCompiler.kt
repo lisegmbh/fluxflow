@@ -133,13 +133,13 @@ internal class MongoCompiler(
             )
 
             is Root<*>, is ConjunctionExpression<TRoot, *> -> RootToken()
-            is AndOperator<TRoot> -> AndToken(
+            is AndExpression<TRoot> -> AndToken(
                 current.predicates.map {
                     doCompile(root, it).toType<ExpressionToken>(root, it)
                 }
             )
 
-            is OrOperator<TRoot> -> OrToken(
+            is OrExpression<TRoot> -> OrToken(
                 current.predicates.map {
                     doCompile(root, it).toType<ExpressionToken>(root, it)
                 }

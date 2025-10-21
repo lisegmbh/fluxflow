@@ -41,7 +41,7 @@ class ExpressionWalker {
                 }
             }
 
-            is AndOperator<*> -> {
+            is AndExpression<*> -> {
                 val replacements = expression.predicates.associateWith { walk(it, callback).replaceWith }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
@@ -50,7 +50,7 @@ class ExpressionWalker {
                         (replacements[it] ?: it) as FlowPredicate<Any?>
                     }
                     ExpressionWalkerResult.Replace(
-                        AndOperator(
+                        AndExpression(
                             replacedPredicates
                         )
                     )
@@ -201,7 +201,7 @@ class ExpressionWalker {
                     )
                 } ?: ExpressionWalkerResult.Continue
 
-            is OrOperator<*> -> {
+            is OrExpression<*> -> {
                 val replacements = expression.predicates.associate { it to walk(it, callback).replaceWith }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
@@ -210,7 +210,7 @@ class ExpressionWalker {
                         (replacements[it] ?: it) as FlowPredicate<Any?>
                     }
                     ExpressionWalkerResult.Replace(
-                        OrOperator(
+                        OrExpression(
                             replacedPredicates
                         )
                     )

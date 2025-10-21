@@ -4,7 +4,28 @@ import kotlin.reflect.KProperty1
 
 sealed interface Expression<TRoot, TCurrent> {
     fun toText(): String
-
+    
+    // Logical
+    fun allTrue(
+        vararg builders: ExpressionBuilder<TRoot, TCurrent, Boolean>
+    ): AndExpression<TRoot> {
+        return builders.map { 
+            it(this)
+        }.let {
+            AndExpression(it)
+        }
+    }
+    
+    fun anyTrue(
+        vararg builders: ExpressionBuilder<TRoot, TCurrent, Boolean>
+    ): OrExpression<TRoot> {
+        return builders.map { 
+            it(this)
+        }.let {
+            OrExpression(it)
+        }
+    }
+    
     // Projections
     fun <TProperty : Any?> get(
         prop: KProperty1<TCurrent, TProperty?>
@@ -13,27 +34,6 @@ sealed interface Expression<TRoot, TCurrent> {
             this,
             prop
         )
-    }
-
-    // Logical operators
-    fun and(vararg builders: ExpressionBuilder<TRoot, TCurrent, Boolean>): AndOperator<TRoot> {
-        return builders.map { builder ->
-            builder(this)
-        }.let {
-            AndOperator(it)
-        }
-    }
-
-    fun or(vararg builders: ExpressionBuilder<TRoot, TCurrent, Boolean>): OrOperator<TRoot> {
-        return builders.map { builder ->
-            builder(this)
-        }.let {
-            OrOperator(it)
-        }
-    }
-
-    fun not(builder: ExpressionBuilder<TRoot, TCurrent, Boolean>): NotOperator<TRoot> {
-        return NotOperator(builder(this))
     }
 
     // Predicates

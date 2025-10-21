@@ -20,14 +20,14 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
     ): InMemoryOperation<TRoot, TResult> {
         return when (exp) {
             is Root<*> -> RootOp()
-            is AndOperator<TRoot> -> {
+            is AndExpression<TRoot> -> {
                 val conditions = exp.predicates.map { predicate ->
                     doCompile(rootExpression, predicate)
                 }
                 AndOp(conditions)
             }
 
-            is OrOperator<TRoot> -> {
+            is OrExpression<TRoot> -> {
                 val conditions = exp.predicates.map { predicate ->
                     doCompile(rootExpression, predicate)
                 }
