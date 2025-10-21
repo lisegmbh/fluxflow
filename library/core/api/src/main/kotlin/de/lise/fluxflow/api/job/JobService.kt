@@ -120,6 +120,7 @@ interface JobService {
      * @param query The query object defining search criteria.
      * @return A [Page] containing matching [Job] instances.
      */
+    @Deprecated("Use the new FlowQuery overloads instead.")
     fun findAll(query: JobQuery): Page<Job>
     
     fun findAll(query: FlowQuery<JobQueryable, JobQueryable>): Page<Job>

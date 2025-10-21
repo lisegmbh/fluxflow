@@ -9,7 +9,9 @@ import de.lise.fluxflow.query.pagination.Page
 
 interface StepService {
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>): List<Step>
+    @Deprecated("Use the new FlowQuery overloads instead.")
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: StepQuery): Page<Step>
+    @Deprecated("Use the new FlowQuery overloads instead.")
     fun findSteps(query: StepQuery): Page<Step>
     
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: FlowQuery<StepQueryable, StepQueryable>): Page<Step>
