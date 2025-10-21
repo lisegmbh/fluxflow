@@ -1,6 +1,8 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
 
-data class ContainsElementOperation<TRoot, TCollection : Collection<TElement>, TElement>(
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
+
+data class ContainsElementOp<TRoot, TCollection : Collection<TElement>, TElement>(
     private val collection: InMemoryOperation<TRoot, TCollection>,
     private val element: InMemoryOperation<TRoot, TElement>
 ) : InMemoryOperation<TRoot, Boolean> {

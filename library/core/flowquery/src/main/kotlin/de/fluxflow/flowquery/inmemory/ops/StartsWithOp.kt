@@ -1,6 +1,8 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
 
-data class StartsWithOperator<TRoot>(
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
+
+data class StartsWithOp<TRoot>(
     private val value: InMemoryOperation<TRoot, String>,
     private val prefix: InMemoryOperation<TRoot, String>,
     private val ignoreCasing: Boolean

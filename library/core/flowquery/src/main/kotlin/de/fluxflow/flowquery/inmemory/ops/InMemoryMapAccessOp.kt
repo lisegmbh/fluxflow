@@ -1,6 +1,8 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
 
-data class InMemoryMapAccessOperation<TRoot, TCurrent : Map<TKey, TValue>, TKey, TValue>(
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
+
+data class InMemoryMapAccessOp<TRoot, TCurrent : Map<TKey, TValue>, TKey, TValue>(
     private val instance: InMemoryOperation<TRoot, TCurrent>,
     private val key: InMemoryOperation<TRoot, TKey>,
 ) : InMemoryOperation<TRoot, TValue> {

@@ -1,4 +1,6 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
+
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
 
 internal class RootOp<TRoot>
     : InMemoryOperation<TRoot, TRoot> {

@@ -1,7 +1,8 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
 
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
 
-data class ContainsOperator<TRoot>(
+data class ContainsOp<TRoot>(
     private val value: InMemoryOperation<TRoot, String>,
     private val substring: InMemoryOperation<TRoot, String>,
     private val ignoreCasing: Boolean

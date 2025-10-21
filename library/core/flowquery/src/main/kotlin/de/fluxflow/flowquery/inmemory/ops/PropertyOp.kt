@@ -1,5 +1,6 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
 
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
 import kotlin.reflect.KProperty1
 
 internal data class PropertyOp<TRoot>(

@@ -1,6 +1,8 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
 
-data class ContainsElementThatOperation<TRoot, TElement>(
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
+
+data class ContainsElementThatOp<TRoot, TElement>(
     val collection: InMemoryOperation<TRoot, Collection<TElement>>,
     val predicate: InMemoryOperation<TElement, Boolean>
 ) : InMemoryOperation<TRoot, Boolean> {

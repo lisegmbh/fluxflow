@@ -1,6 +1,8 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
 
-data class EndsWithOperator<TRoot>(
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
+
+data class EndsWithOp<TRoot>(
     private val value: InMemoryOperation<TRoot, String>,
     private val suffix: InMemoryOperation<TRoot, String>,
     private val ignoreCasing: Boolean

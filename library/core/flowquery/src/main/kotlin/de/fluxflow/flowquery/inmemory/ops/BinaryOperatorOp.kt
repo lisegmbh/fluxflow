@@ -1,4 +1,6 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.ops
+
+import de.fluxflow.flowquery.inmemory.InMemoryOperation
 
 internal data class BinaryOperatorOp<TRoot, TElement, TOtherElement, TResult>(
     private val operation: Operation<TElement, TOtherElement, TResult>,

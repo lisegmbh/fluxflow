@@ -1,6 +1,7 @@
 package de.fluxflow.flowquery.inmemory
 
 import de.fluxflow.flowquery.expression.*
+import de.fluxflow.flowquery.inmemory.ops.*
 import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import kotlin.reflect.KProperty1
 
@@ -53,32 +54,56 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                             }
 
                             BinaryOperation.LessThan -> BinaryOperatorOp.Operation("<") { a, b ->
-                                InMemoryComparator().compare(a, b) < 0
+                                InMemoryComparator().compare(
+                                    a,
+                                    b
+                                ) < 0
                             }
 
                             BinaryOperation.LessThanOrEqual -> BinaryOperatorOp.Operation("<=") { a, b ->
-                                InMemoryComparator().compare(a, b) <= 0
+                                InMemoryComparator().compare(
+                                    a,
+                                    b
+                                ) <= 0
                             }
 
                             BinaryOperation.GreaterThan -> BinaryOperatorOp.Operation(">") { a, b ->
-                                InMemoryComparator().compare(a, b) > 0
+                                InMemoryComparator().compare(
+                                    a,
+                                    b
+                                ) > 0
                             }
 
                             BinaryOperation.GreaterThanOrEqual -> BinaryOperatorOp.Operation(">=") { a, b ->
-                                InMemoryComparator().compare(a, b) >= 0
+                                InMemoryComparator().compare(
+                                    a,
+                                    b
+                                ) >= 0
                             }
 
-                            else -> throw CompilationException(rootExpression, exp)
+                            else -> throw CompilationException(
+                                rootExpression,
+                                exp
+                            )
                         },
-                        doCompile(rootExpression, exp.leftOperand),
-                        doCompile(rootExpression, exp.rightOperand)
+                        doCompile(
+                            rootExpression,
+                            exp.leftOperand
+                        ),
+                        doCompile(
+                            rootExpression,
+                            exp.rightOperand
+                        )
                     )
                 }
             }
 
             is IsAnyOfOperator<TRoot, *> -> {
                 val valueAccessor = doCompile(rootExpression, exp.valueToTest)
-                IsAnyOfOp(valueAccessor, exp.anyOf)
+                IsAnyOfOp(
+                    valueAccessor,
+                    exp.anyOf
+                )
             }
 
             is PropertyExpression<TRoot, *, *> -> {
@@ -92,48 +117,90 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
             is Constant<*, *> -> ConstOp(exp.value)
             is ConjunctionExpression<*, *> -> ConjunctionOp()
             is StartsWithExpression<TRoot> -> {
-                StartsWithOperator(
-                    doCompile(rootExpression, exp.value),
-                    doCompile(rootExpression, exp.prefix),
+                StartsWithOp(
+                    doCompile(
+                        rootExpression,
+                        exp.value
+                    ),
+                    doCompile(
+                        rootExpression,
+                        exp.prefix
+                    ),
                     exp.ignoreCasing
                 )
             }
             is EndsWithExpression<TRoot> -> {
-                EndsWithOperator(
-                    doCompile(rootExpression, exp.value),
-                    doCompile(rootExpression, exp.suffix),
+                EndsWithOp(
+                    doCompile(
+                        rootExpression,
+                        exp.value
+                    ),
+                    doCompile(
+                        rootExpression,
+                        exp.suffix
+                    ),
                     exp.ignoreCasing
                 )
             }
-            is ContainsExpression<TRoot> -> ContainsOperator(
-                doCompile(rootExpression, exp.value),
-                doCompile(rootExpression, exp.substring),
+            is ContainsExpression<TRoot> -> ContainsOp(
+                doCompile(
+                    rootExpression,
+                    exp.value
+                ),
+                doCompile(
+                    rootExpression,
+                    exp.substring
+                ),
                 exp.ignoreCasing
             )
 
-            is ContainsElementThatExpression<TRoot, *, *> -> ContainsElementThatOperation(
-                doCompile(rootExpression, exp.collection) as InMemoryOperation<TRoot, Collection<*>>,
-                doCompile(rootExpression, exp.elementPredicate) as InMemoryOperation<Any?, Boolean>
+            is ContainsElementThatExpression<TRoot, *, *> -> ContainsElementThatOp(
+                doCompile(
+                    rootExpression,
+                    exp.collection
+                ) as InMemoryOperation<TRoot, Collection<*>>,
+                doCompile(
+                    rootExpression,
+                    exp.elementPredicate
+                ) as InMemoryOperation<Any?, Boolean>
             )
 
-            is ContainsElementExpression<TRoot, *, *> -> ContainsElementOperation(
-                doCompile(rootExpression, exp.collection) as InMemoryOperation<TRoot, Collection<*>>,
-                doCompile(rootExpression, exp.element) as InMemoryOperation<TRoot, Any?>
+            is ContainsElementExpression<TRoot, *, *> -> ContainsElementOp(
+                doCompile(
+                    rootExpression,
+                    exp.collection
+                ) as InMemoryOperation<TRoot, Collection<*>>,
+                doCompile(
+                    rootExpression,
+                    exp.element
+                ) as InMemoryOperation<TRoot, Any?>
             )
 
-            is IsTypeExpression<TRoot, *, *> -> IsTypeOperation(
-                doCompile(rootExpression, exp.instance) as InMemoryOperation<TRoot, Any?>,
+            is IsTypeExpression<TRoot, *, *> -> IsTypeOp(
+                doCompile(
+                    rootExpression,
+                    exp.instance
+                ) as InMemoryOperation<TRoot, Any?>,
                 exp.requiredType
             )
 
-            is CastExpression<TRoot, *, *> -> CastOperation(
-                doCompile(rootExpression, exp.instance) as InMemoryOperation<TRoot, Any?>,
+            is CastExpression<TRoot, *, *> -> CastOp(
+                doCompile(
+                    rootExpression,
+                    exp.instance
+                ) as InMemoryOperation<TRoot, Any?>,
                 exp.requiredType
             )
 
-            is MapAccessExpression<TRoot, *, *, *> -> InMemoryMapAccessOperation(
-                doCompile(rootExpression, exp.instance) as InMemoryOperation<TRoot, Map<Any?, Any?>>,
-                doCompile(rootExpression, exp.key) as InMemoryOperation<TRoot, Any?>
+            is MapAccessExpression<TRoot, *, *, *> -> InMemoryMapAccessOp(
+                doCompile(
+                    rootExpression,
+                    exp.instance
+                ) as InMemoryOperation<TRoot, Map<Any?, Any?>>,
+                doCompile(
+                    rootExpression,
+                    exp.key
+                ) as InMemoryOperation<TRoot, Any?>
             )
 
         } as InMemoryOperation<TRoot, TResult>
