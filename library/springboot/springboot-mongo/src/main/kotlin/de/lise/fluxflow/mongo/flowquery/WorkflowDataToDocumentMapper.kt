@@ -7,7 +7,6 @@ import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 
-
 class WorkflowDataToDocumentMapper : ExpressionMapper {
     private val mapper = PriorityExpressionReplacer(
         listOf(

@@ -5,7 +5,7 @@ import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.job.query.JobQueryable
-import de.lise.fluxflow.persistence.DefaultToDataMapper
+import de.lise.fluxflow.persistence.CommonToDataMapper
 import de.lise.fluxflow.persistence.job.JobData
 
 class JobQueryableToDataMapper : ExpressionMapper {
@@ -40,7 +40,7 @@ class JobQueryableToDataMapper : ExpressionMapper {
                 JobQueryable::status,
                 JobData::status
             ),
-            DefaultToDataMapper()
+            CommonToDataMapper()
         )
     )
     

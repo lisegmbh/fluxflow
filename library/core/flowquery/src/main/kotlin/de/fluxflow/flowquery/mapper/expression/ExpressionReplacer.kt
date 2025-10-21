@@ -19,7 +19,7 @@ fun interface ExpressionReplacer {
                 }
             }
         }
-
+        
         fun property(
             prop: KProperty1<*,*>,
             replacement: (exp: PropertyExpression<*,*,*>) -> Expression<*,*>?
@@ -45,6 +45,23 @@ fun interface ExpressionReplacer {
                     targetProperty
                 )
             }
+        }
+        
+        inline fun <reified TDomainValue, TProperty> domainValue(
+            valueProperty: KProperty1<TDomainValue, TProperty>
+        ): ExpressionReplacer {
+            return PriorityExpressionReplacer(
+                listOf(
+                    constantOfType<TDomainValue> {
+                        Constant<Any, TProperty>(
+                            valueProperty.get(it)
+                        )
+                    },
+                    property(valueProperty) {
+                        it.instance
+                    }
+                )
+            )
         }
     }
 }
