@@ -12,8 +12,8 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
 import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
-import de.lise.fluxflow.mongo.flowquery.MongoCompiler
-import de.lise.fluxflow.mongo.flowquery.SubclassProvider
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

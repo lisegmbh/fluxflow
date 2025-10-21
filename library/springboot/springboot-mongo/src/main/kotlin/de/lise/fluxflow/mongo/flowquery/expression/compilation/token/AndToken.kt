@@ -1,13 +1,13 @@
-package de.lise.fluxflow.mongo.flowquery.token
+package de.lise.fluxflow.mongo.flowquery.expression.compilation.token
 
 import org.bson.Document
 
-internal class OrToken(
+internal class AndToken(
     private val expressionTokens: List<ExpressionToken>
-): ExpressionToken {
+) : ExpressionToken {
     override fun toExpression(): Document {
         return Document(
-            $$"$or",
+            $$"$and",
             expressionTokens.map { it.toExpression() }
         )
     }

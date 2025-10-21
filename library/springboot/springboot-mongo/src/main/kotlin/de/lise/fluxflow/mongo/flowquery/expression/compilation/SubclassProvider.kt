@@ -1,4 +1,4 @@
-package de.lise.fluxflow.mongo.flowquery
+package de.lise.fluxflow.mongo.flowquery.expression.compilation
 
 import kotlin.reflect.KClass
 

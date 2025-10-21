@@ -8,11 +8,14 @@ import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfiguration
 import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfigurer
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersistence
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
-import de.lise.fluxflow.mongo.flowquery.*
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProviderImpl
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
+import de.lise.fluxflow.mongo.job.flowquery.JobDataToDocumentMapper
 import de.lise.fluxflow.mongo.migration.MigrationMongoPersistence
 import de.lise.fluxflow.mongo.migration.MigrationRepository
 import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
@@ -21,9 +24,11 @@ import de.lise.fluxflow.mongo.step.StepMongoPersistence
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionMongoPersistence
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionRepository
+import de.lise.fluxflow.mongo.step.flowquery.StepDataToDocumentMapper
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistence
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
+import de.lise.fluxflow.mongo.workflow.flowquery.WorkflowDataToDocumentMapper
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence

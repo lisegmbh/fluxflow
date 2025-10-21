@@ -1,4 +1,4 @@
-package de.lise.fluxflow.mongo.flowquery
+package de.lise.fluxflow.mongo.step.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.PropertyExpression

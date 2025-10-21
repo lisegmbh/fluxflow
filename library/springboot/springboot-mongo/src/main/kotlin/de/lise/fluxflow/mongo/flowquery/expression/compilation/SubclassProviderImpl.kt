@@ -1,4 +1,4 @@
-package de.lise.fluxflow.mongo.flowquery
+package de.lise.fluxflow.mongo.flowquery.expression.compilation
 
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
 import org.springframework.core.type.filter.AssignableTypeFilter
@@ -8,12 +8,6 @@ import kotlin.reflect.KClass
 class SubclassProviderImpl(
     private val basePackages: Set<String>
 ) : SubclassProvider {
-    constructor(
-        vararg basePackage: String
-    ) : this(
-        setOf(*basePackage)
-    )
-
     override fun findSubclasses(type: KClass<*>): Set<Class<*>> {
         val scanner = ClassPathScanningCandidateComponentProvider(false)
         scanner.addIncludeFilter(AssignableTypeFilter(type.java))

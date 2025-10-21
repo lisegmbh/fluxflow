@@ -1,18 +1,17 @@
-package de.lise.fluxflow.mongo.flowquery.token
+package de.lise.fluxflow.mongo.flowquery.expression.compilation.token
 
 import org.bson.Document
 
-internal class StatementOperationToken(
+internal class AnyOfToken(
     private val element: StatementToken,
-    private val operation: String,
-    private val valueToken: ValueToken
+    private val values: Collection<ValueToken>
 ): ExpressionToken {
     override fun toExpression(): Document {
         return Document(
             element.toStatement(),
             Document(
-                "$$operation",
-                valueToken.toValue()
+                $$"$in",
+                values.map { it.toValue() }
             )
         )
     }

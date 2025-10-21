@@ -1,4 +1,4 @@
-package de.lise.fluxflow.mongo.flowquery
+package de.lise.fluxflow.mongo.workflow.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
@@ -27,4 +27,3 @@ class WorkflowDataToDocumentMapper : ExpressionMapper {
         )
     }
 }
-

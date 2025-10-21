@@ -1,10 +1,10 @@
-package de.lise.fluxflow.mongo.flowquery
+package de.lise.fluxflow.mongo.flowquery.expression.compilation
 
 import de.fluxflow.flowquery.expression.*
 import de.fluxflow.flowquery.expression.compilation.CompilationException
 import de.fluxflow.flowquery.expression.compilation.CompilationResult
 import de.fluxflow.flowquery.expression.compilation.ExpressionCompiler
-import de.lise.fluxflow.mongo.flowquery.token.*
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.bson.Document
 import java.util.regex.Pattern
 import kotlin.reflect.full.isSubclassOf
@@ -36,21 +36,33 @@ internal class MongoCompiler(
                 val allKnownTypes = subclassProvider.findSubclasses(current.requiredType)
                 StatementOperationToken(
                     ConvertingStatementToken(
-                        doCompile(root, current.instance).toType<StatementToken>(root, current.instance)
+                        doCompile(
+                            root,
+                            current.instance
+                        ).toType<StatementToken>(
+                            root,
+                            current.instance
+                        )
                     ) {
                         "${it}._class"
                     },
                     "in",
-                     ConstantToken(
-                         allKnownTypes.map { it.name }
-                     )
+                    ConstantToken(
+                        allKnownTypes.map { it.name }
+                    )
                 )
             }
 
             is BinaryOperationExpression<TRoot, *, *, *> -> when (current.operation) {
                 else -> MatchToken(
                     StatementOperationToken(
-                        doCompile(root, current.leftOperand).toType<StatementToken>(root, current.leftOperand),
+                        doCompile(
+                            root,
+                            current.leftOperand
+                        ).toType<StatementToken>(
+                            root,
+                            current.leftOperand
+                        ),
                         when (current.operation) {
                             BinaryOperation.Equal -> "eq"
                             BinaryOperation.NotEqual -> "ne"
@@ -64,36 +76,78 @@ internal class MongoCompiler(
                                 "Unsupported expression of type '${current::class.simpleName}'."
                             )
                         },
-                        doCompile(root, current.rightOperand).toType<ValueToken>(root, current.rightOperand)
+                        doCompile(
+                            root,
+                            current.rightOperand
+                        ).toType<ValueToken>(
+                            root,
+                            current.rightOperand
+                        )
                     )
                 )
             }
 
             is StartsWithExpression<TRoot> -> RegexToken(
-                value = doCompile(root, current.value).toType<StatementToken>(root, current.value),
+                value = doCompile(
+                    root,
+                    current.value
+                ).toType<StatementToken>(
+                    root,
+                    current.value
+                ),
                 ignoreCasing = current.ignoreCasing,
                 pattern = ConvertingStatementToken(
-                    doCompile(root, current.prefix).toType<StatementToken>(root, current.prefix)
+                    doCompile(
+                        root,
+                        current.prefix
+                    ).toType<StatementToken>(
+                        root,
+                        current.prefix
+                    )
                 ) {
                     "^${Pattern.quote(it)}.*"
                 }
             )
 
             is EndsWithExpression<TRoot> -> RegexToken(
-                value = doCompile(root, current.value).toType<StatementToken>(root, current.value),
+                value = doCompile(
+                    root,
+                    current.value
+                ).toType<StatementToken>(
+                    root,
+                    current.value
+                ),
                 ignoreCasing = current.ignoreCasing,
                 pattern = ConvertingStatementToken(
-                    doCompile(root, current.suffix).toType<StatementToken>(root, current.suffix)
+                    doCompile(
+                        root,
+                        current.suffix
+                    ).toType<StatementToken>(
+                        root,
+                        current.suffix
+                    )
                 ) {
                     ".*${Pattern.quote(it)}$"
                 }
             )
 
             is ContainsExpression<TRoot> -> RegexToken(
-                value = doCompile(root, current.value).toType<StatementToken>(root, current.value),
+                value = doCompile(
+                    root,
+                    current.value
+                ).toType<StatementToken>(
+                    root,
+                    current.value
+                ),
                 ignoreCasing = current.ignoreCasing,
                 pattern = ConvertingStatementToken(
-                    doCompile(root, current.substring).toType<StatementToken>(root, current.substring)
+                    doCompile(
+                        root,
+                        current.substring
+                    ).toType<StatementToken>(
+                        root,
+                        current.substring
+                    )
                 ) {
                     ".*${Pattern.quote(it)}.*"
                 }
@@ -101,10 +155,19 @@ internal class MongoCompiler(
 
             is ContainsElementThatExpression<TRoot, *, *> -> ExpressionTokenImpl(
                 Document(
-                    doCompile(root, current.collection).toType<StatementToken>(root, current.collection).toStatement(),
+                    doCompile(
+                        root,
+                        current.collection
+                    ).toType<StatementToken>(
+                        root,
+                        current.collection
+                    ).toStatement(),
                     Document(
                         $$"$elemMatch",
-                        doCompile(Expression.root(), current.elementPredicate).toType<ExpressionToken>(
+                        doCompile(
+                            Expression.root(),
+                            current.elementPredicate
+                        ).toType<ExpressionToken>(
                             root,
                             current.elementPredicate
                         ).toExpression()
@@ -114,11 +177,23 @@ internal class MongoCompiler(
 
             is ContainsElementExpression<TRoot, *, *> -> ExpressionTokenImpl(
                 Document(
-                    doCompile(root, current.collection).toType<StatementToken>(root, current.collection).toStatement(),
+                    doCompile(
+                        root,
+                        current.collection
+                    ).toType<StatementToken>(
+                        root,
+                        current.collection
+                    ).toStatement(),
                     Document(
                         $$"$in",
                         listOf(
-                            doCompile(Expression.root(), current.element).toType<ValueToken>(root, current.element)
+                            doCompile(
+                                Expression.root(),
+                                current.element
+                            ).toType<ValueToken>(
+                                root,
+                                current.element
+                            )
                                 .toValue()
                         )
                     )
@@ -126,39 +201,84 @@ internal class MongoCompiler(
             )
 
             is PropertyExpression<TRoot, *, *> -> PropertyToken(
-                doCompile(root, current.instance).toType<StatementToken>(root, current.instance),
+                doCompile(
+                    root,
+                    current.instance
+                ).toType<StatementToken>(
+                    root,
+                    current.instance
+                ),
                 current.property
             )
 
             is MapAccessExpression<TRoot, *, *, *> -> AnonymousPropertyToken(
-                doCompile(root, current.instance).toType<StatementToken>(root, current.instance),
-                doCompile(root, current.key).toType<ValueToken>(root, current.key)
+                doCompile(
+                    root,
+                    current.instance
+                ).toType<StatementToken>(
+                    root,
+                    current.instance
+                ),
+                doCompile(
+                    root,
+                    current.key
+                ).toType<ValueToken>(
+                    root,
+                    current.key
+                )
             )
 
             is RootExpression<*>, is ConjunctionExpression<TRoot, *> -> RootToken()
             is AndExpression<TRoot> -> AndToken(
                 current.predicates.map {
-                    doCompile(root, it).toType<ExpressionToken>(root, it)
+                    doCompile(
+                        root,
+                        it
+                    ).toType<ExpressionToken>(
+                        root,
+                        it
+                    )
                 }
             )
 
             is OrExpression<TRoot> -> OrToken(
                 current.predicates.map {
-                    doCompile(root, it).toType<ExpressionToken>(root, it)
+                    doCompile(
+                        root,
+                        it
+                    ).toType<ExpressionToken>(
+                        root,
+                        it
+                    )
                 }
             )
 
             is NotExpression<TRoot> -> NotToken(
-                doCompile(root, current.expression).toType<ExpressionToken>(root, current.expression)
+                doCompile(
+                    root,
+                    current.expression
+                ).toType<ExpressionToken>(
+                    root,
+                    current.expression
+                )
             )
 
             is IsAnyOfOperator<TRoot, *> -> AnyOfToken(
-                doCompile(root, current.valueToTest).toType<StatementToken>(root, current.valueToTest),
+                doCompile(
+                    root,
+                    current.valueToTest
+                ).toType<StatementToken>(
+                    root,
+                    current.valueToTest
+                ),
                 current.anyOf.map { anyOfElement ->
                     doCompile(
                         root,
                         anyOfElement as Expression<TRoot, Any?>
-                    ).toType<ValueToken>(root, anyOfElement)
+                    ).toType<ValueToken>(
+                        root,
+                        anyOfElement
+                    )
                 }
             )
 

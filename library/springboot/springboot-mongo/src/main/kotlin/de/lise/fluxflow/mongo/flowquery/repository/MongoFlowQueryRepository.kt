@@ -3,8 +3,8 @@ package de.lise.fluxflow.mongo.flowquery.repository
 import de.fluxflow.flowquery.query.*
 import de.fluxflow.flowquery.query.sorting.SortDirection
 import de.fluxflow.flowquery.repository.FlowQueryRepository
-import de.lise.fluxflow.mongo.flowquery.MongoCompiler
-import de.lise.fluxflow.mongo.flowquery.token.*
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.bson.Document
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.MongoTemplate

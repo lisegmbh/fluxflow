@@ -1,4 +1,4 @@
-package de.lise.fluxflow.mongo.flowquery.token
+package de.lise.fluxflow.mongo.flowquery.expression.compilation.token
 
 import org.springframework.data.mapping.toDotPath
 import kotlin.reflect.KProperty
