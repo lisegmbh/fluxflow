@@ -47,7 +47,7 @@ class ExpressionWalker {
                     ExpressionWalkerResult.Continue
                 } else {
                     val replacedPredicates = expression.predicates.map {
-                        (replacements[it] ?: it) as FlowPredicate<Any?>
+                        (replacements[it] ?: it) as PredicateExpression<Any?>
                     }
                     ExpressionWalkerResult.Replace(
                         AndExpression(
@@ -192,11 +192,11 @@ class ExpressionWalker {
                 }
             }
 
-            is NotOperator<*> -> walk(expression.expression, callback).replaceWith
+            is NotExpression<*> -> walk(expression.expression, callback).replaceWith
                 ?.let {
                     ExpressionWalkerResult.Replace(
-                        NotOperator(
-                            it as FlowPredicate<Any?>
+                        NotExpression(
+                            it as PredicateExpression<Any?>
                         )
                     )
                 } ?: ExpressionWalkerResult.Continue
@@ -207,7 +207,7 @@ class ExpressionWalker {
                     ExpressionWalkerResult.Continue
                 } else {
                     val replacedPredicates = expression.predicates.map {
-                        (replacements[it] ?: it) as FlowPredicate<Any?>
+                        (replacements[it] ?: it) as PredicateExpression<Any?>
                     }
                     ExpressionWalkerResult.Replace(
                         OrExpression(
@@ -228,7 +228,7 @@ class ExpressionWalker {
                 }
                 ?: ExpressionWalkerResult.Continue
 
-            is ConjunctionExpression<*, *>, is Constant<*, *>, is Root<*> -> result
+            is ConjunctionExpression<*, *>, is ConstantExpression<*, *>, is RootExpression<*> -> result
         }
     }
 }

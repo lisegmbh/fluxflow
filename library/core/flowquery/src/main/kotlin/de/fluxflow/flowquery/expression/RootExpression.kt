@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.expression
 
-class Root<T> : Expression<T, T> {
+class RootExpression<T> : Expression<T, T> {
     override fun toText(): String {
         return "$"
     }
@@ -10,7 +10,7 @@ class Root<T> : Expression<T, T> {
     }
 
     override fun equals(other: Any?): Boolean {
-        return other is Root<*>
+        return other is RootExpression<*>
     }
 
     override fun hashCode(): Int {

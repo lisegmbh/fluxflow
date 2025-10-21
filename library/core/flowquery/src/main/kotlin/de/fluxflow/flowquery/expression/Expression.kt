@@ -37,7 +37,7 @@ sealed interface Expression<TRoot, TCurrent> {
     }
 
     // Predicates
-    fun <TOther> isEqual(exp: Expression<TRoot, TOther>): FlowPredicate<TRoot> {
+    fun <TOther> isEqual(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(
             this,
             BinaryOperation.Equal,
@@ -45,21 +45,21 @@ sealed interface Expression<TRoot, TCurrent> {
         )
     }
 
-    fun isEqual(value: TCurrent?): FlowPredicate<TRoot> {
+    fun isEqual(value: TCurrent?): PredicateExpression<TRoot> {
         return isEqual(
             const(value)
         )
     }
 
 
-    fun <TOther> isNotEqual(exp: Expression<TRoot, TOther>): FlowPredicate<TRoot> {
+    fun <TOther> isNotEqual(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(
             this,
             BinaryOperation.NotEqual,
             exp
         )
     }
-    fun isNotEqual(value: TCurrent): FlowPredicate<TRoot> {
+    fun isNotEqual(value: TCurrent): PredicateExpression<TRoot> {
         return isNotEqual(const(value))
     }
 
@@ -67,7 +67,7 @@ sealed interface Expression<TRoot, TCurrent> {
     fun isAnyOf(others: Collection<TCurrent>): IsAnyOfOperator<TRoot, TCurrent> {
         return IsAnyOfOperator(
             this,
-            others.map { Constant<TRoot,TCurrent>(it) }.toSet()
+            others.map { ConstantExpression<TRoot,TCurrent>(it) }.toSet()
         )
     }
 
@@ -75,53 +75,53 @@ sealed interface Expression<TRoot, TCurrent> {
         return isAnyOf(others.toSet())
     }
 
-    fun <TOther : Comparable<TCurrent>> isLessThan(exp: Expression<TRoot, TOther>): FlowPredicate<TRoot> {
+    fun <TOther : Comparable<TCurrent>> isLessThan(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(
             this,
             BinaryOperation.LessThan,
             exp
         )
     }
-    fun <TOther: Comparable<TCurrent>> isLessThan(other: TOther): FlowPredicate<TRoot> {
+    fun <TOther: Comparable<TCurrent>> isLessThan(other: TOther): PredicateExpression<TRoot> {
         return isLessThan(
             const(other)
         )
     }
 
-    fun <TOther : Comparable<TCurrent>> isLessThanOrEqual(exp: Expression<TRoot, TOther>): FlowPredicate<TRoot> {
+    fun <TOther : Comparable<TCurrent>> isLessThanOrEqual(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(
             this,
             BinaryOperation.LessThanOrEqual,
             exp
         )
     }
-    fun <TOther: Comparable<TCurrent>> isLessThanOrEqual(other: TOther): FlowPredicate<TRoot> {
+    fun <TOther: Comparable<TCurrent>> isLessThanOrEqual(other: TOther): PredicateExpression<TRoot> {
         return isLessThanOrEqual(
             const(other)
         )
     }
 
-    fun <TOther : Comparable<TCurrent>> isGreaterThan(exp: Expression<TRoot, TOther>): FlowPredicate<TRoot> {
+    fun <TOther : Comparable<TCurrent>> isGreaterThan(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(
             this,
             BinaryOperation.GreaterThan,
             exp
         )
     }
-    fun <TOther: Comparable<TCurrent>> isGreaterThan(other: TOther): FlowPredicate<TRoot> {
+    fun <TOther: Comparable<TCurrent>> isGreaterThan(other: TOther): PredicateExpression<TRoot> {
         return isGreaterThan(
             const(other)
         )
     }
 
-    fun <TOther : Comparable<TCurrent>> isGreaterThanOrEqual(exp: Expression<TRoot, TOther>): FlowPredicate<TRoot> {
+    fun <TOther : Comparable<TCurrent>> isGreaterThanOrEqual(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(
             this,
             BinaryOperation.GreaterThanOrEqual,
             exp
         )
     }
-    fun <TOther: Comparable<TCurrent>> isGreaterThanOrEqual(other: TOther): FlowPredicate<TRoot> {
+    fun <TOther: Comparable<TCurrent>> isGreaterThanOrEqual(other: TOther): PredicateExpression<TRoot> {
         return isGreaterThanOrEqual(
             const(other)
         )
@@ -129,17 +129,17 @@ sealed interface Expression<TRoot, TCurrent> {
 
     companion object {
         fun <TRoot> not(
-            predicate: FlowPredicate<TRoot>
-        ): FlowPredicate<TRoot> {
-            return NotOperator(predicate)
+            predicate: PredicateExpression<TRoot>
+        ): PredicateExpression<TRoot> {
+            return NotExpression(predicate)
         }
 
-        fun <TRoot, T> const(value: T): Constant<TRoot, T> {
-            return Constant(value)
+        fun <TRoot, T> const(value: T): ConstantExpression<TRoot, T> {
+            return ConstantExpression(value)
         }
 
-        fun <T> root(): Root<T> {
-            return Root()
+        fun <T> root(): RootExpression<T> {
+            return RootExpression()
         }
     }
 }

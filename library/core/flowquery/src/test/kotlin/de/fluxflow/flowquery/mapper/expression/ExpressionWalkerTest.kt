@@ -1,7 +1,7 @@
 package de.fluxflow.flowquery.mapper.expression
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.expression.Root
+import de.fluxflow.flowquery.expression.RootExpression
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -14,7 +14,7 @@ class ExpressionWalkerTest {
 
         val result = walker.walk(originalExpression) {
             when(it) {
-                is Root<*> -> {
+                is RootExpression<*> -> {
                     ExpressionWalkerResult.Replace(
                         Expression.Companion.root<TestRoot>()
                             .get(TestRoot::nestedElement)

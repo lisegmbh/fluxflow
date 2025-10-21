@@ -1,6 +1,9 @@
 package de.lise.fluxflow.mongo.flowquery
 
 import de.fluxflow.flowquery.expression.*
+import de.fluxflow.flowquery.expression.compilation.CompilationException
+import de.fluxflow.flowquery.expression.compilation.CompilationResult
+import de.fluxflow.flowquery.expression.compilation.ExpressionCompiler
 import de.lise.fluxflow.mongo.flowquery.token.*
 import org.bson.Document
 import java.util.regex.Pattern
@@ -132,7 +135,7 @@ internal class MongoCompiler(
                 doCompile(root, current.key).toType<ValueToken>(root, current.key)
             )
 
-            is Root<*>, is ConjunctionExpression<TRoot, *> -> RootToken()
+            is RootExpression<*>, is ConjunctionExpression<TRoot, *> -> RootToken()
             is AndExpression<TRoot> -> AndToken(
                 current.predicates.map {
                     doCompile(root, it).toType<ExpressionToken>(root, it)
@@ -145,7 +148,7 @@ internal class MongoCompiler(
                 }
             )
 
-            is NotOperator<TRoot> -> NotToken(
+            is NotExpression<TRoot> -> NotToken(
                 doCompile(root, current.expression).toType<ExpressionToken>(root, current.expression)
             )
 
@@ -159,7 +162,7 @@ internal class MongoCompiler(
                 }
             )
 
-            is Constant -> ConstantToken(current.value)
+            is ConstantExpression -> ConstantToken(current.value)
         }
     }
 

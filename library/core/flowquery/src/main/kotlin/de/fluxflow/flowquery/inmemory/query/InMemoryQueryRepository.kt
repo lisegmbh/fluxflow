@@ -1,7 +1,7 @@
 package de.fluxflow.flowquery.inmemory.query
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.expression.FlowPredicate
+import de.fluxflow.flowquery.expression.PredicateExpression
 import de.fluxflow.flowquery.inmemory.InMemoryCompiler
 import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import de.fluxflow.flowquery.query.*
@@ -112,7 +112,7 @@ class InMemoryQueryRepository<TRoot>(
     ): () -> Collection<Any?> {
         return when (operation) {
             is FilterOperation -> {
-                val predicate = operation.predicate as FlowPredicate<Any?>
+                val predicate = operation.predicate as PredicateExpression<Any?>
                 val compiled = compiler.compile(predicate).result
 
                 return {

@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.expression
 
-data class Constant<TRoot, T>(
+data class ConstantExpression<TRoot, T>(
     val value: T
 ): Expression<TRoot, T> {
     override fun toText(): String {

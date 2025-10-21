@@ -1,14 +1,14 @@
 package de.fluxflow.flowquery.expression
 
-class NotOperator<TRoot>(
-    expression: FlowPredicate<TRoot>
-): FlowPredicate<TRoot> {
-    val expression: FlowPredicate<TRoot> = simplify(expression)
+class NotExpression<TRoot>(
+    expression: PredicateExpression<TRoot>
+): PredicateExpression<TRoot> {
+    val expression: PredicateExpression<TRoot> = simplify(expression)
 
     private companion object {
-        fun <TRoot> simplify(expression: FlowPredicate<TRoot>): FlowPredicate<TRoot> {
+        fun <TRoot> simplify(expression: PredicateExpression<TRoot>): PredicateExpression<TRoot> {
             return when(expression) {
-                is NotOperator -> expression.expression
+                is NotExpression -> expression.expression
                 else -> expression
             }
         }
@@ -23,7 +23,7 @@ class NotOperator<TRoot>(
     }
 
     override fun equals(other: Any?): Boolean {
-        if(other !is NotOperator<*>) {
+        if(other !is NotExpression<*>) {
             return false
         }
         return expression == other.expression

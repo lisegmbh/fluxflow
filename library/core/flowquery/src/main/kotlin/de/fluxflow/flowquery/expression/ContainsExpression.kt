@@ -4,7 +4,7 @@ data class ContainsExpression<TRoot>(
     val value: Expression<TRoot, String>,
     val substring: Expression<TRoot, String>,
     val ignoreCasing: Boolean
-) : FlowPredicate<TRoot> {
+) : PredicateExpression<TRoot> {
     override fun toText(): String {
         return "(${value.toText()}).contains(${substring.toText()}, ${
             when (ignoreCasing) {

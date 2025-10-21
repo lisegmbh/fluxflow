@@ -2,7 +2,7 @@ package de.fluxflow.flowquery.query
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.ExpressionBuilder
-import de.fluxflow.flowquery.expression.FlowPredicate
+import de.fluxflow.flowquery.expression.PredicateExpression
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
@@ -11,7 +11,7 @@ interface FlowQuery<TRoot, TResult> {
     val operations: List<QueryOperation>
     val pagination: PaginationRequest?
 
-    fun where(predicate: FlowPredicate<TRoot>): FlowQuery<TRoot, TResult>
+    fun where(predicate: PredicateExpression<TRoot>): FlowQuery<TRoot, TResult>
     fun where(
         builder: ExpressionBuilder<TRoot, TResult, Boolean>
     ): FlowQuery<TRoot, TResult>

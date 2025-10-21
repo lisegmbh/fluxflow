@@ -11,15 +11,15 @@ data class FlowQueryImpl<TRoot, TResult>(
 ) : FlowQuery<TRoot, TResult> {
 
     private fun simplifyFilter(
-        op: FlowPredicate<TRoot>
-    ): FlowPredicate<TRoot> {
+        op: PredicateExpression<TRoot>
+    ): PredicateExpression<TRoot> {
         return when (op) {
             is PropertyExpression<TRoot, *, Boolean> -> op.isEqual(true)
             else -> op
         }
     }
 
-    override fun where(predicate: FlowPredicate<TRoot>): FlowQuery<TRoot, TResult> {
+    override fun where(predicate: PredicateExpression<TRoot>): FlowQuery<TRoot, TResult> {
         return copy(
             operations = operations + FilterOperation(simplifyFilter(predicate))
         )

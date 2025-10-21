@@ -1,12 +1,12 @@
 package de.fluxflow.flowquery.expression
 
 class OrExpression<TRoot>(
-    predicates: List<FlowPredicate<TRoot>>
-): FlowPredicate<TRoot> {
+    predicates: List<PredicateExpression<TRoot>>
+): PredicateExpression<TRoot> {
     val predicates = predicates.simplify()
 
     private companion object {
-        private fun <TRoot> List<FlowPredicate<TRoot>>.simplify(): List<FlowPredicate<TRoot>> {
+        private fun <TRoot> List<PredicateExpression<TRoot>>.simplify(): List<PredicateExpression<TRoot>> {
             return this.flatMap {
                 when(it) {
                     is OrExpression<TRoot> -> it.predicates

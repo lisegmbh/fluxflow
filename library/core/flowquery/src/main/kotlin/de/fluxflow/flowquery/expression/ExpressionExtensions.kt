@@ -4,7 +4,7 @@ import kotlin.reflect.KClass
 
 object ExpressionExtensions {
     object Logical {
-        fun <TRoot> FlowPredicate<TRoot>.and(vararg others: FlowPredicate<TRoot>): AndExpression<TRoot> {
+        fun <TRoot> PredicateExpression<TRoot>.and(vararg others: PredicateExpression<TRoot>): AndExpression<TRoot> {
             return AndExpression(
                 listOf(
                     this,
@@ -13,7 +13,7 @@ object ExpressionExtensions {
             )
         }
         
-        fun <TRoot> FlowPredicate<TRoot>.and(
+        fun <TRoot> PredicateExpression<TRoot>.and(
             builder: ExpressionBuilder<TRoot, TRoot, Boolean>,
         ): AndExpression<TRoot> {
             return AndExpression(
@@ -24,7 +24,7 @@ object ExpressionExtensions {
             )
         }
 
-        fun <TRoot> FlowPredicate<TRoot>.or(vararg others: FlowPredicate<TRoot>): OrExpression<TRoot> {
+        fun <TRoot> PredicateExpression<TRoot>.or(vararg others: PredicateExpression<TRoot>): OrExpression<TRoot> {
             return OrExpression(
                 listOf(
                     this,
@@ -33,9 +33,9 @@ object ExpressionExtensions {
             )
         }
 
-        fun <TRoot> FlowPredicate<TRoot>.or(
+        fun <TRoot> PredicateExpression<TRoot>.or(
             builder: ExpressionBuilder<TRoot, TRoot, Boolean>
-        ): FlowPredicate<TRoot> {
+        ): PredicateExpression<TRoot> {
             return OrExpression(
                 listOf(
                     this,
@@ -44,8 +44,8 @@ object ExpressionExtensions {
             )
         }
         
-        fun <TRoot> FlowPredicate<TRoot>.not(): NotOperator<TRoot> {
-            return NotOperator(
+        fun <TRoot> PredicateExpression<TRoot>.not(): NotExpression<TRoot> {
+            return NotExpression(
                 this
             )
         }
@@ -118,8 +118,8 @@ object ExpressionExtensions {
 
     object Collections {
         fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.containsElementThat(
-            elementPredicate: FlowPredicate<TElement>
-        ): FlowPredicate<TRoot> {
+            elementPredicate: PredicateExpression<TElement>
+        ): PredicateExpression<TRoot> {
             return ContainsElementThatExpression(
                 this,
                 elementPredicate
@@ -127,8 +127,8 @@ object ExpressionExtensions {
         }
 
         fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.containsElementThat(
-            builder: Root<TElement>.() -> FlowPredicate<TElement>
-        ): FlowPredicate<TRoot> {
+            builder: RootExpression<TElement>.() -> PredicateExpression<TElement>
+        ): PredicateExpression<TRoot> {
             return this.containsElementThat(
                 builder(Expression.root())
             )
@@ -155,7 +155,7 @@ object ExpressionExtensions {
     object Types {
         fun <TRoot, TCurrent: Any, TRequiredType: TCurrent> Expression<TRoot, TCurrent>.isType(
             type: KClass<TRequiredType>
-        ): FlowPredicate<TRoot> {
+        ): PredicateExpression<TRoot> {
             return IsTypeExpression(
                 this,
                 type

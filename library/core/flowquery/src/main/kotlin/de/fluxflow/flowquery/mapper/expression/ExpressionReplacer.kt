@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.mapper.expression
 
-import de.fluxflow.flowquery.expression.Constant
+import de.fluxflow.flowquery.expression.ConstantExpression
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.PropertyExpression
 import kotlin.reflect.KProperty1
@@ -14,7 +14,7 @@ fun interface ExpressionReplacer {
         ): ExpressionReplacer {
             return ExpressionReplacer {
                 when(it) {
-                    is Constant<*,*> if it.value is T -> replacement(it.value)
+                    is ConstantExpression<*,*> if it.value is T -> replacement(it.value)
                     else -> null
                 }
             }
@@ -53,7 +53,7 @@ fun interface ExpressionReplacer {
             return PriorityExpressionReplacer(
                 listOf(
                     constantOfType<TDomainValue> {
-                        Constant<Any, TProperty>(
+                        ConstantExpression<Any, TProperty>(
                             valueProperty.get(it)
                         )
                     },

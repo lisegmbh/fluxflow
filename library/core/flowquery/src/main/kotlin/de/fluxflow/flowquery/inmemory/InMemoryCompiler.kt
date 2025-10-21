@@ -1,6 +1,9 @@
 package de.fluxflow.flowquery.inmemory
 
 import de.fluxflow.flowquery.expression.*
+import de.fluxflow.flowquery.expression.compilation.CompilationException
+import de.fluxflow.flowquery.expression.compilation.CompilationResult
+import de.fluxflow.flowquery.expression.compilation.ExpressionCompiler
 import de.fluxflow.flowquery.inmemory.ops.*
 import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import kotlin.reflect.KProperty1
@@ -10,7 +13,10 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
         expression: Expression<TRoot, TResult>
     ): CompilationResult<InMemoryOperation<TRoot, TResult>> {
         return CompilationResult(
-            doCompile(expression, expression)
+            doCompile(
+                expression,
+                expression
+            )
         )
     }
 
@@ -19,7 +25,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
         exp: Expression<TRoot, TResult>
     ): InMemoryOperation<TRoot, TResult> {
         return when (exp) {
-            is Root<*> -> RootOp()
+            is RootExpression<*> -> RootOp()
             is AndExpression<TRoot> -> {
                 val conditions = exp.predicates.map { predicate ->
                     doCompile(rootExpression, predicate)
@@ -34,7 +40,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 OrOp(conditions)
             }
 
-            is NotOperator<TRoot> -> {
+            is NotExpression<TRoot> -> {
                 val expression = doCompile(rootExpression, exp.expression)
                 NotOp(
                     expression
@@ -114,7 +120,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 )
             }
 
-            is Constant<*, *> -> ConstOp(exp.value)
+            is ConstantExpression<*, *> -> ConstOp(exp.value)
             is ConjunctionExpression<*, *> -> ConjunctionOp()
             is StartsWithExpression<TRoot> -> {
                 StartsWithOp(
