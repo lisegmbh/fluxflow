@@ -16,7 +16,7 @@ sealed interface Expression<TRoot, TCurrent> {
     }
 
     // Logical operators
-    fun and(vararg builders: Expression<TRoot, TCurrent>.() -> FlowPredicate<TRoot>): AndOperator<TRoot> {
+    fun and(vararg builders: ExpressionBuilder<TRoot, TCurrent, Boolean>): AndOperator<TRoot> {
         return builders.map { builder ->
             builder(this)
         }.let {
@@ -24,7 +24,7 @@ sealed interface Expression<TRoot, TCurrent> {
         }
     }
 
-    fun or(vararg builders: Expression<TRoot, TCurrent>.() -> FlowPredicate<TRoot>): OrOperator<TRoot> {
+    fun or(vararg builders: ExpressionBuilder<TRoot, TCurrent, Boolean>): OrOperator<TRoot> {
         return builders.map { builder ->
             builder(this)
         }.let {
@@ -32,7 +32,7 @@ sealed interface Expression<TRoot, TCurrent> {
         }
     }
 
-    fun not(builder: Expression<TRoot, TCurrent>.() -> FlowPredicate<TRoot>): NotOperator<TRoot> {
+    fun not(builder: ExpressionBuilder<TRoot, TCurrent, Boolean>): NotOperator<TRoot> {
         return NotOperator(builder(this))
     }
 

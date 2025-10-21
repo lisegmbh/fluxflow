@@ -1,6 +1,7 @@
 package de.lise.fluxflow.api.step
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.FlowQueryBuilder
 import de.lise.fluxflow.api.step.query.StepQuery
 import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.workflow.Workflow
@@ -10,8 +11,29 @@ interface StepService {
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>): List<Step>
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: StepQuery): Page<Step>
     fun findSteps(query: StepQuery): Page<Step>
+    
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: FlowQuery<StepQueryable, StepQueryable>): Page<Step>
+    fun <TWorkflowModel> findSteps(
+        workflow: Workflow<TWorkflowModel>, 
+        builder: FlowQueryBuilder<StepQueryable, StepQueryable>
+    ): Page<Step> {
+        return findSteps(
+            workflow,
+            builder(
+                FlowQuery.of()
+            )
+        )
+    }
+    
     fun findSteps(query: FlowQuery<StepQueryable, StepQueryable>): Page<Step>
+    fun findSteps(builder: FlowQueryBuilder<StepQueryable, StepQueryable>): Page<Step> {
+        return findSteps(
+            builder(
+                FlowQuery.of()
+            )
+        )
+    }
+    
     fun <TWorkflowModel> findStep(workflow: Workflow<TWorkflowModel>, stepIdentifier: StepIdentifier): Step?
 
     /**

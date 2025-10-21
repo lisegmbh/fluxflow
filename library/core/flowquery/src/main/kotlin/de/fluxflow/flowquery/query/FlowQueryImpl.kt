@@ -1,9 +1,6 @@
 package de.fluxflow.flowquery.query
 
-import de.fluxflow.flowquery.expression.ConjunctionExpression
-import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.expression.FlowPredicate
-import de.fluxflow.flowquery.expression.PropertyExpression
+import de.fluxflow.flowquery.expression.*
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
@@ -28,7 +25,7 @@ data class FlowQueryImpl<TRoot, TResult>(
         )
     }
 
-    override fun where(builder: Expression<TRoot, TResult>.() -> FlowPredicate<TRoot>): FlowQuery<TRoot, TResult> {
+    override fun where(builder:  ExpressionBuilder<TRoot, TResult, Boolean>): FlowQuery<TRoot, TResult> {
         return where(
             builder(cursor)
         )

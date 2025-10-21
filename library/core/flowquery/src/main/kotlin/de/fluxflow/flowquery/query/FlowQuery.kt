@@ -1,6 +1,7 @@
 package de.fluxflow.flowquery.query
 
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.expression.ExpressionBuilder
 import de.fluxflow.flowquery.expression.FlowPredicate
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
@@ -12,7 +13,7 @@ interface FlowQuery<TRoot, TResult> {
 
     fun where(predicate: FlowPredicate<TRoot>): FlowQuery<TRoot, TResult>
     fun where(
-        builder: Expression<TRoot, TResult>.() -> FlowPredicate<TRoot>
+        builder: ExpressionBuilder<TRoot, TResult, Boolean>
     ): FlowQuery<TRoot, TResult>
 
     fun <TNewResult> project(projection: Expression<TResult, TNewResult>): FlowQuery<TRoot, TNewResult>
@@ -56,7 +57,7 @@ interface FlowQuery<TRoot, TResult> {
         }
 
         fun <TRoot, TResult> of(
-            builder: FlowQuery<TRoot,TRoot>.() -> FlowQuery<TRoot, TResult>
+            builder: FlowQueryBuilder<TRoot, TResult>
         ): FlowQuery<TRoot, TResult> {
             return builder(
                 of()
