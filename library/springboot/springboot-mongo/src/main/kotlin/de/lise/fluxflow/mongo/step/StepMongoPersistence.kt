@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.step
 
 import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
@@ -54,7 +55,7 @@ class StepMongoPersistence(
         }
     }
 
-    override fun findAll(query: de.fluxflow.flowquery.query.FlowQuery<StepData, StepData>): Page<StepData> {
+    override fun findAll(query: FlowQuery<StepData, StepData>): Page<StepData> {
         return queryableRepository.find(
             queryMapper.map(query)
         ).map {

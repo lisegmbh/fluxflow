@@ -8,12 +8,9 @@ import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfiguration
 import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfigurer
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersistence
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
-import de.lise.fluxflow.mongo.flowquery.WorkflowDataToDocumentMapper
-import de.lise.fluxflow.mongo.flowquery.MongoCompiler
-import de.lise.fluxflow.mongo.flowquery.StepDataToDocumentMapper
-import de.lise.fluxflow.mongo.flowquery.SubclassProvider
-import de.lise.fluxflow.mongo.flowquery.SubclassProviderImpl
+import de.lise.fluxflow.mongo.flowquery.*
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
+import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.migration.MigrationMongoPersistence
@@ -28,6 +25,7 @@ import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistence
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
+import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
@@ -45,7 +43,6 @@ import org.springframework.core.annotation.Order
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.convert.MongoConverter
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
-
 
 @Configuration
 @EnableMongoRepositories
@@ -133,11 +130,34 @@ open class MongoConfiguration {
     }
 
     @Bean
+    internal open fun jobQueryRepository(
+        mongoCompiler: MongoCompiler,
+        mongoTemplate: MongoTemplate
+    ): MongoQueryRepository<JobDocument> {
+        return MongoQueryRepository(
+            rootType = JobDocument::class,
+            compiler = mongoCompiler,
+            template = mongoTemplate
+        )
+    }
+    
+    @Bean
+    internal open fun jobQueryMapper(): QueryMapper<JobData, JobDocument> {
+        return QueryMapperImpl(
+            JobDataToDocumentMapper()
+        )
+    }
+    
+    @Bean
     open fun jobPersistence(
-        jobRepository: JobRepository
+        jobRepository: JobRepository,
+        queryableRepository: MongoQueryRepository<JobDocument>,
+        queryMapper: QueryMapper<JobData, JobDocument>,
     ): JobPersistence {
         return JobMongoPersistence(
-            jobRepository
+            jobRepository,
+            queryableRepository,
+            queryMapper
         )
     }
 

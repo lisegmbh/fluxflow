@@ -9,6 +9,7 @@ import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
+import de.lise.fluxflow.api.job.query.JobQueryable
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
@@ -38,7 +39,9 @@ import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.migration.MigrationService
 import de.lise.fluxflow.migration.MigrationServiceImpl
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
+import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataMapper
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
@@ -223,8 +226,7 @@ open class BasicConfiguration {
     }
 
     @Bean
-    open fun workflowToDataMapper(
-    ): QueryMapper<Workflow<*>, WorkflowData> {
+    open fun workflowToDataMapper(): QueryMapper<Workflow<*>, WorkflowData> {
         return QueryMapperImpl(
             WorkflowToDataMapper()
         )
@@ -634,16 +636,25 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun jobToDataMapper(): QueryMapper<JobQueryable, JobData> {
+        return QueryMapperImpl(
+            JobQueryableToDataMapper()
+        )
+    }
+    
+    @Bean
     open fun jobService(
         jobActivationService: JobActivationService,
         jobPersistence: JobPersistence,
         schedulingService: SchedulingService,
+        queryMapper: QueryMapper<JobQueryable, JobData>
     ): JobServiceImpl {
         return JobServiceImpl(
-            jobActivationService,
-            jobPersistence,
-            schedulingService,
-            workflowService!!,
+            jobActivationService = jobActivationService,
+            jobPersistence = jobPersistence,
+            schedulingService = schedulingService,
+            workflowService = workflowService!!,
+            queryMapper = queryMapper
         )
     }
 

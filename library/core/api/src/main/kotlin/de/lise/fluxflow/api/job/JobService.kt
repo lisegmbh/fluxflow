@@ -1,7 +1,10 @@
 package de.lise.fluxflow.api.job
 
+import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.FlowQueryBuilder
 import de.lise.fluxflow.api.job.continuation.JobContinuation
 import de.lise.fluxflow.api.job.query.JobQuery
+import de.lise.fluxflow.api.job.query.JobQueryable
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.query.pagination.Page
 
@@ -118,7 +121,17 @@ interface JobService {
      * @return A [Page] containing matching [Job] instances.
      */
     fun findAll(query: JobQuery): Page<Job>
-
+    
+    fun findAll(query: FlowQuery<JobQueryable, JobQueryable>): Page<Job>
+    
+    fun findAll(
+        builder: FlowQueryBuilder<JobQueryable, JobQueryable>
+    ): Page<Job> {
+        return findAll(
+            builder(FlowQuery.of())
+        )
+    }
+    
     /**
      * Deletes all jobs matching the given [jobsIdentifiers].
      *

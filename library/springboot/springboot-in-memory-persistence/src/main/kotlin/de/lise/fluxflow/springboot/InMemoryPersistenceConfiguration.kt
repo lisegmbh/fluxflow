@@ -55,9 +55,13 @@ open class InMemoryPersistenceConfiguration {
 
     @Bean
     open fun jobPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): JobPersistence {
-        return JobTestPersistence(idGenerator)
+        return JobTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler
+        )
     }
 
     @Bean

@@ -1,6 +1,7 @@
 package de.lise.fluxflow.engine.step
 
 import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.state.ChangeDetector
@@ -106,7 +107,7 @@ class StepServiceImpl(
         return fromPage(page)
     }
 
-    override fun findSteps(query: de.fluxflow.flowquery.query.FlowQuery<StepQueryable, StepQueryable>): Page<Step> {
+    override fun findSteps(query: FlowQuery<StepQueryable, StepQueryable>): Page<Step> {
         val page = persistence.findAll(
             queryMapper.map(query)
         )
@@ -115,7 +116,7 @@ class StepServiceImpl(
 
     override fun <TWorkflowModel> findSteps(
         workflow: Workflow<TWorkflowModel>,
-        query: de.fluxflow.flowquery.query.FlowQuery<StepQueryable, StepQueryable>
+        query: FlowQuery<StepQueryable, StepQueryable>
     ): Page<Step> {
         return persistence.findAll(
             queryMapper.map(
