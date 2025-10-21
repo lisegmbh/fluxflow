@@ -3,17 +3,17 @@ package de.lise.fluxflow.mongo.workflow
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
-import de.fluxflow.flowquery.query.Query
+import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.desc
 import de.lise.fluxflow.mongo.MongoIntegrationTest
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
-import org.assertj.core.api.Assertions.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.mongodb.core.MongoTemplate
-import java.util.UUID
+import java.util.*
 
 private typealias MongoQuery = org.springframework.data.mongodb.core.query.Query
 
@@ -27,7 +27,7 @@ class WorkflowMongoPersistenceIT {
     @Test
     fun `find all should support filter, sorting and pagination`() {
         val result = workflowPersistence.findAll(
-            Query.of {
+            FlowQuery.of {
                 where {
                     get(WorkflowData::model).asType(TestModel::class)
                         .get(TestModel::aStringProperty)

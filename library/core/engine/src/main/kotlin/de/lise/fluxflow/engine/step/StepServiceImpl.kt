@@ -106,7 +106,7 @@ class StepServiceImpl(
         return fromPage(page)
     }
 
-    override fun findSteps(query: de.fluxflow.flowquery.query.Query<StepQueryable, StepQueryable>): Page<Step> {
+    override fun findSteps(query: de.fluxflow.flowquery.query.FlowQuery<StepQueryable, StepQueryable>): Page<Step> {
         val page = persistence.findAll(
             queryMapper.map(query)
         )
@@ -115,7 +115,7 @@ class StepServiceImpl(
 
     override fun <TWorkflowModel> findSteps(
         workflow: Workflow<TWorkflowModel>,
-        query: de.fluxflow.flowquery.query.Query<StepQueryable, StepQueryable>
+        query: de.fluxflow.flowquery.query.FlowQuery<StepQueryable, StepQueryable>
     ): Page<Step> {
         return persistence.findAll(
             queryMapper.map(

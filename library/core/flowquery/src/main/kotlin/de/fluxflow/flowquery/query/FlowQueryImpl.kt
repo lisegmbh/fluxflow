@@ -7,11 +7,11 @@ import de.fluxflow.flowquery.expression.PropertyExpression
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
-data class QueryImpl<TRoot, TResult>(
+data class FlowQueryImpl<TRoot, TResult>(
     override val cursor: Expression<TRoot, TResult>,
     override val operations: List<QueryOperation>,
     override val pagination: PaginationRequest?,
-) : Query<TRoot, TResult> {
+) : FlowQuery<TRoot, TResult> {
 
     private fun simplifyFilter(
         op: FlowPredicate<TRoot>
@@ -22,51 +22,51 @@ data class QueryImpl<TRoot, TResult>(
         }
     }
 
-    override fun where(predicate: FlowPredicate<TRoot>): Query<TRoot, TResult> {
+    override fun where(predicate: FlowPredicate<TRoot>): FlowQuery<TRoot, TResult> {
         return copy(
             operations = operations + FilterOperation(simplifyFilter(predicate))
         )
     }
 
-    override fun where(builder: Expression<TRoot, TResult>.() -> FlowPredicate<TRoot>): Query<TRoot, TResult> {
+    override fun where(builder: Expression<TRoot, TResult>.() -> FlowPredicate<TRoot>): FlowQuery<TRoot, TResult> {
         return where(
             builder(cursor)
         )
     }
 
-    override fun <TNewResult> project(projection: Expression<TResult, TNewResult>): Query<TRoot, TNewResult> {
-        return QueryImpl(
+    override fun <TNewResult> project(projection: Expression<TResult, TNewResult>): FlowQuery<TRoot, TNewResult> {
+        return FlowQueryImpl(
             cursor = ConjunctionExpression(),
             operations = operations + ProjectionOperation(projection),
             pagination = pagination
         )
     }
 
-    override fun <TNewResult> project(builder: Expression<TRoot, TResult>.() -> Expression<TResult, TNewResult>): Query<TRoot, TNewResult> {
+    override fun <TNewResult> project(builder: Expression<TRoot, TResult>.() -> Expression<TResult, TNewResult>): FlowQuery<TRoot, TNewResult> {
         return project(
             builder(cursor)
         )
     }
 
-    override fun sort(sorting: Sorting): Query<TRoot, TResult> {
+    override fun sort(sorting: Sorting): FlowQuery<TRoot, TResult> {
         return copy(
             operations = operations + SortingOperation(sorting)
         )
     }
 
-    override fun sort(builder: Expression<TRoot, TResult>.() -> Sorting): Query<TRoot, TResult> {
+    override fun sort(builder: Expression<TRoot, TResult>.() -> Sorting): FlowQuery<TRoot, TResult> {
         return sort(
             builder(cursor)
         )
     }
 
-    override fun limit(amount: Long): Query<TRoot, TResult> {
+    override fun limit(amount: Long): FlowQuery<TRoot, TResult> {
         return copy(
             operations = operations + LimitOperation(amount)
         )
     }
 
-    override fun paged(pagination: PaginationRequest): Query<TRoot, TResult> {
+    override fun paged(pagination: PaginationRequest): FlowQuery<TRoot, TResult> {
         return copy(
             pagination = pagination
         )

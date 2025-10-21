@@ -2,7 +2,7 @@ package de.lise.fluxflow.test.persistence.step
 
 import de.fluxflow.flowquery.inmemory.InMemoryCompiler
 import de.fluxflow.flowquery.inmemory.query.InMemoryQueryRepository
-import de.fluxflow.flowquery.query.Query
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.step.StepData
@@ -44,7 +44,7 @@ class StepTestPersistence(
         return applyQuery(entities.values, query)
     }
 
-    override fun findAll(query: Query<StepData, StepData>): Page<StepData> {
+    override fun findAll(query: FlowQuery<StepData, StepData>): Page<StepData> {
         return inMemoryQueryRepository.find(query)
     }
 

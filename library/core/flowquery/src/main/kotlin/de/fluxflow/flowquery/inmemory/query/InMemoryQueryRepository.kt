@@ -15,7 +15,7 @@ class InMemoryQueryRepository<TRoot>(
 ) : FlowQueryRepository<TRoot> {
     override fun <TResult> find(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>
+        query: FlowQuery<TRoot, TResult>
     ): List<TResult> {
         var currentTransform: () -> Collection<Any?> = { elementGetter() }
 
@@ -32,7 +32,7 @@ class InMemoryQueryRepository<TRoot>(
         }.toList()
     }
 
-    override fun find(query: Query<TRoot, TRoot>): Page<TRoot> {
+    override fun find(query: FlowQuery<TRoot, TRoot>): Page<TRoot> {
         var currentTransform: () -> Collection<Any?> = { elementGetter() }
 
         for (currentOperation in query.operations) {
@@ -52,7 +52,7 @@ class InMemoryQueryRepository<TRoot>(
 
     override fun <TResult> findFirst(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>
+        query: FlowQuery<TRoot, TResult>
     ): TResult {
         return find(
             resultType,
@@ -60,13 +60,13 @@ class InMemoryQueryRepository<TRoot>(
         ).first()
     }
 
-    override fun findFirst(query: Query<TRoot, TRoot>): TRoot {
+    override fun findFirst(query: FlowQuery<TRoot, TRoot>): TRoot {
         return find(query).items.first()
     }
 
     override fun <TResult> findFirstOrNull(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>
+        query: FlowQuery<TRoot, TResult>
     ): TResult? {
         return find(
             resultType,
@@ -74,13 +74,13 @@ class InMemoryQueryRepository<TRoot>(
         ).firstOrNull()
     }
 
-    override fun findFirstOrNull(query: Query<TRoot, TRoot>): TRoot? {
+    override fun findFirstOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
         return find(query).items.firstOrNull()
     }
 
     override fun <TResult> findSingle(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>
+        query: FlowQuery<TRoot, TResult>
     ): TResult {
         return find(
             resultType,
@@ -88,13 +88,13 @@ class InMemoryQueryRepository<TRoot>(
         ).single()
     }
 
-    override fun findSingle(query: Query<TRoot, TRoot>): TRoot {
+    override fun findSingle(query: FlowQuery<TRoot, TRoot>): TRoot {
         return find(query).items.single()
     }
 
     override fun <TResult> findSingleOrNull(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>
+        query: FlowQuery<TRoot, TResult>
     ): TResult? {
         return find(
             resultType,
@@ -102,7 +102,7 @@ class InMemoryQueryRepository<TRoot>(
         ).singleOrNull()
     }
 
-    override fun findSingleOrNull(query: Query<TRoot, TRoot>): TRoot? {
+    override fun findSingleOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
         return find(query).items.singleOrNull()
     }
 

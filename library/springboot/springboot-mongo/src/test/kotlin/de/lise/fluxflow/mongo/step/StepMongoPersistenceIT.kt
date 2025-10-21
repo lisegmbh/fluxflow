@@ -1,10 +1,9 @@
 package de.lise.fluxflow.mongo.step
 
-import de.fluxflow.flowquery.expression.Constant
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
-import de.fluxflow.flowquery.query.Query
+import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.mongo.MongoIntegrationTest
@@ -30,7 +29,7 @@ class StepMongoPersistenceIT {
     fun `find all should support filter, sorting and pagination`() {
         // Act
         val result = stepPersistence.findAll(
-            Query.of {
+            FlowQuery.of {
                 where {
                     get(StepData::workflowId).isEqual(workflowId1)
                 }.sort {

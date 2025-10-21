@@ -1,6 +1,6 @@
 package de.lise.fluxflow.api.workflow
 
-import de.fluxflow.flowquery.query.Query
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
@@ -50,7 +50,7 @@ interface WorkflowQueryService {
     ): Page<Workflow<*>> {
         return getAll(
             queryBuilder(
-                Query.of()
+                FlowQuery.of()
             )
         )
     }

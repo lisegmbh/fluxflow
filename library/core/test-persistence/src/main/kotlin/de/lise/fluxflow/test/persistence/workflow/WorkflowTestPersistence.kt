@@ -2,7 +2,7 @@ package de.lise.fluxflow.test.persistence.workflow
 
 import de.fluxflow.flowquery.inmemory.InMemoryCompiler
 import de.fluxflow.flowquery.inmemory.query.InMemoryQueryRepository
-import de.fluxflow.flowquery.query.Query
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
@@ -63,7 +63,7 @@ class WorkflowTestPersistence(
         )
     }
 
-    override fun findAll(query: Query<WorkflowData, WorkflowData>): Page<WorkflowData> {
+    override fun findAll(query: FlowQuery<WorkflowData, WorkflowData>): Page<WorkflowData> {
         return inMemoryQueryRepository.find(query)
     }
 

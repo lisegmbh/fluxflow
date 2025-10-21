@@ -1,7 +1,7 @@
 package de.lise.fluxflow.mongo.workflow
 
 import de.fluxflow.flowquery.mapper.query.QueryMapper
-import de.fluxflow.flowquery.query.Query
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepository
 import de.lise.fluxflow.mongo.workflow.query.WorkflowDocumentQuery
@@ -37,7 +37,7 @@ class WorkflowMongoPersistence(
         ).map { it.toWorkflowData() }
     }
 
-    override fun findAll(query: Query<WorkflowData, WorkflowData>): Page<WorkflowData> {
+    override fun findAll(query: FlowQuery<WorkflowData, WorkflowData>): Page<WorkflowData> {
         return queryableRepository.find(
             queryMapper.map(query)
         ).map {

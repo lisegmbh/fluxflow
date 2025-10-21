@@ -54,7 +54,7 @@ class StepMongoPersistence(
         }
     }
 
-    override fun findAll(query: de.fluxflow.flowquery.query.Query<StepData, StepData>): Page<StepData> {
+    override fun findAll(query: de.fluxflow.flowquery.query.FlowQuery<StepData, StepData>): Page<StepData> {
         return queryableRepository.find(
             queryMapper.map(query)
         ).map {

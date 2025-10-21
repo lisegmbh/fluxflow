@@ -5,33 +5,33 @@ import de.fluxflow.flowquery.expression.FlowPredicate
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
-interface Query<TRoot, TResult> {
+interface FlowQuery<TRoot, TResult> {
     val cursor: Expression<TRoot, TResult>
     val operations: List<QueryOperation>
     val pagination: PaginationRequest?
 
-    fun where(predicate: FlowPredicate<TRoot>): Query<TRoot, TResult>
+    fun where(predicate: FlowPredicate<TRoot>): FlowQuery<TRoot, TResult>
     fun where(
         builder: Expression<TRoot, TResult>.() -> FlowPredicate<TRoot>
-    ): Query<TRoot, TResult>
+    ): FlowQuery<TRoot, TResult>
 
-    fun <TNewResult> project(projection: Expression<TResult, TNewResult>): Query<TRoot, TNewResult>
+    fun <TNewResult> project(projection: Expression<TResult, TNewResult>): FlowQuery<TRoot, TNewResult>
     fun <TNewResult> project(
         builder: Expression<TRoot, TResult>.() -> Expression<TResult, TNewResult>
-    ): Query<TRoot, TNewResult>
+    ): FlowQuery<TRoot, TNewResult>
 
-    fun sort(sorting: Sorting): Query<TRoot, TResult>
+    fun sort(sorting: Sorting): FlowQuery<TRoot, TResult>
     fun sort(
         builder: Expression<TRoot, TResult>.() -> Sorting
-    ): Query<TRoot, TResult>
+    ): FlowQuery<TRoot, TResult>
 
-    fun limit(amount: Long): Query<TRoot, TResult>
+    fun limit(amount: Long): FlowQuery<TRoot, TResult>
 
-    fun paged(pagination: PaginationRequest): Query<TRoot, TResult>
+    fun paged(pagination: PaginationRequest): FlowQuery<TRoot, TResult>
     fun paged(
         pageIndex: Int,
         pageSize: Int
-    ): Query<TRoot, TResult> {
+    ): FlowQuery<TRoot, TResult> {
         return paged(
             PaginationRequest(
                 pageIndex = pageIndex,
@@ -47,8 +47,8 @@ interface Query<TRoot, TResult> {
     }
 
     companion object {
-        fun <TRoot> of(): Query<TRoot, TRoot> {
-            return QueryImpl(
+        fun <TRoot> of(): FlowQuery<TRoot, TRoot> {
+            return FlowQueryImpl(
                 Expression.root(),
                 operations = emptyList(),
                 pagination = null
@@ -56,8 +56,8 @@ interface Query<TRoot, TResult> {
         }
 
         fun <TRoot, TResult> of(
-            builder: Query<TRoot,TRoot>.() -> Query<TRoot, TResult>
-        ): Query<TRoot, TResult> {
+            builder: FlowQuery<TRoot,TRoot>.() -> FlowQuery<TRoot, TResult>
+        ): FlowQuery<TRoot, TResult> {
             return builder(
                 of()
             )

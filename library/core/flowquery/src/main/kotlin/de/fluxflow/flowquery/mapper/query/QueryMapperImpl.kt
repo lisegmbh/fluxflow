@@ -11,8 +11,8 @@ class QueryMapperImpl<TFromRoot, TToRoot>(
     private val expressionMapper: ExpressionMapper
 ): QueryMapper<TFromRoot, TToRoot> {
 
-    override fun <TNewResult> map(query: Query<TFromRoot, *>): Query<TToRoot, TNewResult> {
-        return QueryImpl(
+    override fun <TNewResult> map(query: FlowQuery<TFromRoot, *>): FlowQuery<TToRoot, TNewResult> {
+        return FlowQueryImpl(
             cursor = expressionMapper.mapOrKeep(query.cursor) as Expression<TToRoot, TNewResult>,
             operations = query.operations.map {
                 mapOperation(it)

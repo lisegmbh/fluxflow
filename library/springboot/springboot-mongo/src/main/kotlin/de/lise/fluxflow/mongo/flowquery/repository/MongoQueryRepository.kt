@@ -31,7 +31,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
 
     override fun <TResult> find(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>,
+        query: FlowQuery<TRoot, TResult>,
     ): List<TResult> {
         return execute(
             query,
@@ -40,7 +40,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
     }
 
 
-    override fun find(query: Query<TRoot, TRoot>): de.lise.fluxflow.query.pagination.Page<TRoot> {
+    override fun find(query: FlowQuery<TRoot, TRoot>): de.lise.fluxflow.query.pagination.Page<TRoot> {
        return execute(
            query,
            rootType,
@@ -59,7 +59,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
 
     override fun <TResult> findFirst(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>,
+        query: FlowQuery<TRoot, TResult>,
     ): TResult {
         return execute(
             query.limit(1), // We only need the first entry
@@ -67,7 +67,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         ).elements.first()!!
     }
 
-    override fun findFirst(query: Query<TRoot, TRoot>): TRoot {
+    override fun findFirst(query: FlowQuery<TRoot, TRoot>): TRoot {
         return findFirst(
             rootType,
             query
@@ -76,7 +76,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
 
     override fun <TResult> findFirstOrNull(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>,
+        query: FlowQuery<TRoot, TResult>,
     ): TResult? {
         return execute(
             query.limit(1), // We only need the first entry
@@ -84,7 +84,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         ).elements.firstOrNull()
     }
 
-    override fun findFirstOrNull(query: Query<TRoot, TRoot>): TRoot? {
+    override fun findFirstOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
         return findFirstOrNull(
             rootType,
             query,
@@ -93,7 +93,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
 
     override fun <TResult> findSingle(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>,
+        query: FlowQuery<TRoot, TResult>,
     ): TResult {
         return execute(
             query.limit(2), // We need to over-fetch by one, so we can detect non-distinct results
@@ -101,7 +101,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         ).elements.single()!!
     }
 
-    override fun findSingle(query: Query<TRoot, TRoot>): TRoot {
+    override fun findSingle(query: FlowQuery<TRoot, TRoot>): TRoot {
         return findSingle(
             rootType,
             query
@@ -110,7 +110,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
 
     override fun <TResult> findSingleOrNull(
         resultType: Class<TResult>,
-        query: Query<TRoot, TResult>,
+        query: FlowQuery<TRoot, TResult>,
     ): TResult? {
         return execute(
             query.limit(2), // We need to over-fetch by one, so we can detect non-distinct results
@@ -118,7 +118,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
         ).elements.singleOrNull()
     }
 
-    override fun findSingleOrNull(query: Query<TRoot, TRoot>): TRoot? {
+    override fun findSingleOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
         return findSingleOrNull(
             rootType,
             query
@@ -126,7 +126,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
     }
 
     private fun <TResult> execute(
-        query: Query<TRoot, TResult>,
+        query: FlowQuery<TRoot, TResult>,
         resultType: Class<TResult>
     ): MongoExecutionResults<TResult> {
         val pagination = query.pagination
@@ -215,7 +215,7 @@ class MongoQueryRepository<TRoot : Any> internal constructor(
     }
 
     private fun <TResult> toAggregation(
-        query: Query<TRoot, TResult>,
+        query: FlowQuery<TRoot, TResult>,
     ): Aggregation {
         return query.operations.flatMap {
             toAggregationOperation(it)

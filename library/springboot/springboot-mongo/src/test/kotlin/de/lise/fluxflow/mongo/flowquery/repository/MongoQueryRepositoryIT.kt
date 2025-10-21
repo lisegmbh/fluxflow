@@ -53,7 +53,7 @@ class MongoQueryRepositoryIT {
     fun `find with an empty query should return all documents`() {
         // Act
         val result = repo.find(
-            de.fluxflow.flowquery.query.Query.Companion.of()
+            de.fluxflow.flowquery.query.FlowQuery.Companion.of()
         ).items
 
         // Assert
