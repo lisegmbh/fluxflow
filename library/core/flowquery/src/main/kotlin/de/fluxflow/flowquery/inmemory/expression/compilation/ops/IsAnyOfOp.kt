@@ -1,11 +1,9 @@
-package de.fluxflow.flowquery.inmemory.ops
-
-import de.fluxflow.flowquery.inmemory.InMemoryOperation
+package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
 internal data class IsAnyOfOp<TRoot>(
-    private val expression: InMemoryOperation<TRoot, *>,
+    private val expression: InMemoryOp<TRoot, *>,
     private val values: Set<*>
-): InMemoryOperation<TRoot, Boolean> {
+): InMemoryOp<TRoot, Boolean> {
     override fun execute(input: TRoot): Boolean {
         return values.contains(expression.execute(input))
     }

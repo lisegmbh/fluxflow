@@ -1,10 +1,8 @@
-package de.fluxflow.flowquery.inmemory.ops
-
-import de.fluxflow.flowquery.inmemory.InMemoryOperation
+package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
 internal data class NotOp<TRoot>(
-    private val expression: InMemoryOperation<TRoot, Boolean>
-) : InMemoryOperation<TRoot, Boolean> {
+    private val expression: InMemoryOp<TRoot, Boolean>
+) : InMemoryOp<TRoot, Boolean> {
     override fun execute(input: TRoot): Boolean {
         return !(
                 expression.execute(input)

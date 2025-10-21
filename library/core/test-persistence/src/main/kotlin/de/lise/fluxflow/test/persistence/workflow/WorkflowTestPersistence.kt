@@ -1,6 +1,6 @@
 package de.lise.fluxflow.test.persistence.workflow
 
-import de.fluxflow.flowquery.inmemory.InMemoryCompiler
+import de.fluxflow.flowquery.inmemory.expression.compilation.InMemoryCompiler
 import de.fluxflow.flowquery.inmemory.query.InMemoryQueryRepository
 import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier

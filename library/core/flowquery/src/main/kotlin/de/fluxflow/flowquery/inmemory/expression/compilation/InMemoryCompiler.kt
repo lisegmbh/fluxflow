@@ -1,17 +1,17 @@
-package de.fluxflow.flowquery.inmemory
+package de.fluxflow.flowquery.inmemory.expression.compilation
 
 import de.fluxflow.flowquery.expression.*
 import de.fluxflow.flowquery.expression.compilation.CompilationException
 import de.fluxflow.flowquery.expression.compilation.CompilationResult
 import de.fluxflow.flowquery.expression.compilation.ExpressionCompiler
-import de.fluxflow.flowquery.inmemory.ops.*
+import de.fluxflow.flowquery.inmemory.expression.compilation.ops.*
 import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import kotlin.reflect.KProperty1
 
-class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
+class InMemoryCompiler : ExpressionCompiler<InMemoryOp<*, *>> {
     override fun <TRoot, TResult> compile(
         expression: Expression<TRoot, TResult>
-    ): CompilationResult<InMemoryOperation<TRoot, TResult>> {
+    ): CompilationResult<InMemoryOp<TRoot, TResult>> {
         return CompilationResult(
             doCompile(
                 expression,
@@ -23,7 +23,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
     private fun <TRoot, TResult> doCompile(
         rootExpression: Expression<*, *>,
         exp: Expression<TRoot, TResult>
-    ): InMemoryOperation<TRoot, TResult> {
+    ): InMemoryOp<TRoot, TResult> {
         return when (exp) {
             is RootExpression<*> -> RootOp()
             is AndExpression<TRoot> -> {
@@ -115,7 +115,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
             is PropertyExpression<TRoot, *, *> -> {
                 val instanceGetter = doCompile(rootExpression, exp.instance)
                 PropertyOp(
-                    instanceGetter as InMemoryOperation<TRoot, Any?>,
+                    instanceGetter as InMemoryOp<TRoot, Any?>,
                     exp.property as KProperty1<Any, Any?>
                 )
             }
@@ -164,29 +164,29 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 doCompile(
                     rootExpression,
                     exp.collection
-                ) as InMemoryOperation<TRoot, Collection<*>>,
+                ) as InMemoryOp<TRoot, Collection<*>>,
                 doCompile(
                     rootExpression,
                     exp.elementPredicate
-                ) as InMemoryOperation<Any?, Boolean>
+                ) as InMemoryOp<Any?, Boolean>
             )
 
             is ContainsElementExpression<TRoot, *, *> -> ContainsElementOp(
                 doCompile(
                     rootExpression,
                     exp.collection
-                ) as InMemoryOperation<TRoot, Collection<*>>,
+                ) as InMemoryOp<TRoot, Collection<*>>,
                 doCompile(
                     rootExpression,
                     exp.element
-                ) as InMemoryOperation<TRoot, Any?>
+                ) as InMemoryOp<TRoot, Any?>
             )
 
             is IsTypeExpression<TRoot, *, *> -> IsTypeOp(
                 doCompile(
                     rootExpression,
                     exp.instance
-                ) as InMemoryOperation<TRoot, Any?>,
+                ) as InMemoryOp<TRoot, Any?>,
                 exp.requiredType
             )
 
@@ -194,7 +194,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 doCompile(
                     rootExpression,
                     exp.instance
-                ) as InMemoryOperation<TRoot, Any?>,
+                ) as InMemoryOp<TRoot, Any?>,
                 exp.requiredType
             )
 
@@ -202,14 +202,14 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOperation<*, *>> {
                 doCompile(
                     rootExpression,
                     exp.instance
-                ) as InMemoryOperation<TRoot, Map<Any?, Any?>>,
+                ) as InMemoryOp<TRoot, Map<Any?, Any?>>,
                 doCompile(
                     rootExpression,
                     exp.key
-                ) as InMemoryOperation<TRoot, Any?>
+                ) as InMemoryOp<TRoot, Any?>
             )
 
-        } as InMemoryOperation<TRoot, TResult>
+        } as InMemoryOp<TRoot, TResult>
     }
 }
 

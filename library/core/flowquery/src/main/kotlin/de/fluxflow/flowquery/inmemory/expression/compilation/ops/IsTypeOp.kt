@@ -1,13 +1,12 @@
-package de.fluxflow.flowquery.inmemory.ops
+package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
-import de.fluxflow.flowquery.inmemory.InMemoryOperation
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
 data class IsTypeOp<TRoot>(
-    val instanceGetter: InMemoryOperation<TRoot, Any?>,
+    val instanceGetter: InMemoryOp<TRoot, Any?>,
     val requiredType: KClass<*>
-) : InMemoryOperation<TRoot, Boolean> {
+) : InMemoryOp<TRoot, Boolean> {
     override fun execute(input: TRoot): Boolean? {
         return instanceGetter.execute(input)?.let {
             it::class.isSubclassOf(requiredType)

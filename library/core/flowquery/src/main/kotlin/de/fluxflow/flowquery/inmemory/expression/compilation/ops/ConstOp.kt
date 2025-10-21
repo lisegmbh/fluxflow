@@ -1,10 +1,8 @@
-package de.fluxflow.flowquery.inmemory.ops
-
-import de.fluxflow.flowquery.inmemory.InMemoryOperation
+package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
 internal data class ConstOp<TRoot,TValue>(
     val value: TValue
-): InMemoryOperation<TRoot, TValue> {
+): InMemoryOp<TRoot, TValue> {
     override fun execute(input: TRoot): TValue {
         return value
     }

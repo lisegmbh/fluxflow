@@ -1,9 +1,7 @@
-package de.fluxflow.flowquery.inmemory.ops
-
-import de.fluxflow.flowquery.inmemory.InMemoryOperation
+package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
 internal class RootOp<TRoot>
-    : InMemoryOperation<TRoot, TRoot> {
+    : InMemoryOp<TRoot, TRoot> {
 
     override fun execute(input: TRoot): TRoot {
         return input

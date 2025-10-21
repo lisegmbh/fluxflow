@@ -1,6 +1,6 @@
 package de.lise.fluxflow.springboot
 
-import de.fluxflow.flowquery.inmemory.InMemoryCompiler
+import de.fluxflow.flowquery.inmemory.expression.compilation.InMemoryCompiler
 import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence

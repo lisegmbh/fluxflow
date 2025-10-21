@@ -1,12 +1,10 @@
-package de.fluxflow.flowquery.inmemory.ops
-
-import de.fluxflow.flowquery.inmemory.InMemoryOperation
+package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
 internal data class BinaryOperatorOp<TRoot, TElement, TOtherElement, TResult>(
     private val operation: Operation<TElement, TOtherElement, TResult>,
-    private val operator1: InMemoryOperation<TRoot, TElement>,
-    private val operator2: InMemoryOperation<TRoot, TOtherElement>,
-): InMemoryOperation<TRoot, TResult> {
+    private val operator1: InMemoryOp<TRoot, TElement>,
+    private val operator2: InMemoryOp<TRoot, TOtherElement>,
+): InMemoryOp<TRoot, TResult> {
 
     override fun execute(input: TRoot): TResult? {
         return operation.implementation(

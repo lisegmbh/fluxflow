@@ -1,12 +1,11 @@
-package de.fluxflow.flowquery.inmemory.ops
+package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
-import de.fluxflow.flowquery.inmemory.InMemoryOperation
 import kotlin.reflect.KProperty1
 
 internal data class PropertyOp<TRoot>(
-    val instance: InMemoryOperation<TRoot, Any?>,
+    val instance: InMemoryOp<TRoot, Any?>,
     val property: KProperty1<Any, Any?>
-): InMemoryOperation<TRoot, Any?> {
+): InMemoryOp<TRoot, Any?> {
     override fun execute(input: TRoot): Any? {
         val currentInstance = instance.execute(input)
         if(currentInstance == null) {

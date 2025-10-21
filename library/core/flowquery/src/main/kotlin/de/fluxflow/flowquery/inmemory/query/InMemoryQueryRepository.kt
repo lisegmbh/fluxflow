@@ -2,7 +2,7 @@ package de.fluxflow.flowquery.inmemory.query
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.PredicateExpression
-import de.fluxflow.flowquery.inmemory.InMemoryCompiler
+import de.fluxflow.flowquery.inmemory.expression.compilation.InMemoryCompiler
 import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import de.fluxflow.flowquery.query.*
 import de.fluxflow.flowquery.query.sorting.SortDirection
