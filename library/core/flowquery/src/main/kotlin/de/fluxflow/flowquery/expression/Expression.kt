@@ -28,11 +28,11 @@ sealed interface Expression<TRoot, TCurrent> {
     
     // Projections
     fun <TProperty> get(
-        prop: KProperty1<TCurrent, TProperty?>
+        prop: KProperty1<out TCurrent, TProperty?>
     ): PropertyExpression<TRoot, TCurrent, TProperty> {
         return PropertyExpression(
             this,
-            prop
+            prop as KProperty1<TCurrent,TProperty>
         )
     }
 

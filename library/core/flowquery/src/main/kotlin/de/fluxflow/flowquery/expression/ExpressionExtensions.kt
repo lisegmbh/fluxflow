@@ -4,12 +4,14 @@ import kotlin.reflect.KClass
 
 object ExpressionExtensions {
     object Logical {
-        fun <TRoot> PredicateExpression<TRoot>.and(vararg others: PredicateExpression<TRoot>): AndExpression<TRoot> {
+
+        infix fun <TRoot> PredicateExpression<TRoot>.and(other: PredicateExpression<TRoot>): AndExpression<TRoot> {
+            return this.and(other)
+        }
+        
+        fun <TRoot> PredicateExpression<TRoot>.and(others: List<PredicateExpression<TRoot>>): AndExpression<TRoot> {
             return AndExpression(
-                listOf(
-                    this,
-                    *others,
-                )
+                listOf(this) + others
             )
         }
         
@@ -23,6 +25,7 @@ object ExpressionExtensions {
                 )
             )
         }
+        
 
         fun <TRoot> PredicateExpression<TRoot>.or(vararg others: PredicateExpression<TRoot>): OrExpression<TRoot> {
             return OrExpression(
