@@ -18,6 +18,7 @@ import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.versioning.*
 import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.api.workflow.action.WorkflowActionService
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
@@ -52,7 +53,7 @@ import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.step.flowquery.StepQueryableToDataMapper
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
-import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowToDataMapper
+import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowQueryableToDataMapper
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
@@ -229,9 +230,9 @@ open class BasicConfiguration {
     }
 
     @Bean
-    open fun workflowToDataMapper(): QueryMapper<Workflow<*>, WorkflowData> {
+    open fun workflowQueryToDataMapper(): QueryMapper<WorkflowQueryable<*>, WorkflowData> {
         return QueryMapperImpl(
-            WorkflowToDataMapper()
+            WorkflowQueryableToDataMapper()
         )
     }
 
@@ -240,7 +241,7 @@ open class BasicConfiguration {
     open fun workflowQueryService(
         persistence: WorkflowPersistence,
         activationService: WorkflowActivationService,
-        queryMapper: QueryMapper<Workflow<*>, WorkflowData>
+        queryMapper: QueryMapper<WorkflowQueryable<*>, WorkflowData>
     ): WorkflowQueryServiceImpl {
         return WorkflowQueryServiceImpl(
             persistence,

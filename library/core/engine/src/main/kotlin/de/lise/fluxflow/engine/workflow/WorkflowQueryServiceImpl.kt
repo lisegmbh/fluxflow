@@ -1,10 +1,12 @@
 package de.lise.fluxflow.engine.workflow
 
 import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
 import de.lise.fluxflow.api.workflow.WorkflowQueryService
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.api.workflow.query.filter.WorkflowFilter
 import de.lise.fluxflow.api.workflow.query.sort.WorkflowSort
@@ -19,7 +21,7 @@ import kotlin.reflect.KClass
 class WorkflowQueryServiceImpl(
     private val persistence: WorkflowPersistence,
     private val activationService: WorkflowActivationService,
-    private val queryMapper: QueryMapper<Workflow<*>, WorkflowData>
+    private val queryMapper: QueryMapper<WorkflowQueryable<*>, WorkflowData>
 ) : WorkflowQueryService {
     override fun getAll(): List<Workflow<*>> {
         return persistence.findAll()
@@ -50,7 +52,7 @@ class WorkflowQueryServiceImpl(
         }
     }
 
-    override fun getAll(query: de.lise.fluxflow.api.workflow.flowquery.WorkflowQuery<*>): Page<Workflow<*>> {
+    override fun getAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {
         return persistence.findAll(
             queryMapper.map(query)
         ).map {

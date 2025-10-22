@@ -1,8 +1,10 @@
 package de.lise.fluxflow.engine.workflow
 
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.workflow.*
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
@@ -39,7 +41,7 @@ class WorkflowServiceImpl(
         return workflowQueryService.getAll(query)
     }
 
-    override fun getAll(query: de.lise.fluxflow.api.workflow.flowquery.WorkflowQuery<*>): Page<Workflow<*>> {
+    override fun getAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {
         return workflowQueryService.getAll(query)
     }
 

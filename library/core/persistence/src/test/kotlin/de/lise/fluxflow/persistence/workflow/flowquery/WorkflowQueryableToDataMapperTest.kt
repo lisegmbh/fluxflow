@@ -1,32 +1,32 @@
 package de.lise.fluxflow.persistence.workflow.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
-import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-class WorkflowToDataMapperTest {
+class WorkflowQueryableToDataMapperTest {
     @Test
     fun `mapping should produces the correct results`() {
         // Arrange
-        val mapper = WorkflowToDataMapper()
+        val mapper = WorkflowQueryableToDataMapper()
         val testExpressions = mapOf(
-            Expression.root<Workflow<Any>>()
-                .get(Workflow<Any>::model)
+            Expression.root<WorkflowQueryable<Any>>()
+                .get(WorkflowQueryable<Any>::model)
                 .isEqual("Test")
             to Expression.root<WorkflowData>()
                 .get(WorkflowData::model)
                 .isEqual("Test"),
-            Expression.root<Workflow<Int>>()
-                .get(Workflow<Int>::identifier)
+            Expression.root<WorkflowQueryable<Int>>()
+                .get(WorkflowQueryable<Int>::identifier)
                 .isEqual(WorkflowIdentifier("test"))
             to Expression.root<WorkflowData>()
                 .get(WorkflowData::id)
                 .isEqual("test"),
-            Expression.root<Workflow<Boolean>>()
-                .get(Workflow<Boolean>::identifier)
+            Expression.root<WorkflowQueryable<Boolean>>()
+                .get(WorkflowQueryable<Boolean>::identifier)
                 .get(WorkflowIdentifier::value)
                 .isEqual("test")
             to Expression.root<WorkflowData>()

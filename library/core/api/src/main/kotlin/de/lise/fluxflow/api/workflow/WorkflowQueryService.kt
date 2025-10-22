@@ -2,6 +2,7 @@ package de.lise.fluxflow.api.workflow
 
 import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.FlowQueryBuilder
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
@@ -45,10 +46,10 @@ interface WorkflowQueryService {
     @Deprecated("Use the new FlowQuery overloads instead.")
     fun getAll(query: WorkflowQuery<*>): Page<Workflow<*>>
 
-    fun getAll(query: FlowQuery<Workflow<*>, Workflow<*>>): Page<Workflow<*>>
+    fun getAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>>
 
     fun getAll(
-        queryBuilder: FlowQueryBuilder<Workflow<*>, Workflow<*>>
+        queryBuilder: FlowQueryBuilder<WorkflowQueryable<*>, WorkflowQueryable<*>>
     ): Page<Workflow<*>> {
         return getAll(
             queryBuilder(

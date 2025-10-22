@@ -124,7 +124,6 @@ interface JobService {
     fun findAll(query: JobQuery): Page<Job>
     
     fun findAll(query: FlowQuery<JobQueryable, JobQueryable>): Page<Job>
-    
     fun findAll(
         builder: FlowQueryBuilder<JobQueryable, JobQueryable>
     ): Page<Job> {
