@@ -6,8 +6,10 @@ import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.mongo.bootstrapping.*
 import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfiguration
 import de.lise.fluxflow.mongo.bootstrapping.collation.CollationConfigurer
+import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordMongoPersistence
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
+import de.lise.fluxflow.mongo.continuation.history.flowquery.ContinuationRecordDataToDocumentMaper
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProviderImpl
@@ -29,6 +31,7 @@ import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistence
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
 import de.lise.fluxflow.mongo.workflow.flowquery.WorkflowDataToDocumentMapper
+import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
@@ -178,11 +181,34 @@ open class MongoConfiguration {
     }
 
     @Bean
+    open fun continuationQueryMapper(): QueryMapper<ContinuationRecordData, ContinuationRecordDocument> {
+        return QueryMapperImpl(
+            ContinuationRecordDataToDocumentMaper()
+        )
+    }
+    
+    @Bean
+    internal open fun continuationQueryRepository(
+        compiler: MongoCompiler,
+        template: MongoTemplate
+    ): MongoFlowQueryRepository<ContinuationRecordDocument> {
+        return MongoFlowQueryRepository(
+            ContinuationRecordDocument::class,
+            compiler,
+            template
+        )
+    }
+    
+    @Bean
     open fun continuationRecordPersistence(
-        continuationRecordRepository: ContinuationRecordRepository
+        continuationRecordRepository: ContinuationRecordRepository,
+        queryableRepository: MongoFlowQueryRepository<ContinuationRecordDocument>,
+        queryMapper: QueryMapper<ContinuationRecordData, ContinuationRecordDocument>
     ): ContinuationRecordPersistence {
         return ContinuationRecordMongoPersistence(
-            continuationRecordRepository
+            continuationRecordRepository = continuationRecordRepository,
+            queryableRepository = queryableRepository,
+            queryMapper = queryMapper
         )
     }
 

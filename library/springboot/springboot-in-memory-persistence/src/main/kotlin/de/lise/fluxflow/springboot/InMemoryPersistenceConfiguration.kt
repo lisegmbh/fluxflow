@@ -66,9 +66,13 @@ open class InMemoryPersistenceConfiguration {
 
     @Bean
     open fun continuationRecordPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): ContinuationRecordPersistence {
-        return ContinuationRecordTestPersistence(idGenerator)
+        return ContinuationRecordTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler    
+        )
     }
 
     @Bean
