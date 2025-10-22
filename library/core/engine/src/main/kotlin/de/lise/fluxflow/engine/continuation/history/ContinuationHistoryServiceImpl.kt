@@ -1,5 +1,7 @@
 package de.lise.fluxflow.engine.continuation.history
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.WorkflowObjectKind
 import de.lise.fluxflow.api.WorkflowObjectReference
 import de.lise.fluxflow.api.continuation.Continuation
@@ -7,6 +9,7 @@ import de.lise.fluxflow.api.continuation.ContinuationType
 import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
 import de.lise.fluxflow.api.continuation.history.ContinuationRecord
 import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQuery
+import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQueryable
 import de.lise.fluxflow.api.continuation.history.query.filter.ContinuationRecordFilter
 import de.lise.fluxflow.api.continuation.history.query.filter.WorkflowObjectReferenceFilter
 import de.lise.fluxflow.api.continuation.history.query.sort.ContinuationRecordSort
@@ -26,6 +29,7 @@ class ContinuationHistoryServiceImpl(
     private val continuationRecordPersistence: ContinuationRecordPersistence,
     private val stepService: StepService,
     private val clock: Clock,
+    private val queryMapper: QueryMapper<ContinuationRecordQueryable, ContinuationRecordData>
 ) : ContinuationHistoryService {
     fun create(
         workflowId: WorkflowIdentifier,
@@ -49,6 +53,16 @@ class ContinuationHistoryServiceImpl(
         return continuationRecordPersistence.findAll(
             query.toDataQuery()
         ).map {
+            it.toDomainObject()
+        }
+    }
+
+    override fun findAll(
+        query: FlowQuery<ContinuationRecordQueryable, ContinuationRecordQueryable>
+    ): Page<ContinuationRecord> {
+        return continuationRecordPersistence.findAll(
+            queryMapper.map(query)
+        ).map { 
             it.toDomainObject()
         }
     }

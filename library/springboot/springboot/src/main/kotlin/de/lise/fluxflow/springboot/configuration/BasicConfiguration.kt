@@ -4,6 +4,7 @@ import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.mapper.query.QueryMapperImpl
 import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
+import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQueryable
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
@@ -38,7 +39,9 @@ import de.lise.fluxflow.engine.workflow.action.WorkflowActionServiceImpl
 import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.migration.MigrationService
 import de.lise.fluxflow.migration.MigrationServiceImpl
+import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
+import de.lise.fluxflow.persistence.continuation.history.flowquery.ContinuationRecordQueryableToDataMapper
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataMapper
@@ -657,8 +660,7 @@ open class BasicConfiguration {
             queryMapper = queryMapper
         )
     }
-
-
+    
     @Bean
     open fun jobSchedulingCallback(
         schedulingService: SchedulingService,
@@ -687,15 +689,24 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun continuationQueryableMapper(): QueryMapper<ContinuationRecordQueryable, ContinuationRecordData> {
+        return QueryMapperImpl(
+            ContinuationRecordQueryableToDataMapper()
+        )
+    }
+    
+    @Bean
     open fun continuationHistoryService(
         continuationRecordPersistence: ContinuationRecordPersistence,
         stepService: StepService,
         clock: Clock,
+        queryMapper: QueryMapper<ContinuationRecordQueryable, ContinuationRecordData>
     ): ContinuationHistoryServiceImpl {
         return ContinuationHistoryServiceImpl(
-            continuationRecordPersistence,
-            stepService,
-            clock
+            continuationRecordPersistence = continuationRecordPersistence,
+            stepService = stepService,
+            clock = clock,
+            queryMapper = queryMapper
         )
     }
 

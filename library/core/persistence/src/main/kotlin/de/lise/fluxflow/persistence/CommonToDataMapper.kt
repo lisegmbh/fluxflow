@@ -4,6 +4,7 @@ import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
+import de.lise.fluxflow.api.continuation.history.ContinuationRecordIdentifier
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobKind
 import de.lise.fluxflow.api.step.StepIdentifier
@@ -18,6 +19,7 @@ class CommonToDataMapper : ExpressionMapper {
             ExpressionReplacer.domainValue(StepKind::value),
             ExpressionReplacer.domainValue(JobKind::value),
             ExpressionReplacer.domainValue(JobIdentifier::value),
+            ExpressionReplacer.domainValue(ContinuationRecordIdentifier::value)
         )
     )
 
