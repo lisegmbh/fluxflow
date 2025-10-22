@@ -61,6 +61,7 @@ class WorkflowQueryServiceImpl(
     }
 
     @Suppress("UNCHECKED_CAST")
+    @Deprecated("Use the new FlowQuery overloads instead.")
     override fun <TWorkflowModel : Any> getAll(
         modelType: KClass<TWorkflowModel>,
         query: WorkflowQuery<TWorkflowModel>

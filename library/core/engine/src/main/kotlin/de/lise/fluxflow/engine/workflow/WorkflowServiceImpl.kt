@@ -37,6 +37,7 @@ class WorkflowServiceImpl(
         return workflowQueryService.getAll(workflowType)
     }
 
+    @Deprecated("Use the new FlowQuery overloads instead.")
     override fun getAll(query: WorkflowQuery<*>): Page<Workflow<*>> {
         return workflowQueryService.getAll(query)
     }

@@ -9,12 +9,10 @@ import de.lise.fluxflow.api.job.query.JobQueryable
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowService
-import de.lise.fluxflow.api.workflow.query.WorkflowQuery
-import de.lise.fluxflow.api.workflow.query.filter.WorkflowFilter
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable.Companion.identifier
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.job.query.toDataQuery
-import de.lise.fluxflow.query.filter.Filter
 import de.lise.fluxflow.query.pagination.Page
 import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.scheduling.SchedulingService
@@ -177,15 +175,12 @@ class JobServiceImpl(
     }
     
     private fun fromPage(page: Page<JobData>): Page<Job> {
-        val workflowIds = page.items.map { it.workflowId }.toSet()
-
-        val workflows = workflowService.getAll(
-            WorkflowQuery.withFilter(
-                WorkflowFilter.empty<Any>().withIdFilter(
-                    Filter.anyOf(workflowIds)
-                )
-            )
-        )
+        val workflowIds = page.items.map { WorkflowIdentifier(it.workflowId) }.toSet()
+        val workflows = workflowService.getAll { 
+            where { 
+                identifier.isAnyOf(workflowIds)
+            }
+        }
 
         return page.map { job ->
             val workflow = workflows.items.single { workflow -> workflow.identifier.value == job.workflowId }

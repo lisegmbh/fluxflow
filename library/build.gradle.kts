@@ -29,7 +29,7 @@ subprojects {
     apply(plugin = "com.vanniktech.maven.publish")
 
     group = "de.lise.fluxflow"
-    version = projVersion ?: "0.3.0-SNAPSHOT-1"
+    version = projVersion ?: "0.3.0-SNAPSHOT-2"
     
     repositories {
         mavenCentral()

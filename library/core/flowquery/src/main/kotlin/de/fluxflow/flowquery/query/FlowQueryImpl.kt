@@ -69,6 +69,14 @@ data class FlowQueryImpl<TRoot, TResult>(
         )
     }
 
+    override fun append(other: FlowQuery<TRoot, TResult>): FlowQuery<TRoot, TResult> {
+        return FlowQueryImpl(
+            cursor = other.cursor,
+            operations = operations + other.operations,
+            pagination = other.pagination ?: this.pagination
+        )
+    }
+
     override fun toString(): String {
         return toText()
     }

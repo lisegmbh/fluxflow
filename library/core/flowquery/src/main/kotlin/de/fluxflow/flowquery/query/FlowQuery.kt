@@ -47,6 +47,8 @@ interface FlowQuery<TRoot, TResult> {
         }
     }
 
+    fun append(other: FlowQuery<TRoot, TResult>): FlowQuery<TRoot, TResult>
+    
     companion object {
         fun <TRoot> of(): FlowQuery<TRoot, TRoot> {
             return FlowQueryImpl(

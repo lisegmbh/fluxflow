@@ -16,19 +16,19 @@ interface ContinuationRecordQueryable {
     val targetObject: WorkflowObjectReference?
 
     companion object {
-        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.id: Expression<TRoot, ContinuationRecordIdentifier>
+        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.id
             get() = this.get(ContinuationRecordQueryable::id)
 
-        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.workflowIdentifier: Expression<TRoot, WorkflowIdentifier>
+        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.workflowIdentifier
             get() = this.get(ContinuationRecordQueryable::workflowIdentifier)
 
-        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.type: Expression<TRoot, ContinuationType>
+        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.type
             get() = this.get(ContinuationRecordQueryable::type)
 
-        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.originatingObject: Expression<TRoot, WorkflowObjectReference?>
+        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.originatingObject
             get() = this.get(ContinuationRecordQueryable::originatingObject)
 
-        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.targetObject: Expression<TRoot, WorkflowObjectReference?>
+        val <TRoot> Expression<TRoot, ContinuationRecordQueryable>.targetObject
             get() = this.get(ContinuationRecordQueryable::targetObject)
     }
 }
