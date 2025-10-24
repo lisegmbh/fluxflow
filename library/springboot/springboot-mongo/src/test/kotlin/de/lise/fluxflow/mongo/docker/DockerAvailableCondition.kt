@@ -23,6 +23,6 @@ class DockerAvailableCondition : Condition, ExecutionCondition {
             }
         } catch (_: Throwable) {
         }
-        return ConditionEvaluationResult.disabled("Docker is unavailable found.") 
+        return ConditionEvaluationResult.disabled("Docker is unavailable.") 
     }
 }
