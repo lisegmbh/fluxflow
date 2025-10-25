@@ -42,10 +42,11 @@ class WorkflowServiceImpl(
         return workflowQueryService.getAll(query)
     }
 
-    override fun getAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {
-        return workflowQueryService.getAll(query)
+    override fun findAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {
+        return workflowQueryService.findAll(query)
     }
 
+    @Deprecated("Use the new FlowQuery overloads instead.")
     override fun <TWorkflowModel : Any> getAll(
         modelType: KClass<TWorkflowModel>,
         query: WorkflowQuery<TWorkflowModel>

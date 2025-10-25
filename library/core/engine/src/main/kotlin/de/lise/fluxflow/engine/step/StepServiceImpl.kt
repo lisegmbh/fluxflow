@@ -108,14 +108,14 @@ class StepServiceImpl(
         return fromPage(page)
     }
 
-    override fun findSteps(query: FlowQuery<StepQueryable, StepQueryable>): Page<Step> {
+    override fun findAll(query: FlowQuery<StepQueryable, StepQueryable>): Page<Step> {
         val page = persistence.findAll(
             queryMapper.map(query)
         )
         return fromPage(page)
     }
 
-    override fun <TWorkflowModel> findSteps(
+    override fun <TWorkflowModel> findAll(
         workflow: Workflow<TWorkflowModel>,
         query: FlowQuery<StepQueryable, StepQueryable>
     ): Page<Step> {
@@ -132,7 +132,7 @@ class StepServiceImpl(
 
     private fun fromPage(page: Page<StepData>): Page<Step> {
         val stepsByWorkflow = page.items.groupBy { step -> WorkflowIdentifier(step.workflowId) }
-        val workflows = workflowQueryService.getAll { 
+        val workflows = workflowQueryService.findAll {
             where { 
                 identifier.isAnyOf(stepsByWorkflow.keys)
             }

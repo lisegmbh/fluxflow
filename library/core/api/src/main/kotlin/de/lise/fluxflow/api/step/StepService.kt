@@ -2,34 +2,29 @@ package de.lise.fluxflow.api.step
 
 import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.FlowQueryBuilder
+import de.fluxflow.flowquery.service.ResourceQueryService
 import de.lise.fluxflow.api.step.query.StepQuery
 import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.query.pagination.Page
 
-interface StepService {
+interface StepService : ResourceQueryService<Step, StepQueryable> {
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>): List<Step>
     @Deprecated("Use the new FlowQuery overloads instead.")
     fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: StepQuery): Page<Step>
     @Deprecated("Use the new FlowQuery overloads instead.")
     fun findSteps(query: StepQuery): Page<Step>
     
-    fun <TWorkflowModel> findSteps(workflow: Workflow<TWorkflowModel>, query: FlowQuery<StepQueryable, StepQueryable>): Page<Step>
-    fun <TWorkflowModel> findSteps(
+    fun <TWorkflowModel> findAll(
+        workflow: Workflow<TWorkflowModel>,
+        query: FlowQuery<StepQueryable, StepQueryable>
+    ): Page<Step>
+    fun <TWorkflowModel> findAll(
         workflow: Workflow<TWorkflowModel>, 
         builder: FlowQueryBuilder<StepQueryable, StepQueryable>
     ): Page<Step> {
-        return findSteps(
+        return findAll(
             workflow,
-            builder(
-                FlowQuery.of()
-            )
-        )
-    }
-    
-    fun findSteps(query: FlowQuery<StepQueryable, StepQueryable>): Page<Step>
-    fun findSteps(builder: FlowQueryBuilder<StepQueryable, StepQueryable>): Page<Step> {
-        return findSteps(
             builder(
                 FlowQuery.of()
             )

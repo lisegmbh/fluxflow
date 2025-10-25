@@ -52,7 +52,7 @@ class WorkflowQueryServiceImpl(
         }
     }
 
-    override fun getAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {
+    override fun findAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {
         return persistence.findAll(
             queryMapper.map(query)
         ).map {

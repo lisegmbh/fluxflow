@@ -1,7 +1,6 @@
 package de.lise.fluxflow.api.job
 
-import de.fluxflow.flowquery.query.FlowQuery
-import de.fluxflow.flowquery.query.FlowQueryBuilder
+import de.fluxflow.flowquery.service.ResourceQueryService
 import de.lise.fluxflow.api.job.continuation.JobContinuation
 import de.lise.fluxflow.api.job.query.JobQuery
 import de.lise.fluxflow.api.job.query.JobQueryable
@@ -15,7 +14,7 @@ import de.lise.fluxflow.query.pagination.Page
  * This service provides operations to schedule, reschedule, cancel, duplicate, retrieve,
  * and delete jobs associated with a workflow.
  */
-interface JobService {
+interface JobService : ResourceQueryService<Job, JobQueryable> {
     /**
      * Schedules a new job for the given [workflow] using the provided [jobContinuation].
      *
@@ -122,15 +121,6 @@ interface JobService {
      */
     @Deprecated("Use the new FlowQuery overloads instead.")
     fun findAll(query: JobQuery): Page<Job>
-    
-    fun findAll(query: FlowQuery<JobQueryable, JobQueryable>): Page<Job>
-    fun findAll(
-        builder: FlowQueryBuilder<JobQueryable, JobQueryable>
-    ): Page<Job> {
-        return findAll(
-            builder(FlowQuery.of())
-        )
-    }
     
     /**
      * Deletes all jobs matching the given [jobsIdentifiers].

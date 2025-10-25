@@ -1,7 +1,6 @@
 package de.lise.fluxflow.api.workflow
 
-import de.fluxflow.flowquery.query.FlowQuery
-import de.fluxflow.flowquery.query.FlowQueryBuilder
+import de.fluxflow.flowquery.service.ResourceQueryService
 import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.query.pagination.Page
@@ -17,7 +16,7 @@ import kotlin.reflect.KClass
  * @see WorkflowUpdateService
  * @see WorkflowStarterService
  */
-interface WorkflowQueryService {
+interface WorkflowQueryService : ResourceQueryService<Workflow<*>, WorkflowQueryable<*>> {
     /**
      * Returns all workflows.
      *
@@ -45,18 +44,6 @@ interface WorkflowQueryService {
      */
     @Deprecated("Use the new FlowQuery overloads instead.")
     fun getAll(query: WorkflowQuery<*>): Page<Workflow<*>>
-
-    fun getAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>>
-
-    fun getAll(
-        queryBuilder: FlowQueryBuilder<WorkflowQueryable<*>, WorkflowQueryable<*>>
-    ): Page<Workflow<*>> {
-        return getAll(
-            queryBuilder(
-                FlowQuery.of()
-            )
-        )
-    }
 
     /**
      * Returns all workflows matching the given query.

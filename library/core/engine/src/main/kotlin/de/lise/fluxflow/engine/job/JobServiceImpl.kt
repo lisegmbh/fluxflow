@@ -176,7 +176,7 @@ class JobServiceImpl(
     
     private fun fromPage(page: Page<JobData>): Page<Job> {
         val workflowIds = page.items.map { WorkflowIdentifier(it.workflowId) }.toSet()
-        val workflows = workflowService.getAll { 
+        val workflows = workflowService.findAll {
             where { 
                 identifier.isAnyOf(workflowIds)
             }
