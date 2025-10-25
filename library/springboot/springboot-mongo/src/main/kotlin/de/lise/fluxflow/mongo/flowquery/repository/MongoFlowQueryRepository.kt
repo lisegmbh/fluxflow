@@ -1,332 +1,153 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
-import de.fluxflow.flowquery.query.*
-import de.fluxflow.flowquery.query.sorting.SortDirection
+import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryExecutionException
 import de.fluxflow.flowquery.repository.FlowQueryRepository
-import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
-import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
-import org.bson.Document
+import de.lise.fluxflow.query.pagination.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.aggregation.Aggregation
-import org.springframework.data.mongodb.core.aggregation.AggregationOperation
 import org.springframework.data.support.PageableExecutionUtils
 import kotlin.reflect.KClass
-import kotlin.reflect.typeOf
 
+/**
+ * MongoDB implementation of [FlowQueryRepository] using the Spring Data [MongoTemplate].
+ *
+ * Delegates translation of [FlowQuery] objects to [MongoQueryTranslator]
+ * and handles query execution, pagination, and result mapping.
+ */
 class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     private val rootType: Class<TRoot>,
-    private val compiler: MongoCompiler,
+    private val translator: MongoQueryTranslator,
     private val mongoTemplate: MongoTemplate,
 ) : FlowQueryRepository<TRoot> {
+
+
     internal constructor(
         rootType: KClass<TRoot>,
-        compiler: MongoCompiler,
+        translator: MongoQueryTranslator,
         template: MongoTemplate,
-    ) : this(
-        rootType = rootType.java,
-        compiler = compiler,
-        mongoTemplate = template
-    )
+    ) : this(rootType.java, translator, template)
 
-    override fun <TResult> find(
-        resultType: Class<TResult>,
-        query: FlowQuery<TRoot, TResult>,
-    ): List<TResult> {
-        return execute(
-            query,
-            resultType
-        ).elements.toList()
+    override fun <TResult> find(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): List<TResult> {
+        return execute(query, resultType).elements.toList()
     }
 
-
-    override fun find(query: FlowQuery<TRoot, TRoot>): de.lise.fluxflow.query.pagination.Page<TRoot> {
-       return execute(
-           query,
-           rootType,
-        ).page.let {
-            de.lise.fluxflow.query.pagination.Page(
-                items = it.content,
-                pageSize = query.pagination?.pageSize ?: it.totalElements.toInt(),
-                pageIndex = query.pagination?.pageIndex ?: 0,
-                totalPages = it.totalPages,
-                totalItems = it.totalElements,
-                isFirstPage = it.isFirst,
-                isLastPage = it.isLast
-            )
-       }
+    override fun find(query: FlowQuery<TRoot, TRoot>): Page<TRoot> {
+        val results = execute(query, rootType).page
+        return Page(
+            items = results.content,
+            pageSize = query.pagination?.pageSize ?: results.totalElements.toInt(),
+            pageIndex = query.pagination?.pageIndex ?: 0,
+            totalPages = results.totalPages,
+            totalItems = results.totalElements,
+            isFirstPage = results.isFirst,
+            isLastPage = results.isLast
+        )
     }
 
-    override fun <TResult> findFirst(
-        resultType: Class<TResult>,
-        query: FlowQuery<TRoot, TResult>,
-    ): TResult {
-        return execute(
-            query.limit(1), // We only need the first entry
-            resultType
-        ).elements.first()!!
+    override fun <TResult> findFirst(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult {
+        return execute(query.limit(1), resultType).elements.first()!!
     }
 
     override fun findFirst(query: FlowQuery<TRoot, TRoot>): TRoot {
-        return findFirst(
-            rootType,
-            query
-        )
+        return findFirst(rootType, query)
     }
 
-    override fun <TResult> findFirstOrNull(
-        resultType: Class<TResult>,
-        query: FlowQuery<TRoot, TResult>,
-    ): TResult? {
-        return execute(
-            query.limit(1), // We only need the first entry
-            resultType,
-        ).elements.firstOrNull()
+    override fun <TResult> findFirstOrNull(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult? {
+        return execute(query.limit(1), resultType).elements.firstOrNull()
     }
 
     override fun findFirstOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
-        return findFirstOrNull(
-            rootType,
-            query,
-        )
+        return findFirstOrNull(rootType, query)
     }
 
-    override fun <TResult> findSingle(
-        resultType: Class<TResult>,
-        query: FlowQuery<TRoot, TResult>,
-    ): TResult {
-        return execute(
-            query.limit(2), // We need to over-fetch by one, so we can detect non-distinct results
-            resultType,
-        ).elements.single()!!
+    override fun <TResult> findSingle(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult {
+        return execute(query.limit(2), resultType).elements.single()!!
     }
 
     override fun findSingle(query: FlowQuery<TRoot, TRoot>): TRoot {
-        return findSingle(
-            rootType,
-            query
-        )
+        return findSingle(rootType, query)
     }
 
-    override fun <TResult> findSingleOrNull(
-        resultType: Class<TResult>,
-        query: FlowQuery<TRoot, TResult>,
-    ): TResult? {
-        return execute(
-            query.limit(2), // We need to over-fetch by one, so we can detect non-distinct results
-            resultType
-        ).elements.singleOrNull()
+    override fun <TResult> findSingleOrNull(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult? {
+        return execute(query.limit(2), resultType).elements.singleOrNull()
     }
 
     override fun findSingleOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
-        return findSingleOrNull(
-            rootType,
-            query
-        )
+        return findSingleOrNull(rootType, query)
     }
 
-    private fun <TResult> execute(
-        query: FlowQuery<TRoot, TResult>,
-        resultType: Class<TResult>
-    ): MongoExecutionResults<TResult> {
+    // --------------------------------------------------------------------------------------------
+    // Internal execution pipeline
+    // --------------------------------------------------------------------------------------------
+
+    private fun <TResult> execute(query: FlowQuery<TRoot, TResult>, resultType: Class<TResult>): MongoExecutionResults<TResult> {
+        validateResultType(resultType)
+
         val pagination = query.pagination
-        if (
-            resultType.isPrimitive ||
-            resultType.isArray ||
-            String::class.java.isAssignableFrom(resultType) ||
-            Collection::class.java.isAssignableFrom(resultType)
-        ) {
-            throw QueryExecutionException("Results must be a document/object type. The actual result type is: ${resultType.canonicalName}")
-        }
+        val pageRequest = pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
-        val pageRequest = pagination?.let {
-            PageRequest.of(
-                it.pageIndex,
-                it.pageSize
-            )
-        }
-
+        // Shortcut: plain collection scan without operations
         if (query.operations.isEmpty()) {
             return when (pageRequest) {
-                null -> UnpagedMongoResults(
-                    elements = mongoTemplate.findAll(resultType) as List<TResult>,
-                )
-
-                else -> {
-                    @Suppress("UNCHECKED_CAST")
+                null -> UnpagedMongoResults(mongoTemplate.findAll(resultType) as List<TResult>)
+                else -> PagedMongoResults(
                     PageableExecutionUtils.getPage(
                         mongoTemplate.find(
-                            org.springframework.data.mongodb.core.query.Query()
-                                .with(pageRequest),
+                            org.springframework.data.mongodb.core.query.Query().with(pageRequest),
                             rootType
                         ) as List<TResult>,
                         pageRequest
                     ) {
-                        mongoTemplate.count(
-                            org.springframework.data.mongodb.core.query.Query(),
-                            rootType
-                        )
-                    }.let {
-                        PagedMongoResults(it)
+                        mongoTemplate.count(org.springframework.data.mongodb.core.query.Query(), rootType)
                     }
-                }
+                )
             }
         }
 
-        val rawAggregation = toAggregation(query)
-        if (pageRequest == null) {
-            return UnpagedMongoResults(
-                mongoTemplate.aggregate(
-                    rawAggregation,
-                    rootType,
-                    resultType
-                ).mappedResults as List<TResult>
+        val aggregation = translator.translate(query)
+
+        return if (pageRequest == null) {
+            UnpagedMongoResults(
+                mongoTemplate.aggregate(aggregation, rootType, resultType).mappedResults as List<TResult>
             )
+        } else {
+            executePaged(aggregation, pageRequest, pagination!!.pageIndex, pagination.pageSize, resultType)
         }
+    }
 
-        val pagedAggregation = (
-                rawAggregation.pipeline.operations
-                        + Aggregation.skip(pagination.pageIndex.toLong() * pagination.pageSize.toLong())
-                        + Aggregation.limit(pageRequest.pageSize.toLong())
-                ).let { Aggregation.newAggregation(it) }
-        val countAggregation = (
-                rawAggregation.pipeline.operations
-                        + Aggregation.count().`as`(MongoCountResult::totalElements.name)
-                ).let { Aggregation.newAggregation(it) }
+    private fun <TResult> executePaged(
+        aggregation: Aggregation,
+        pageRequest: PageRequest,
+        pageIndex: Int,
+        pageSize: Int,
+        resultType: Class<TResult>,
+    ): MongoExecutionResults<TResult> {
+        val skip = Aggregation.skip(pageIndex.toLong() * pageSize.toLong())
+        val limit = Aggregation.limit(pageSize.toLong())
+        val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + skip + limit)
+        val countAggregation = Aggregation.newAggregation(
+            aggregation.pipeline.operations + Aggregation.count().`as`(MongoCountResult::totalElements.name)
+        )
 
-        val resultElements = mongoTemplate.aggregate(
-            pagedAggregation,
-            rootType,
-            resultType
-        ).mappedResults as List<TResult>
-
+        val results = mongoTemplate.aggregate(pagedAggregation, rootType, resultType).mappedResults as List<TResult>
         return PagedMongoResults(
-            PageableExecutionUtils.getPage(
-                resultElements,
-                pageRequest
-            ) {
-                mongoTemplate.aggregate(
-                    countAggregation,
-                    rootType,
-                    MongoCountResult::class.java
-                ).uniqueMappedResult?.totalElements!!
+            PageableExecutionUtils.getPage(results, pageRequest) {
+                mongoTemplate.aggregate(countAggregation, rootType, MongoCountResult::class.java)
+                    .uniqueMappedResult?.totalElements ?: 0
             }
         )
     }
 
-    private fun <TResult> toAggregation(
-        query: FlowQuery<TRoot, TResult>,
-    ): Aggregation {
-        return query.operations.flatMap {
-            toAggregationOperation(it)
-        }.let {
-            Aggregation.newAggregation(it)
-        }
-    }
-
-    private fun toAggregationOperation(
-        operation: QueryOperation,
-    ): List<AggregationOperation> {
-        return when (operation) {
-            is FilterOperation -> {
-                compiler.compile(operation.predicate).result.let {
-                    listOf(
-                        toMatch(
-                            operation,
-                            it
-                        )
-                    )
-                }
-            }
-
-            is ProjectionOperation -> {
-                compiler.compile(operation.projection).result.let {
-                    toProjection(
-                        operation,
-                        it
-                    )
-                }
-            }
-
-            is SortingOperation -> {
-                operation.sorting.sorts.associate { sort ->
-                    toSortKey(
-                        operation,
-                        compiler.compile(sort.expression).result
-                    ).toStatement() to when (sort.direction) {
-                        SortDirection.Ascending -> 1
-                        SortDirection.Descending -> -1
-                    }
-                }.let {
-                    listOf(
-                        Aggregation.stage(
-                            Document(
-                                mapOf(
-                                    $$"$sort" to Document(it)
-                                )
-                            )
-                        )
-                    )
-                }
-            }
-
-            is LimitOperation -> {
-                listOf(
-                    Aggregation.limit(operation.amount)
-                )
-            }
-        }
-    }
-
-    private fun toSortKey(
-        operation: SortingOperation,
-        token: MongoToken,
-    ): StatementToken {
-        return when (token) {
-            is StatementToken -> token
-            else -> throw QueryExecutionException(
-                "Can not sort by '${operation.toText()}', as a statement is expected (actual type is: ${token::class.simpleName})."
-            )
-        }
-    }
-
-    private fun toProjection(
-        operation: ProjectionOperation,
-        token: MongoToken,
-    ): List<AggregationOperation> {
-        return when (token) {
-            is StatementToken -> listOf(
-                ProjectToken(
-                    "result",
-                    token
-                ).toStage(),
-                Aggregation.replaceRoot("result")
-            )
-
-            else -> throw QueryExecutionException(
-                "Can not project by '${operation.toText()}', as a statement is expected (actual type is: ${token::class.simpleName})."
-            )
-        }
-    }
-
-    private fun toMatch(
-        operation: FilterOperation,
-        token: MongoToken,
-    ): AggregationOperation {
-        return when (token) {
-            is ExpressionToken -> MatchToken(token).toStage()
-            is MatchToken -> token.toStage()
-            is PropertyToken if token.property.returnType in listOf(typeOf<Boolean?>(), typeOf<Boolean>()) -> {
-                MatchToken(
-                    StatementOperationToken(
-                        token,
-                        "eq",
-                        ConstantToken(true)
-                    )
-                ).toStage()
-            }
-            else -> throw QueryExecutionException(
-                "Can not filter by '${operation.toText()}', as an expression is expected (actual type is: ${token::class.simpleName})."
+    private fun validateResultType(resultType: Class<*>) {
+        if (resultType.isPrimitive ||
+            resultType.isArray ||
+            String::class.java.isAssignableFrom(resultType) ||
+            Collection::class.java.isAssignableFrom(resultType)
+        ) {
+            throw QueryExecutionException(
+                "Result type must be a document/object type, not ${resultType.canonicalName}"
             )
         }
     }

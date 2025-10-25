@@ -14,6 +14,7 @@ import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProviderImpl
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
+import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.job.JobMongoPersistence
 import de.lise.fluxflow.mongo.job.JobRepository
@@ -74,14 +75,21 @@ open class MongoConfiguration {
     }
 
     @Bean
+    internal open fun mongoQueryTranslator(
+        mongoCompiler: MongoCompiler
+    ): MongoQueryTranslator {
+        return MongoQueryTranslator(mongoCompiler)
+    }
+
+    @Bean
     internal open fun workflowFlowQueryRepository(
-        mongoCompiler: MongoCompiler,
-        mongoTemplate: MongoTemplate
+        mongoTemplate: MongoTemplate,
+        queryTranslator: MongoQueryTranslator,
     ): MongoFlowQueryRepository<WorkflowDocument> {
         return MongoFlowQueryRepository(
-            WorkflowDocument::class,
-            mongoCompiler,
-            mongoTemplate
+            rootType = WorkflowDocument::class,
+            translator = queryTranslator,
+            template = mongoTemplate
         )
     }
 
@@ -107,13 +115,13 @@ open class MongoConfiguration {
 
     @Bean
     internal open fun stepQueryRepository(
-        mongoCompiler: MongoCompiler,
-        mongoTemplate: MongoTemplate
+        mongoTemplate: MongoTemplate,
+        mongoQueryTranslator: MongoQueryTranslator,
     ): MongoFlowQueryRepository<StepDocument> {
         return MongoFlowQueryRepository(
-            StepDocument::class,
-            mongoCompiler,
-            mongoTemplate
+            rootType = StepDocument::class,
+            translator = mongoQueryTranslator,
+            template = mongoTemplate
         )
     }
 
@@ -139,12 +147,12 @@ open class MongoConfiguration {
 
     @Bean
     internal open fun jobQueryRepository(
-        mongoCompiler: MongoCompiler,
-        mongoTemplate: MongoTemplate
+        mongoTemplate: MongoTemplate,
+        mongoQueryTranslator: MongoQueryTranslator,
     ): MongoFlowQueryRepository<JobDocument> {
         return MongoFlowQueryRepository(
             rootType = JobDocument::class,
-            compiler = mongoCompiler,
+            translator = mongoQueryTranslator,
             template = mongoTemplate
         )
     }
@@ -189,13 +197,13 @@ open class MongoConfiguration {
     
     @Bean
     internal open fun continuationQueryRepository(
-        compiler: MongoCompiler,
-        template: MongoTemplate
+        template: MongoTemplate,
+        mongoQueryTranslator: MongoQueryTranslator,
     ): MongoFlowQueryRepository<ContinuationRecordDocument> {
         return MongoFlowQueryRepository(
-            ContinuationRecordDocument::class,
-            compiler,
-            template
+            rootType = ContinuationRecordDocument::class,
+            translator = mongoQueryTranslator,
+            template = template
         )
     }
     
