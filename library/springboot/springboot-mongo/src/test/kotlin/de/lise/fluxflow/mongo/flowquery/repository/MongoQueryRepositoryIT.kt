@@ -24,57 +24,51 @@ import java.util.*
 
 @MongoIntegrationTest
 class MongoQueryRepositoryIT {
+
     @Autowired
     lateinit var template: MongoTemplate
 
     @Autowired
     internal lateinit var mongoQueryTranslator: MongoQueryTranslator
 
-    val repo: MongoFlowQueryRepository<TestDocument> by lazy {
+
+    private val repo: MongoFlowQueryRepository<TestDocument> by lazy {
         MongoFlowQueryRepository(
-            TestDocument::class,
-            mongoQueryTranslator,
-            template
+            rootType = TestDocument::class.java,
+            translator = mongoQueryTranslator,
+            executor = MongoExecutor(template, TestDocument::class.java)
         )
     }
 
     @BeforeEach
     fun setupRepo() {
-        template.findAllAndRemove(
-            Query(),
-            TestDocument::class.java
-        )
+        template.findAllAndRemove(Query(), TestDocument::class.java)
         template.insertAll(testDocuments)
     }
 
     @Test
     fun `find with an empty query should return all documents`() {
         // Act
-        val result = repo.find(
-            FlowQuery.Companion.of()
-        ).items
+        val result = repo.find(FlowQuery.of()).items
 
         // Assert
         assertThat(result).hasSize(testDocuments.size)
     }
 
     @Test
-    fun `find with equals filter should support return matching documents`() {
-        // Act
+    fun `find with equals filter should return matching documents`() {
         val result = repo.find {
             where {
                 get(TestDocument::someStringProp).isEqual("a")
             }
         }.items
 
-        // Assert
         assertThat(result).hasSize(1)
         assertThat(result.first().someStringProp).isEqualTo("a")
     }
 
     @Test
-    fun `find with lessThan filter should support return matching documents`() {
-        // Act
+    fun `find with lessThan filter should return matching documents`() {
         val result = repo.find {
             where {
                 get(TestDocument::nestedProperty)
@@ -83,31 +77,24 @@ class MongoQueryRepositoryIT {
             }
         }.items
 
-        // Assert
         assertThat(result).hasSize(2)
         assertThat(result.map { it.nestedProperty.anIntProperty }).containsExactly(1, 2)
     }
 
     @Test
     fun `find should apply the specified sorting`() {
-        // Act
         val result = repo.find {
             sort {
                 get(TestDocument::anotherStringProp).asc()
             }
         }
 
-        // Assert
         assertThat(result.items).hasSize(testDocuments.size)
-        assertThat(result.pageSize)
-        assertThat(
-            result.items.map { it.anotherStringProp }
-        ).containsExactly("x", "y", "z")
+        assertThat(result.items.map { it.anotherStringProp }).containsExactly("x", "y", "z")
     }
 
     @Test
-    fun `find should apply the specified filter and sorting`() {
-        // Act
+    fun `find should apply filter and sorting`() {
         val result = repo.find {
             where {
                 get(TestDocument::someStringProp).isAnyOf("a", "b")
@@ -116,16 +103,12 @@ class MongoQueryRepositoryIT {
             }
         }.items
 
-        // Assert
         assertThat(result).hasSize(2)
-        assertThat(
-            result.map { it.anotherStringProp }
-        ).containsExactly("y", "z")
+        assertThat(result.map { it.anotherStringProp }).containsExactly("y", "z")
     }
 
     @Test
     fun `find should support projection`() {
-        // Act
         val result = repo.find(NestedTestDocument::class) {
             where {
                 get(TestDocument::someStringProp).isAnyOf("b", "c")
@@ -136,111 +119,87 @@ class MongoQueryRepositoryIT {
             }
         }
 
-        // Assert
         assertThat(result).hasSize(1)
         assertThat(result.first().anIntProperty).isEqualTo(3)
     }
 
     @Test
-    fun `find should support startsWith expressions`() {
-        // Act
+    fun `find should support startsWith`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::longStringProperty).startsWith("ab")
             }
         }
 
-        // Assert
         assertThat(result.longStringProperty).isEqualTo("abc")
     }
 
     @Test
-    fun `find should support endsWith expressions`() {
-        // Act
+    fun `find should support endsWith`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::longStringProperty).endsWith("de")
             }
         }
 
-        // Assert
         assertThat(result.longStringProperty).isEqualTo("cde")
     }
 
     @Test
-    fun `find should support contains expressions`() {
-        // Act
+    fun `find should support contains on strings`() {
         val result = repo.find {
             where {
                 get(TestDocument::longStringProperty).contains("c")
             }
         }
 
-        // Assert
-        assertThat(
-            result.items.map { it.longStringProperty }
-        ).containsExactlyInAnyOrder("abc", "cde")
+        assertThat(result.items.map { it.longStringProperty })
+            .containsExactlyInAnyOrder("abc", "cde")
     }
 
     @Test
-    fun `find should support containsElementThat expressions`() {
-        // Act
+    fun `find should support containsElementThat`() {
         val result = repo.find {
             where {
                 get(TestDocument::collectionProp).containsElementThat {
-                    get(NestedTestDocument::anIntProperty)
-                        .isGreaterThan(1)
+                    get(NestedTestDocument::anIntProperty).isGreaterThan(1)
                 }
             }
         }
 
-        // Assert
-        assertThat(
-            result.items.map { it.someStringProp }
-        ).containsExactlyInAnyOrder("c")
+        assertThat(result.items.map { it.someStringProp })
+            .containsExactlyInAnyOrder("c")
     }
 
     @Test
-    fun `find should support contains expressions on collections`() {
-        // Act
+    fun `find should support contains on collections`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::collectionProp).contains(
-                    NestedTestDocument(
-                        anIntProperty = 2
-                    )
+                    NestedTestDocument(anIntProperty = 2)
                 )
             }
         }
 
-        // Assert
-        assertThat(
-            result.someStringProp
-        ).isEqualTo("c")
+        assertThat(result.someStringProp).isEqualTo("c")
     }
 
     @Test
-    fun `find should support negated contains expressions on collections`() {
-        // Act
+    fun `find should support negated contains on collections`() {
         val result = repo.find {
             where {
                 get(TestDocument::collectionProp).contains(
-                    NestedTestDocument(
-                        anIntProperty = 2
-                    )
+                    NestedTestDocument(anIntProperty = 2)
                 ).not()
             }
         }.items
 
-        // Assert
-        assertThat(
-            result.map { it.someStringProp }
-        ).containsExactlyInAnyOrder("a", "b")
+        assertThat(result.map { it.someStringProp })
+            .containsExactlyInAnyOrder("a", "b")
     }
 
     @Test
     fun `find should support comparisons on instants`() {
-        // Act
         val result = repo.findSingle {
             where {
                 get(TestDocument::nestedProperty)
@@ -249,28 +208,22 @@ class MongoQueryRepositoryIT {
             }
         }
 
-        // Assert
-        assertThat(
-            result.someStringProp
-        ).isEqualTo("b")
+        assertThat(result.someStringProp).isEqualTo("b")
     }
 
     @Test
-    fun `find should support filtering on boolean properties`() {
-        // Act
+    fun `find should support boolean filters`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::aBooleanProperty)
             }
         }
 
-        // Assert
         assertThat(result.someStringProp).isEqualTo("a")
     }
 
     @Test
-    fun `find should support filtering on boolean properties combined with other filters`() {
-        // Act
+    fun `find should support boolean filters combined with others`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::someStringProp).isEqual("a").and {
@@ -279,39 +232,33 @@ class MongoQueryRepositoryIT {
             }
         }
 
-        // Assert
         assertThat(result.someStringProp).isEqualTo("a")
     }
 
     @Test
-    fun `find should support filtering on types`() {
-        // Act
+    fun `find should support type filters`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::anAnyProperty).isType(NestedTestDocument::class)
             }
         }
 
-        // Assert
         assertThat(result.anAnyProperty).isInstanceOf(NestedTestDocument::class.java)
     }
 
     @Test
-    fun `find should support filtering on types supporting inheritance`() {
-        // Act
+    fun `find should support type filters with inheritance`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::anAnyProperty).isType(NestedDocument::class)
             }
         }
 
-        // Assert
         assertThat(result.anAnyProperty).isInstanceOf(NestedTestDocument::class.java)
     }
 
     @Test
-    fun `find should support filtering on casted properties`() {
-        // Act
+    fun `find should support casted property filters`() {
         val result = repo.findSingle {
             where {
                 get(TestDocument::anAnyProperty)
@@ -321,24 +268,25 @@ class MongoQueryRepositoryIT {
             }
         }
 
-        // Assert
         assertThat((result.anAnyProperty as NestedTestDocument).anIntProperty).isEqualTo(3)
     }
-    
+
     @Test
-    fun `find should support filtering on nullable properties`() {
-        // Act
-        val result = repo.findSingle { 
-            where { 
+    fun `find should support nullable property filters`() {
+        val result = repo.findSingle {
+            where {
                 get(TestDocument::nullableNestedProperty)
                     .get(NestedTestDocument::anIntProperty)
                     .isGreaterThan(2)
             }
         }
-        
-        // Assert
+
         assertThat(result.nullableNestedProperty?.anIntProperty).isEqualTo(4)
     }
+
+    // -------------------------------------------------------------------------
+    // Test Data
+    // -------------------------------------------------------------------------
 
     private val testInstant = Instant.now()
 
@@ -349,9 +297,7 @@ class MongoQueryRepositoryIT {
             anotherStringProp = "z",
             longStringProperty = "efg",
             aBooleanProperty = true,
-            nestedProperty = NestedTestDocument(
-                anIntProperty = 1
-            )
+            nestedProperty = NestedTestDocument(anIntProperty = 1)
         ),
         TestDocument(
             id = UUID.randomUUID(),
@@ -359,13 +305,8 @@ class MongoQueryRepositoryIT {
             anotherStringProp = "y",
             longStringProperty = "cde",
             aBooleanProperty = false,
-            anAnyProperty = NestedTestDocument(
-                anIntProperty = 3
-            ),
-            nestedProperty = NestedTestDocument(
-                anIntProperty = 2,
-                someInstant = testInstant
-            )
+            anAnyProperty = NestedTestDocument(anIntProperty = 3),
+            nestedProperty = NestedTestDocument(anIntProperty = 2, someInstant = testInstant)
         ),
         TestDocument(
             id = UUID.randomUUID(),
@@ -373,23 +314,13 @@ class MongoQueryRepositoryIT {
             anotherStringProp = "x",
             longStringProperty = "abc",
             collectionProp = listOf(
-                NestedTestDocument(
-                    anIntProperty = 1
-                ),
-                NestedTestDocument(
-                    anIntProperty = 2
-                ),
-                NestedTestDocument(
-                    anIntProperty = 3
-                )
+                NestedTestDocument(anIntProperty = 1),
+                NestedTestDocument(anIntProperty = 2),
+                NestedTestDocument(anIntProperty = 3)
             ),
             aBooleanProperty = null,
-            nestedProperty = NestedTestDocument(
-                anIntProperty = 3
-            ),
-            nullableNestedProperty = NestedTestDocument(
-                anIntProperty = 4                
-            )
+            nestedProperty = NestedTestDocument(anIntProperty = 3),
+            nullableNestedProperty = NestedTestDocument(anIntProperty = 4)
         )
     )
 

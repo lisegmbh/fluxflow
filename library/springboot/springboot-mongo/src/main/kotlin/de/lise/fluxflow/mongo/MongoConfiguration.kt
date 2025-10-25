@@ -13,6 +13,7 @@ import de.lise.fluxflow.mongo.continuation.history.flowquery.ContinuationRecordD
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProviderImpl
+import de.lise.fluxflow.mongo.flowquery.repository.MongoExecutor
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
 import de.lise.fluxflow.mongo.job.JobDocument
@@ -58,160 +59,158 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @ConditionalOnFluxFlowMongo
 @EnableConfigurationProperties(CollationConfiguration::class)
 open class MongoConfiguration {
+
+    // --------------------------------------------------------------------------------------------
+    // Expression Compilation Infrastructure
+    // --------------------------------------------------------------------------------------------
+
     @Bean
     open fun subclassProvider(factory: BeanFactory): SubclassProvider {
-        return SubclassProviderImpl(
-            AutoConfigurationPackages.get(factory).toSet()
-        )
+        return SubclassProviderImpl(AutoConfigurationPackages.get(factory).toSet())
     }
 
     @Bean
-    internal open fun mongoQueryCompiler(
-        subclassProvider: SubclassProvider
-    ): MongoCompiler {
-        return MongoCompiler(
-            subclassProvider
-        )
+    internal open fun mongoQueryCompiler(subclassProvider: SubclassProvider): MongoCompiler {
+        return MongoCompiler(subclassProvider)
     }
 
     @Bean
-    internal open fun mongoQueryTranslator(
-        mongoCompiler: MongoCompiler
-    ): MongoQueryTranslator {
+    internal open fun mongoQueryTranslator(mongoCompiler: MongoCompiler): MongoQueryTranslator {
         return MongoQueryTranslator(mongoCompiler)
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Executors (type-specific)
+    // --------------------------------------------------------------------------------------------
+
+    @Bean
+    internal open fun workflowMongoExecutor(mongoTemplate: MongoTemplate): MongoExecutor<WorkflowDocument> {
+        return MongoExecutor(mongoTemplate, WorkflowDocument::class.java)
+    }
+
+    @Bean
+    internal open fun stepMongoExecutor(mongoTemplate: MongoTemplate): MongoExecutor<StepDocument> {
+        return MongoExecutor(mongoTemplate, StepDocument::class.java)
+    }
+
+    @Bean
+    internal open fun jobMongoExecutor(mongoTemplate: MongoTemplate): MongoExecutor<JobDocument> {
+        return MongoExecutor(mongoTemplate, JobDocument::class.java)
+    }
+
+    @Bean
+    internal open fun continuationMongoExecutor(mongoTemplate: MongoTemplate): MongoExecutor<ContinuationRecordDocument> {
+        return MongoExecutor(mongoTemplate, ContinuationRecordDocument::class.java)
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // FlowQuery Repositories
+    // --------------------------------------------------------------------------------------------
+
     @Bean
     internal open fun workflowFlowQueryRepository(
-        mongoTemplate: MongoTemplate,
         queryTranslator: MongoQueryTranslator,
+        executor: MongoExecutor<WorkflowDocument>,
     ): MongoFlowQueryRepository<WorkflowDocument> {
         return MongoFlowQueryRepository(
             rootType = WorkflowDocument::class,
             translator = queryTranslator,
-            template = mongoTemplate
+            executor = executor
         )
     }
 
     @Bean
-    open fun workflowDocumentMapper(): QueryMapper<WorkflowData, WorkflowDocument> {
-        return QueryMapperImpl(
-            WorkflowDataToDocumentMapper()
+    internal open fun stepFlowQueryRepository(
+        queryTranslator: MongoQueryTranslator,
+        executor: MongoExecutor<StepDocument>,
+    ): MongoFlowQueryRepository<StepDocument> {
+        return MongoFlowQueryRepository(
+            rootType = StepDocument::class,
+            translator = queryTranslator,
+            executor = executor
         )
+    }
+
+    @Bean
+    internal open fun jobFlowQueryRepository(
+        queryTranslator: MongoQueryTranslator,
+        executor: MongoExecutor<JobDocument>,
+    ): MongoFlowQueryRepository<JobDocument> {
+        return MongoFlowQueryRepository(
+            rootType = JobDocument::class,
+            translator = queryTranslator,
+            executor = executor
+        )
+    }
+
+    @Bean
+    internal open fun continuationFlowQueryRepository(
+        queryTranslator: MongoQueryTranslator,
+        executor: MongoExecutor<ContinuationRecordDocument>,
+    ): MongoFlowQueryRepository<ContinuationRecordDocument> {
+        return MongoFlowQueryRepository(
+            rootType = ContinuationRecordDocument::class,
+            translator = queryTranslator,
+            executor = executor
+        )
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Mappers and Persistence Bindings
+    // --------------------------------------------------------------------------------------------
+
+    @Bean
+    open fun workflowDocumentMapper(): QueryMapper<WorkflowData, WorkflowDocument> {
+        return QueryMapperImpl(WorkflowDataToDocumentMapper())
     }
 
     @Bean
     open fun workflowPersistence(
         workflowRepository: WorkflowRepository,
         queryableRepository: MongoFlowQueryRepository<WorkflowDocument>,
-        queryMapper: QueryMapper<WorkflowData, WorkflowDocument>
+        queryMapper: QueryMapper<WorkflowData, WorkflowDocument>,
     ): WorkflowPersistence {
-        return WorkflowMongoPersistence(
-            workflowRepository,
-            queryableRepository,
-            queryMapper
-        )
-    }
-
-    @Bean
-    internal open fun stepQueryRepository(
-        mongoTemplate: MongoTemplate,
-        mongoQueryTranslator: MongoQueryTranslator,
-    ): MongoFlowQueryRepository<StepDocument> {
-        return MongoFlowQueryRepository(
-            rootType = StepDocument::class,
-            translator = mongoQueryTranslator,
-            template = mongoTemplate
-        )
+        return WorkflowMongoPersistence(workflowRepository, queryableRepository, queryMapper)
     }
 
     @Bean
     open fun stepDocumentMapper(): QueryMapper<StepData, StepDocument> {
-        return QueryMapperImpl(
-            StepDataToDocumentMapper()
-        )
+        return QueryMapperImpl(StepDataToDocumentMapper())
     }
 
     @Bean
     open fun stepPersistence(
         stepRepository: StepRepository,
         queryableRepository: MongoFlowQueryRepository<StepDocument>,
-        queryMapper: QueryMapper<StepData, StepDocument>
+        queryMapper: QueryMapper<StepData, StepDocument>,
     ): StepPersistence {
-        return StepMongoPersistence(
-            stepRepository = stepRepository,
-            queryableRepository = queryableRepository,
-            queryMapper = queryMapper
-        )
+        return StepMongoPersistence(stepRepository, queryableRepository, queryMapper)
     }
 
     @Bean
-    internal open fun jobQueryRepository(
-        mongoTemplate: MongoTemplate,
-        mongoQueryTranslator: MongoQueryTranslator,
-    ): MongoFlowQueryRepository<JobDocument> {
-        return MongoFlowQueryRepository(
-            rootType = JobDocument::class,
-            translator = mongoQueryTranslator,
-            template = mongoTemplate
-        )
+    open fun jobQueryMapper(): QueryMapper<JobData, JobDocument> {
+        return QueryMapperImpl(JobDataToDocumentMapper())
     }
-    
-    @Bean
-    internal open fun jobQueryMapper(): QueryMapper<JobData, JobDocument> {
-        return QueryMapperImpl(
-            JobDataToDocumentMapper()
-        )
-    }
-    
+
     @Bean
     open fun jobPersistence(
         jobRepository: JobRepository,
         queryableRepository: MongoFlowQueryRepository<JobDocument>,
         queryMapper: QueryMapper<JobData, JobDocument>,
     ): JobPersistence {
-        return JobMongoPersistence(
-            jobRepository,
-            queryableRepository,
-            queryMapper
-        )
-    }
-
-    @Bean
-    open fun migrationPersistence(
-        migrationRepository: MigrationRepository,
-        mongoTemplate: MongoTemplate
-    ): MigrationPersistence {
-        return MigrationMongoPersistence(
-            migrationRepository,
-            mongoTemplate
-        )
+        return JobMongoPersistence(jobRepository, queryableRepository, queryMapper)
     }
 
     @Bean
     open fun continuationQueryMapper(): QueryMapper<ContinuationRecordData, ContinuationRecordDocument> {
-        return QueryMapperImpl(
-            ContinuationRecordDataToDocumentMaper()
-        )
+        return QueryMapperImpl(ContinuationRecordDataToDocumentMaper())
     }
-    
-    @Bean
-    internal open fun continuationQueryRepository(
-        template: MongoTemplate,
-        mongoQueryTranslator: MongoQueryTranslator,
-    ): MongoFlowQueryRepository<ContinuationRecordDocument> {
-        return MongoFlowQueryRepository(
-            rootType = ContinuationRecordDocument::class,
-            translator = mongoQueryTranslator,
-            template = template
-        )
-    }
-    
+
     @Bean
     open fun continuationRecordPersistence(
         continuationRecordRepository: ContinuationRecordRepository,
         queryableRepository: MongoFlowQueryRepository<ContinuationRecordDocument>,
-        queryMapper: QueryMapper<ContinuationRecordData, ContinuationRecordDocument>
+        queryMapper: QueryMapper<ContinuationRecordData, ContinuationRecordDocument>,
     ): ContinuationRecordPersistence {
         return ContinuationRecordMongoPersistence(
             continuationRecordRepository = continuationRecordRepository,
@@ -220,25 +219,34 @@ open class MongoConfiguration {
         )
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Other Mongo Persistences (unchanged)
+    // --------------------------------------------------------------------------------------------
+
+    @Bean
+    open fun migrationPersistence(
+        migrationRepository: MigrationRepository,
+        mongoTemplate: MongoTemplate
+    ): MigrationPersistence {
+        return MigrationMongoPersistence(migrationRepository, mongoTemplate)
+    }
+
     @Bean
     open fun stepDefinitionPersistence(
         stepDefinitionRepository: StepDefinitionRepository,
         mongoTemplate: MongoTemplate
     ): StepDefinitionPersistence {
-        return StepDefinitionMongoPersistence(
-            stepDefinitionRepository,
-            mongoTemplate
-        )
+        return StepDefinitionMongoPersistence(stepDefinitionRepository, mongoTemplate)
     }
 
     @Bean
-    open fun mongoMigrationProvider(
-        mongoTemplate: MongoTemplate
-    ): MongoMigrationProvider {
-        return MongoMigrationProvider(
-            mongoTemplate
-        )
+    open fun mongoMigrationProvider(mongoTemplate: MongoTemplate): MongoMigrationProvider {
+        return MongoMigrationProvider(mongoTemplate)
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Bootstrap Actions
+    // --------------------------------------------------------------------------------------------
 
     @Bean
     @Order(99)
@@ -246,41 +254,30 @@ open class MongoConfiguration {
         mongoTemplate: MongoTemplate,
         collationConfigurer: CollationConfigurer
     ): BootstrapAction {
-        return CreateCollectionsBootstrapAction(
-            mongoTemplate,
-            collationConfigurer
-        )
+        return CreateCollectionsBootstrapAction(mongoTemplate, collationConfigurer)
     }
 
     @Bean
     @Order(100)
-    open fun indexBootstrapper(
-        mongoTemplate: MongoTemplate
-    ): BootstrapAction {
+    open fun indexBootstrapper(mongoTemplate: MongoTemplate): BootstrapAction {
         return CreateIndexesBootstrapAction(mongoTemplate)
     }
 
     @Bean
     @Order(101)
-    open fun dataTypeMapBootstrapper(
-        mongoTemplate: MongoTemplate
-    ): BootstrapAction {
+    open fun dataTypeMapBootstrapper(mongoTemplate: MongoTemplate): BootstrapAction {
         return MigrateDataTypesMapBootstrapAction(mongoTemplate)
     }
 
     @Bean
     @Order(102)
-    open fun metadataTypeMapBootstrapper(
-        mongoTemplate: MongoTemplate
-    ): BootstrapAction {
+    open fun metadataTypeMapBootstrapper(mongoTemplate: MongoTemplate): BootstrapAction {
         return MigrateMetadataTypesMapBootstrapAction(mongoTemplate)
     }
 
     @Bean
     @Order(103)
-    open fun parameterTypeMapBootstrapper(
-        mongoTemplate: MongoTemplate
-    ): BootstrapAction {
+    open fun parameterTypeMapBootstrapper(mongoTemplate: MongoTemplate): BootstrapAction {
         return MigrateJobParameterTypesMapBootstrapAction(mongoTemplate)
     }
 
@@ -299,7 +296,7 @@ open class MongoConfiguration {
             stepRepository,
             jobRepository,
             mongoConverter,
-            mongoTemplate,
+            mongoTemplate
         )
     }
 }
