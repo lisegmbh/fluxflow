@@ -1,128 +1,104 @@
-# Queries
-The possibility to search for FluxFlow objects is provided by the
-`de.lise.fluxflow.api.query` package. A query can include an optional
-filter, one or more sorting rules and an optional pagination request.
+# Query System
 
-## Query
-The query object combines
+FluxFlow provides a powerful type-safe query API through the `de.fluxflow.flowquery` package. This system allows you to build
+complex queries with filtering conditions, sorting rules, and pagination settings.
 
-1.  filters
-2.  sorting rules and
-3.  pagination settings
+!!! warning "Deprecation Notice"
+    The old query API (`JobQuery`, `ContinuationRecordQuery`, etc.) is deprecated and will be removed in a future release.
+    Please migrate to the new FlowQuery API described below.
 
-that should be applied when fetching FluxFlow objects.
+## Overview
 
-## Filtering
+The FlowQuery API combines three main components:
 
-Filtering is used to limit the result set returned by a query, based on
-certain criteria. There is a specific filter class for each filterable
-domain object, allowing for targeted queries.
+- **Type-safe filtering expressions** - Build compile-time checked filter conditions
+- **Sorting rules** - Define result ordering using multiple criteria
+- **Pagination settings** - Control result set size and paging
 
-One of those object-specific filter classes is the `WorkflowFilter`. It
-exposes the filterable properties of a workflow and provides some
-builder methods.
+## Building Queries
 
-In order to get started, one would create an instance of this class by
-directly invoking the constructor
+### Filtering
 
-**Direct workflow filter creation**
+Filtering allows you to limit result sets based on type-safe conditions. Each queryable domain object exposes its 
+filterable properties through a corresponding `*Queryable` interface.
 
-    data class PizzaOrder(val city: String)
-    
-    val myWorkflowFilter = WorkflowFilter<PizzaOrder>(
-        id = null,
-        model = Filter.property(
-            PizzaOrder::class,
-            Filter.eq("Cologne")
-        )
-    )
+**Example using WorkflowQueryable:**
 
-or using the builder methods.
+```kotlin
+data class PizzaOrder(val city: String)
 
-**Workflow filter creation using the builder methods**
+// Create a query filtering workflows by city
+val query = FlowQuery.of<WorkflowQueryable>()
+    .where { 
+        get(WorkflowQueryable::model)
+            .get(PizzaOrder::city)
+            .isEqual("Cologne") 
+    }
+```
 
-    data class PizzaOrder(val city: String)
+The FlowQuery API provides these filtering operations:
 
-    val filter = WorkflowFilter.empty<PizzaOrder>()
-            .withModelFilter(
-                Filter.property(
-                    PizzaOrder::city,
-                    Filter.eq("Cologne")
-                )
-            )
+| Category | Operations |
+|----------|------------|
+| Comparison | `isEqual`, `isNotEqual`, `isGreaterThan`, `isLessThan` |
+| String | `startsWith`, `endsWith`, `contains` |
+| Collection | `contains`, `containsElementThat` |
+| Logical | `and`, `or`, `not` |
 
-The `WorkflowFilter` 's job is to guide the developer during filter
-specification, while the generic `Filter<T>` implementations allow for
-use-case specific filter definitions.
+### Sorting
 
-To see a full listing of supported operations, refer to the static
-filter builder methods within the `Filter<T>` interface.
+Sorting defines the order of results. You can combine multiple sorting criteria that are applied in sequence.
 
-## Sorting
+```kotlin
+data class PizzaOrder(val city: String, val invoicedAmount: Double)
 
-Sorting defines the order that should be applied to the result set. It
-is possible to combine multiple sorting criteria. When two or more
-objects are equal based on a certain sorting criteria, the next sorting
-rule will be applied for those objects. This process is repeated until a
-definit sorting order is archived or there is no more criteria left
-over.
+// Sort workflows by city (ascending) then by invoiced amount (descending)
+val query = FlowQuery.of<WorkflowQueryable>()
+    .sort { 
+        Sorting.asc(get(WorkflowQueryable::model).get(PizzaOrder::city))
+    }
+    .sort { 
+        Sorting.desc(get(WorkflowQueryable::model).get(PizzaOrder::invoicedAmount))
+    }
+```
 
-The sorting definition is constructed similar to filter definitions.
+### Pagination
 
-**Workflow sorting based on a model property**
+To retrieve paginated results, use the `paged` method on your query:
 
-    data class PizzaOrder(val city: String, val invoicedAmount: Double)
+```kotlin
+data class PizzaOrder(val city: String)
 
-    val sortByCityAsc = WorkflowSort.model(
-            Sort.property(
-                PizzaOrder::city,
-                Sort.asc()
-            )
-        )
+// Get the first page with 50 items per page
+val query = FlowQuery.of<WorkflowQueryable>()
+    .paged(pageIndex = 0, pageSize = 50)
 
-Within a query, you can then combine those filters.
+// Or use a PaginationRequest object
+val query = FlowQuery.of<WorkflowQueryable>()
+    .paged(PaginationRequest(pageIndex = 0, pageSize = 50))
+```
 
-**Sort workflows by city, invoiced amount and finally by their
-identifiers**
+!!! tip "Best Practice"
+    Always define a sort order when using pagination to ensure reproducible results.
 
-    data class PizzaOrder(val city: String, val invoicedAmount: Double)
+## Advanced Usage
 
-    WorkflowQuery.empty<WorkflowFilter<PizzaOrder>, WorkflowSort<PizzaOrder>>()
-            .addSort(
-                WorkflowSort.model(
-                    Sort.property(
-                        PizzaOrder::city,
-                        Sort.asc()
-                    )
-                )
-            ).addSort(
-                WorkflowSort.model(
-                    Sort.property(
-                        PizzaOrder::invoicedAmount,
-                        Sort.desc()
-                    )
-                )
-            ).addSort(WorkflowSort.identifier(Direction.Ascending))
+### Combining Operations
 
-## Pagination
+FlowQuery operations can be chained to create complex queries. All operations are immutable - each one returns a new 
+FlowQuery instance.
 
-In order to obtain a paginated result set, the
-`Query.withPage(pageIndex: Int, pageSize: Int)` or
-`Query.withPage(pageRequest: PaginationRequest)` method can be used.
-Both require the page index (starting at zero) of the page to be fetched
-and the page size specifying the maximum number of elements that might
-be contained within a page.
+```kotlin
+data class PizzaOrder(val city: String, val invoicedAmount: Double)
 
-Note that it is possible for a page to contain fewer elements than the
-requested page size. Especially if there are not enough elements to fill
-that page.
-
-In order to archive reproducible results, a sort order should be
-defined.
-
-**Pagination for workflow queries**
-
-    data class PizzaOrder(val city: String)
-
-    val query: WorkflowQuery<PizzaOrder> = Query.empty<WorkflowFilter<PizzaOrder>, WorkflowSort<PizzaOrder>>()
-            .withPage(0, 50)
+val query = FlowQuery.of<WorkflowQueryable>()
+    .where { 
+        get(WorkflowQueryable::model)
+            .get(PizzaOrder::city)
+            .isEqual("Cologne") 
+    }
+    .sort { 
+        Sorting.asc(get(WorkflowQueryable::model).get(PizzaOrder::invoicedAmount))
+    }
+    .paged(pageIndex = 0, pageSize = 20)
+```
