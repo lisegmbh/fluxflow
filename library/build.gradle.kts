@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "2.2.20"
+    id("org.jetbrains.dokka") version "2.1.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.vanniktech.maven.publish") version "0.34.0"
 }
@@ -27,6 +28,7 @@ subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "io.spring.dependency-management")
     apply(plugin = "com.vanniktech.maven.publish")
+    apply(plugin = "org.jetbrains.dokka")
 
     group = "de.lise.fluxflow"
     version = projVersion ?: "0.3.0-SNAPSHOT-2"
@@ -37,6 +39,11 @@ subprojects {
 
     java {
         sourceCompatibility = JavaVersion.VERSION_17
+    }
+
+    tasks.withType<Javadoc>().configureEach {
+        // disable plain JavaDoc (fails with Kotlin sources)
+        enabled = false
     }
 
     kotlin {
