@@ -7,7 +7,7 @@ import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 
-class ContinuationRecordDataToDocumentMaper : ExpressionMapper {
+class ContinuationRecordDataToDocumentMapper : ExpressionMapper {
     private val mapper = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.property(

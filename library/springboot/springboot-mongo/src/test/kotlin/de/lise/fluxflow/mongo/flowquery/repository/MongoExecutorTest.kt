@@ -11,7 +11,6 @@ import org.springframework.data.mongodb.core.aggregation.AggregationResults
 import org.springframework.data.mongodb.core.query.Query
 
 class MongoExecutorTest {
-
     private lateinit var mongoTemplate: MongoTemplate
     private lateinit var executor: MongoExecutor<TestRoot>
 
@@ -31,7 +30,7 @@ class MongoExecutorTest {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    fun `executeUnpaged should delegate to MongoTemplateaggregate and return mapped results`() {
+    fun `executeUnpaged should delegate to MongoTemplate#aggregate and return mapped results`() {
         // Arrange
         val aggregation = mock<Aggregation>()
         val expectedResults = listOf(TestProjection("foo"), TestProjection("bar"))
@@ -129,7 +128,7 @@ class MongoExecutorTest {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    fun `findAll should delegate to MongoTemplatefindAll`() {
+    fun `findAll should delegate to MongoTemplate#findAll`() {
         // Arrange
         val expected = listOf(TestRoot("1", "A"), TestRoot("2", "B"))
         whenever(mongoTemplate.findAll(eq(TestRoot::class.java))).thenReturn(expected)

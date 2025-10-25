@@ -3,7 +3,7 @@ package de.lise.fluxflow.mongo.continuation.history
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.mapper.query.QueryMapperImpl
 import de.lise.fluxflow.mongo.ConditionalOnFluxFlowMongo
-import de.lise.fluxflow.mongo.continuation.history.flowquery.ContinuationRecordDataToDocumentMaper
+import de.lise.fluxflow.mongo.continuation.history.flowquery.ContinuationRecordDataToDocumentMapper
 import de.lise.fluxflow.mongo.flowquery.repository.MongoExecutor
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
@@ -34,7 +34,7 @@ open class ContinuationMongoConfiguration {
 
     @Bean
     open fun continuationQueryMapper(): QueryMapper<ContinuationRecordData, ContinuationRecordDocument> {
-        return QueryMapperImpl(ContinuationRecordDataToDocumentMaper())
+        return QueryMapperImpl(ContinuationRecordDataToDocumentMapper())
     }
 
     @Bean

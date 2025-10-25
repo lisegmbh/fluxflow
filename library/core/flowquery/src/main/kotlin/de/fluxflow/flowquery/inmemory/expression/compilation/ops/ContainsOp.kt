@@ -9,7 +9,7 @@ data class ContainsOp<TRoot>(
         return value.execute(input)?.indexOf(
             string = substring.execute(input) ?: return null,
             startIndex = 0,
-            ignoreCase = true
+            ignoreCase = ignoreCasing
         )?.let {
             it != -1
         }
