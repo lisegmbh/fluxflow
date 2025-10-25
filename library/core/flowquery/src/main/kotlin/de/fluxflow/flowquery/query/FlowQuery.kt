@@ -212,8 +212,12 @@ interface FlowQuery<TRoot, TResult> {
      * @return a string representation of the query and its operations
      */
     fun toText(): String {
-        return operations.joinToString("\n   | ") {
+        val operationsText = operations.joinToString("\n   | ") {
             it.toText()
+        }
+        return when(pagination) {
+            null -> "$operationsText\n   | UNPAGINATED"
+            else -> "$operationsText\n   | PAGINATED (page=${pagination?.pageIndex}, size=${pagination?.pageSize})"
         }
     }
 

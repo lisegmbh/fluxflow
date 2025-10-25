@@ -5,6 +5,7 @@ import de.fluxflow.flowquery.query.sorting.SortDirection
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.bson.Document
+import org.slf4j.LoggerFactory
 import org.springframework.data.mongodb.core.aggregation.Aggregation
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation
 import kotlin.reflect.typeOf
@@ -20,6 +21,8 @@ import kotlin.reflect.typeOf
  */
 internal class MongoQueryTranslator(private val compiler: MongoCompiler) {
 
+    private val logger = LoggerFactory.getLogger(MongoQueryTranslator::class.java)
+
     /**
      * Translates the given [query] into a MongoDB [Aggregation] instance.
      *
@@ -28,7 +31,17 @@ internal class MongoQueryTranslator(private val compiler: MongoCompiler) {
      */
     fun <TRoot, TResult> translate(query: FlowQuery<TRoot, TResult>): Aggregation {
         val operations = query.operations.flatMap { toAggregationOperation(it) }
-        return Aggregation.newAggregation(operations)
+        val aggregation = Aggregation.newAggregation(operations)
+
+        if (logger.isTraceEnabled) {
+            logger.trace(
+                "Compiled FlowQuery to MongoDB aggregation pipeline: Original query:\n{}\n-> Result query:\n{}",
+                query.toText(),
+                aggregation.pipeline
+            )
+        }
+
+        return aggregation
     }
 
     /**
