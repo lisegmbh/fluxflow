@@ -8,22 +8,18 @@ import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.bson.Document
 import org.slf4j.LoggerFactory
 
-internal typealias MongoCompilerResult = MongoToken
 
-/**
- * Improved MongoDB compiler with better error handling, cleaner type conversions,
- * and more comprehensive operator support.
- */
+
 internal class MongoCompiler(
     private val subclassProvider: SubclassProvider,
     private val config: MongoCompilerConfig = MongoCompilerConfig()
-) : ExpressionCompiler<MongoCompilerResult> {
+) : ExpressionCompiler<MongoToken> {
 
     private val logger = LoggerFactory.getLogger(MongoCompiler::class.java)
 
     override fun <TRoot, TResult> compile(
         expression: Expression<TRoot, TResult>
-    ): CompilationResult<MongoCompilerResult> {
+    ): CompilationResult<MongoToken> {
         return try {
             val result = doCompile(expression, expression)
             if (logger.isTraceEnabled) {
@@ -216,4 +212,3 @@ internal class MongoCompiler(
         return AnyOfToken(valueToken, valueTokens)
     }
 }
-
