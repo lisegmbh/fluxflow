@@ -536,7 +536,6 @@ We're grateful to these wonderful people who have contributed to FluxFlow:
 - [Dominik "Pipo" Alexander](https://github.com/DerPipo) - Framework Integration
 - [Jagadish Singh](https://github.com/jagadish-singh-lise) - Testing & Quality Assurance
 - [Marcel Singer](https://github.com/masinger) - Core Engine Development
-- [Ömer Ciblak](https://github.com/oemer-ciblak) - Documentation & Examples
 
 ---
 
