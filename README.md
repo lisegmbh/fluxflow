@@ -532,10 +532,12 @@ It includes comprehensive monitoring, metrics, error handling, and has been batt
 
 We're grateful to these wonderful people who have contributed to FluxFlow:
 
-- [Christian Scholz](https://github.com/bobmazy) - Core Architecture & Development
-- [Dominik "Pipo" Alexander](https://github.com/DerPipo) - Framework Integration
-- [Jagadish Singh](https://github.com/jagadish-singh-lise) - Testing & Quality Assurance
-- [Marcel Singer](https://github.com/masinger) - Core Engine Development
+- [Christian Scholz](https://github.com/bobmazy)
+- [Dominik "Pipo" Alexander](https://github.com/DerPipo)
+- [Marcel Singer](https://github.com/masinger)
+
+**In Memory:**
+- [Jagadish Singh](https://github.com/jagadish-singh-lise) - We deeply appreciate his valuable contributions to both FluxFlow and our team
 
 ---
 
