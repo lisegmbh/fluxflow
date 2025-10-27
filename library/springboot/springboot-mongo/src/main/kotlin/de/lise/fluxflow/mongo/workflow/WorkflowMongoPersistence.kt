@@ -1,6 +1,9 @@
 package de.lise.fluxflow.mongo.workflow
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.workflow.query.WorkflowDocumentQuery
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
@@ -10,6 +13,8 @@ import kotlin.jvm.optionals.getOrNull
 
 class WorkflowMongoPersistence(
     private val repository: WorkflowRepository,
+    private val queryableRepository: MongoFlowQueryRepository<WorkflowDocument>,
+    private val queryMapper: QueryMapper<WorkflowData, WorkflowDocument>
 ) : WorkflowPersistence {
     override fun create(model: Any?, forcedId: WorkflowIdentifier?): WorkflowData {
         return repository.insert(
@@ -30,6 +35,14 @@ class WorkflowMongoPersistence(
         return repository.findAll(
             WorkflowDocumentQuery(query)
         ).map { it.toWorkflowData() }
+    }
+
+    override fun findAll(query: FlowQuery<WorkflowData, WorkflowData>): Page<WorkflowData> {
+        return queryableRepository.find(
+            queryMapper.map(query)
+        ).map {
+            it.toWorkflowData()
+        }
     }
 
     override fun find(id: WorkflowIdentifier): WorkflowData? {

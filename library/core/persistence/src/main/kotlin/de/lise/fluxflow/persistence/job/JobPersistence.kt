@@ -1,5 +1,6 @@
 package de.lise.fluxflow.persistence.job
 
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
@@ -31,6 +32,8 @@ interface JobPersistence {
      * @return The found jobs.
      */
     fun findAll(query: JobDataQuery): Page<JobData>
+    
+    fun findAll(query: FlowQuery<JobData, JobData>): Page<JobData>
 
     /**
      * Updates all jobs belonging to the workflow with the given

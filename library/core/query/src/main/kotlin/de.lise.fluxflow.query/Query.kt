@@ -2,6 +2,7 @@ package de.lise.fluxflow.query
 
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
+@Deprecated("Use new FlowQuery API")
 open class Query<TFilter, TSort>(
     val filter: TFilter?,
     val sort: List<TSort>,

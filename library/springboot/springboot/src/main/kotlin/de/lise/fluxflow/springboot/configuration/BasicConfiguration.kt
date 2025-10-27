@@ -1,18 +1,24 @@
 package de.lise.fluxflow.springboot.configuration
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.mapper.query.QueryMapperImpl
 import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.api.continuation.history.ContinuationHistoryService
+import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQueryable
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
+import de.lise.fluxflow.api.job.query.JobQueryable
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
+import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.versioning.*
 import de.lise.fluxflow.api.workflow.*
 import de.lise.fluxflow.api.workflow.action.WorkflowActionService
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.engine.bootstrapping.BootstrappingService
 import de.lise.fluxflow.engine.continuation.ContinuationService
 import de.lise.fluxflow.engine.continuation.history.ContinuationHistoryServiceImpl
@@ -34,14 +40,20 @@ import de.lise.fluxflow.engine.workflow.action.WorkflowActionServiceImpl
 import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.migration.MigrationService
 import de.lise.fluxflow.migration.MigrationServiceImpl
+import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
+import de.lise.fluxflow.persistence.continuation.history.flowquery.ContinuationRecordQueryableToDataMapper
+import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataMapper
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
+import de.lise.fluxflow.persistence.step.flowquery.StepQueryableToDataMapper
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowQueryableToDataMapper
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
@@ -165,7 +177,7 @@ open class BasicConfiguration {
     ): WorkflowActionFunctionResolver {
         return WorkflowActionFunctionResolverImpl(parameterResolver)
     }
-    
+
     @Bean
     open fun workflowActionDefinitionBuilder(
         metadataBuilder: MetadataBuilder,
@@ -178,7 +190,7 @@ open class BasicConfiguration {
             actionFunctionResolver
         )
     }
-    
+
     @Bean
     open fun workflowDefinitionBuilder(
         modelListenerDefinitionBuilder: ModelListenerDefinitionBuilder,
@@ -191,7 +203,7 @@ open class BasicConfiguration {
             actionDefinitionBuilder
         )
     }
-    
+
     @Bean
     open fun workflowActivationService(
         workflowDefinitionBuilder: WorkflowDefinitionBuilder
@@ -218,14 +230,23 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun workflowQueryToDataMapper(): QueryMapper<WorkflowQueryable<*>, WorkflowData> {
+        return QueryMapperImpl(
+            WorkflowQueryableToDataMapper()
+        )
+    }
+
+    @Bean
     @Primary
     open fun workflowQueryService(
         persistence: WorkflowPersistence,
-        activationService: WorkflowActivationService
+        activationService: WorkflowActivationService,
+        queryMapper: QueryMapper<WorkflowQueryable<*>, WorkflowData>
     ): WorkflowQueryServiceImpl {
         return WorkflowQueryServiceImpl(
             persistence,
-            activationService
+            activationService,
+            queryMapper
         )
     }
 
@@ -420,13 +441,13 @@ open class BasicConfiguration {
             false
         )
     }
-    
+
     @Bean
     @ConfigurationProperties("fluxflow.versioning.comparison")
     open fun compatibilityConfiguration(): CompatibilityConfiguration {
         return CompatibilityConfiguration()
     }
-    
+
     @Bean
     open fun compatibilityTester(
         compatibilityConfiguration: CompatibilityConfiguration
@@ -515,6 +536,13 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun stepDataMapper(): QueryMapper<StepQueryable, StepData> {
+        return QueryMapperImpl(
+            StepQueryableToDataMapper()
+        )
+    }
+
+    @Bean
     open fun stepService(
         persistence: StepPersistence,
         stepActivationService: StepActivationService,
@@ -526,19 +554,21 @@ open class BasicConfiguration {
         enableAutomaticUpgrade: Boolean,
         @Value("\${fluxflow.versioning.steps.requiredUpgradeCompatibility:Unknown}")
         requiredUpgradeCompatibility: VersionCompatibility,
-        compatibilityTester: CompatibilityTester
+        compatibilityTester: CompatibilityTester,
+        queryMapper: QueryMapper<StepQueryable, StepData>
     ): StepServiceImpl {
         return StepServiceImpl(
-            persistence,
-            stepActivationService,
-            eventService,
-            continuationService!!,
-            changeDetector,
-            stepDefinitionVersionRecorder,
-            workflowQueryService,
-            enableAutomaticUpgrade,
-            requiredUpgradeCompatibility,
-            compatibilityTester
+            persistence = persistence,
+            stepActivationService = stepActivationService,
+            eventService = eventService,
+            continuationService = continuationService!!,
+            changeDetector = changeDetector,
+            stepDefinitionVersionRecorder = stepDefinitionVersionRecorder,
+            workflowQueryService = workflowQueryService,
+            enableAutomaticVersionUpgrade = enableAutomaticUpgrade,
+            requiredCompatibility = requiredUpgradeCompatibility,
+            compatibilityTester = compatibilityTester,
+            queryMapper = queryMapper
         )
     }
 
@@ -610,19 +640,27 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun jobToDataMapper(): QueryMapper<JobQueryable, JobData> {
+        return QueryMapperImpl(
+            JobQueryableToDataMapper()
+        )
+    }
+    
+    @Bean
     open fun jobService(
         jobActivationService: JobActivationService,
         jobPersistence: JobPersistence,
         schedulingService: SchedulingService,
+        queryMapper: QueryMapper<JobQueryable, JobData>
     ): JobServiceImpl {
         return JobServiceImpl(
-            jobActivationService,
-            jobPersistence,
-            schedulingService,
-            workflowService!!,
+            jobActivationService = jobActivationService,
+            jobPersistence = jobPersistence,
+            schedulingService = schedulingService,
+            workflowService = workflowService!!,
+            queryMapper = queryMapper
         )
     }
-
     
     @Bean
     open fun jobSchedulingCallback(
@@ -652,15 +690,24 @@ open class BasicConfiguration {
     }
 
     @Bean
+    open fun continuationQueryableMapper(): QueryMapper<ContinuationRecordQueryable, ContinuationRecordData> {
+        return QueryMapperImpl(
+            ContinuationRecordQueryableToDataMapper()
+        )
+    }
+    
+    @Bean
     open fun continuationHistoryService(
         continuationRecordPersistence: ContinuationRecordPersistence,
         stepService: StepService,
         clock: Clock,
+        queryMapper: QueryMapper<ContinuationRecordQueryable, ContinuationRecordData>
     ): ContinuationHistoryServiceImpl {
         return ContinuationHistoryServiceImpl(
-            continuationRecordPersistence,
-            stepService,
-            clock
+            continuationRecordPersistence = continuationRecordPersistence,
+            stepService = stepService,
+            clock = clock,
+            queryMapper = queryMapper
         )
     }
 

@@ -24,4 +24,5 @@ include("springboot:springboot-test-scheduling")
 include("springboot:springboot-testing")
 
 include("core:query")
+include("core:flowquery")
 include("core:validation")

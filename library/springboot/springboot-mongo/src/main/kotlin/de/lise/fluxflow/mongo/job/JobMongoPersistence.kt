@@ -1,9 +1,12 @@
 package de.lise.fluxflow.mongo.job
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.job.query.JobDataQuery
@@ -11,7 +14,9 @@ import de.lise.fluxflow.query.pagination.Page
 import org.bson.types.ObjectId
 
 class JobMongoPersistence(
-    private val jobRepository: JobRepository
+    private val jobRepository: JobRepository,
+    private val queryableRepository: MongoFlowQueryRepository<JobDocument>,
+    private val queryMapper: QueryMapper<JobData, JobDocument>,
 ) : JobPersistence {
     override fun randomId(): String {
         return ObjectId.get()!!.toHexString()
@@ -41,6 +46,14 @@ class JobMongoPersistence(
         return jobRepository.findAll(
             JobDocumentQuery(query),
         ).map { it.toJobData() }
+    }
+
+    override fun findAll(query: FlowQuery<JobData, JobData>): Page<JobData> {
+        return queryableRepository.find(
+            queryMapper.map(query)
+        ).map { 
+            it.toJobData()
+        }
     }
 
     override fun cancelJobs(workflowIdentifier: WorkflowIdentifier, cancellationKey: CancellationKey) {

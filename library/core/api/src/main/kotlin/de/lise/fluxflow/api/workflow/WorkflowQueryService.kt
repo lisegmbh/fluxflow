@@ -1,5 +1,7 @@
 package de.lise.fluxflow.api.workflow
 
+import de.fluxflow.flowquery.service.ResourceQueryService
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
@@ -14,7 +16,7 @@ import kotlin.reflect.KClass
  * @see WorkflowUpdateService
  * @see WorkflowStarterService
  */
-interface WorkflowQueryService {
+interface WorkflowQueryService : ResourceQueryService<Workflow<*>, WorkflowQueryable<*>> {
     /**
      * Returns all workflows.
      *
@@ -40,6 +42,7 @@ interface WorkflowQueryService {
      * @param query the query that should be applied to filter the workflows
      * @return a page of workflows matching the given query
      */
+    @Deprecated("Use the new FlowQuery overloads instead.")
     fun getAll(query: WorkflowQuery<*>): Page<Workflow<*>>
 
     /**
@@ -49,6 +52,7 @@ interface WorkflowQueryService {
      * @param TWorkflowModel the type of the workflows' model
      * @return a page of workflows matching the given query
      */
+    @Deprecated("Use the new FlowQuery overloads instead.")
     fun <TWorkflowModel : Any> getAll(
         modelType: KClass<TWorkflowModel>,
         query: WorkflowQuery<TWorkflowModel>

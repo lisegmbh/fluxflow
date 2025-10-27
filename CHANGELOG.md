@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 -->
 
+## [Unreleased]
+
+### Added
+1. **FlowQuery API**<br/>
+   Introduces an expression-based querying approach that offers a more expressive and unified API.
+   [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
+
+### Changed
+### Deprecated
+1. **Legacy Query/Filter API**<br/>
+   The legacy query and filter APIs are now deprecated in favor of the new FlowQuery API.   
+   [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
+
+### Fixed
+### Removed
+
 ## [0.2.0] - 2025-10-02
 ### Added
 1. **Optional sort property**<br/>

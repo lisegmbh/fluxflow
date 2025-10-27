@@ -1,12 +1,16 @@
 package de.lise.fluxflow.engine.workflow
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
 import de.lise.fluxflow.api.workflow.WorkflowQueryService
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.api.workflow.query.filter.WorkflowFilter
 import de.lise.fluxflow.api.workflow.query.sort.WorkflowSort
+import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.persistence.workflow.query.toDataQuery
 import de.lise.fluxflow.query.Query
@@ -16,7 +20,8 @@ import kotlin.reflect.KClass
 
 class WorkflowQueryServiceImpl(
     private val persistence: WorkflowPersistence,
-    private val activationService: WorkflowActivationService
+    private val activationService: WorkflowActivationService,
+    private val queryMapper: QueryMapper<WorkflowQueryable<*>, WorkflowData>
 ) : WorkflowQueryService {
     override fun getAll(): List<Workflow<*>> {
         return persistence.findAll()
@@ -47,7 +52,16 @@ class WorkflowQueryServiceImpl(
         }
     }
 
+    override fun findAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {
+        return persistence.findAll(
+            queryMapper.map(query)
+        ).map {
+            activationService.activate<Any>(it)
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
+    @Deprecated("Use the new FlowQuery overloads instead.")
     override fun <TWorkflowModel : Any> getAll(
         modelType: KClass<TWorkflowModel>,
         query: WorkflowQuery<TWorkflowModel>

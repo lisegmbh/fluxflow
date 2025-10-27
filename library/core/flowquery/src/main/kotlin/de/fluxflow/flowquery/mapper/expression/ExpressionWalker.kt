@@ -1,0 +1,234 @@
+package de.fluxflow.flowquery.mapper.expression
+
+import de.fluxflow.flowquery.expression.*
+import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
+
+class ExpressionWalker {
+    fun <TRoot, TCurrent> walk(
+        expression: Expression<TRoot, TCurrent>,
+        callback: (exp: Expression<*, *>) -> ExpressionWalkerResult
+    ): ExpressionWalkerResult {
+        val result = callback.invoke(expression)
+        if (!result.drillDown || result.replaceWith != null) {
+            return result
+        }
+
+        return when (expression) {
+            is CastExpression<*, *, *> -> {
+                val instanceReplacement = walk(expression.instance, callback).replaceWith
+                when(instanceReplacement){
+                    null -> ExpressionWalkerResult.Continue
+                    else -> ExpressionWalkerResult.Replace(
+                        CastExpression(
+                            instanceReplacement as Expression<Any?, Any>,
+                            expression.requiredType as KClass<Any>
+                        )
+                    )
+                }
+            }
+
+            is IsTypeExpression<*, *, *> -> {
+                val instanceReplacement = walk(expression.instance, callback).replaceWith
+                when(instanceReplacement){
+                    null -> ExpressionWalkerResult.Continue
+                    else -> ExpressionWalkerResult.Replace(
+                        IsTypeExpression(
+                            instanceReplacement as Expression<Any?, Any?>,
+                            expression.requiredType as KClass<Any>
+                        )
+                    )
+                }
+            }
+
+            is AndExpression<*> -> {
+                val replacements = expression.predicates.associateWith { walk(it, callback).replaceWith }
+                if (replacements.values.filterNotNull().isEmpty()) {
+                    ExpressionWalkerResult.Continue
+                } else {
+                    val replacedPredicates = expression.predicates.map {
+                        (replacements[it] ?: it) as PredicateExpression<Any?>
+                    }
+                    ExpressionWalkerResult.Replace(
+                        AndExpression(
+                            replacedPredicates
+                        )
+                    )
+                }
+            }
+
+            is IsAnyOfOperator<*, *> -> {
+                val replacement = walk(expression.valueToTest, callback).replaceWith
+                if (replacement != null) {
+                    ExpressionWalkerResult.Replace(
+                        IsAnyOfOperator(
+                            replacement as Expression<Any?, Any?>,
+                            expression.anyOf.map {
+                                (walk(it, callback).replaceWith ?: it) as Expression<*, Any?>
+                            }.toSet()
+                        )
+                    )
+                } else {
+                    ExpressionWalkerResult.Continue
+                }
+            }
+
+            is StartsWithExpression<*> -> {
+                val valueReplacement = walk(expression.value, callback).replaceWith
+                val prefixReplacement = walk(expression.prefix, callback).replaceWith
+
+                when {
+                    valueReplacement != null || prefixReplacement != null -> StartsWithExpression(
+                        value = (valueReplacement ?: expression.value) as Expression<Any?, String>,
+                        prefix = (prefixReplacement ?: expression.prefix) as Expression<Any?, String>,
+                        ignoreCasing = expression.ignoreCasing
+                    ).let { ExpressionWalkerResult.Replace(it) }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is MapAccessExpression<*, *, *, *> -> {
+                val instanceReplacement = walk(expression.instance, callback).replaceWith
+                val keyReplacement = walk(expression.key, callback).replaceWith
+
+                when {
+                    instanceReplacement != null || keyReplacement != null -> MapAccessExpression(
+                        instance = (instanceReplacement ?: expression.instance) as Expression<Any?, Map<Any?, Any?>>,
+                        key = (keyReplacement ?: expression.key) as Expression<Any?, Any?>
+                    ).let {
+                        ExpressionWalkerResult.Replace(it)
+                    }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is EndsWithExpression<*> -> {
+                val valueReplacement = walk(expression.value, callback).replaceWith
+                val suffixReplacement = walk(expression.suffix, callback).replaceWith
+
+                when {
+                    valueReplacement != null || suffixReplacement != null -> EndsWithExpression(
+                        value = (valueReplacement ?: expression.value) as Expression<Any?, String>,
+                        suffix = (suffixReplacement ?: expression.suffix) as Expression<Any?, String>,
+                        ignoreCasing = expression.ignoreCasing
+                    ).let { ExpressionWalkerResult.Replace(it) }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is ContainsExpression<*> -> {
+                val valueReplacement = walk(expression.value, callback).replaceWith
+                val substringReplacement = walk(expression.substring, callback).replaceWith
+
+                when {
+                    valueReplacement != null || substringReplacement != null -> ContainsExpression(
+                        value = (valueReplacement ?: expression.value) as Expression<Any?, String>,
+                        substring = (substringReplacement ?: expression.substring) as Expression<Any?, String>,
+                        ignoreCasing = expression.ignoreCasing
+                    ).let { ExpressionWalkerResult.Replace(it) }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is ContainsElementThatExpression<*, *, *> -> {
+                val collectionReplacement = walk(expression.collection, callback).replaceWith
+                val predicateReplacement = walk(expression.elementPredicate, callback).replaceWith
+                when {
+                    collectionReplacement != null || predicateReplacement != null -> ContainsElementThatExpression(
+                        collection = (collectionReplacement ?: expression.collection) as Expression<Any?, Collection<Any?>>,
+                        elementPredicate = (predicateReplacement ?: expression.elementPredicate) as Expression<Any?, Boolean>,
+                    ).let { ExpressionWalkerResult.Replace(it) }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is ContainsElementExpression<*, *, *> -> {
+                val collectionReplacement = walk(expression.collection, callback).replaceWith
+                val elementReplacement = walk(expression.element, callback).replaceWith
+                when {
+                    collectionReplacement != null || elementReplacement != null -> ContainsElementExpression(
+                        collection = (collectionReplacement ?: expression.collection) as Expression<Any?, Collection<*>>,
+                        element = (elementReplacement ?: expression.element) as Expression<Any?, Any?>,
+                    ).let { ExpressionWalkerResult.Replace(it) }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is BinaryOperationExpression<*, *, *, *> -> {
+                val leftReplacement = walk(expression.leftOperand, callback).replaceWith
+                val rightReplacement = walk(expression.rightOperand, callback).replaceWith
+                when {
+                    leftReplacement != null && rightReplacement != null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
+                        leftReplacement as Expression<Any?, Any?>,
+                        expression.operation,
+                        rightReplacement as Expression<Any?, Any?>
+                    ).let {
+                        ExpressionWalkerResult.Replace(it)
+                    }
+
+                    leftReplacement != null && rightReplacement == null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
+                        leftReplacement as Expression<Any?, Any?>,
+                        expression.operation,
+                        expression.rightOperand as Expression<Any?, Any?>
+                    ).let {
+                        ExpressionWalkerResult.Replace(it)
+                    }
+
+                    leftReplacement == null && rightReplacement != null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
+                        expression.leftOperand as Expression<Any?, Any?>,
+                        expression.operation,
+                        rightReplacement as Expression<Any?, Any?>
+                    ).let {
+                        ExpressionWalkerResult.Replace(it)
+                    }
+
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
+
+            is NotExpression<*> -> walk(expression.expression, callback).replaceWith
+                ?.let {
+                    ExpressionWalkerResult.Replace(
+                        NotExpression(
+                            it as PredicateExpression<Any?>
+                        )
+                    )
+                } ?: ExpressionWalkerResult.Continue
+
+            is OrExpression<*> -> {
+                val replacements = expression.predicates.associate { it to walk(it, callback).replaceWith }
+                if (replacements.values.filterNotNull().isEmpty()) {
+                    ExpressionWalkerResult.Continue
+                } else {
+                    val replacedPredicates = expression.predicates.map {
+                        (replacements[it] ?: it) as PredicateExpression<Any?>
+                    }
+                    ExpressionWalkerResult.Replace(
+                        OrExpression(
+                            replacedPredicates
+                        )
+                    )
+                }
+            }
+
+            is PropertyExpression<*, *, *> -> walk(expression.instance, callback).replaceWith
+                ?.let {
+                    ExpressionWalkerResult.Replace(
+                        PropertyExpression(
+                            it as Expression<Any?, Any>,
+                            expression.property as KProperty1<Any, Any?>
+                        )
+                    )
+                }
+                ?: ExpressionWalkerResult.Continue
+
+            is ConjunctionExpression<*, *>, is ConstantExpression<*, *>, is RootExpression<*> -> result
+        }
+    }
+}
