@@ -42,9 +42,10 @@ class ContinuationHistoryServiceImpl(
                 id = null,
                 workflowId = workflowId.value,
                 timeOfOccurrence = clock.instant(),
-                continuation.type,
-                origin,
-                target
+                type = continuation.type,
+                originatingObject = origin,
+                targetObject = target,
+                reason = continuation.reason
             )
         )
     }
