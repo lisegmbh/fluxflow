@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.api.step.stateful.data.ModificationPolicy
 import de.lise.fluxflow.reflection.ReflectionUtils
 import de.lise.fluxflow.reflection.property.findAnnotationEverywhere
+import de.lise.fluxflow.stereotyped.Import
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.InstanceAccessor
@@ -42,7 +43,7 @@ class DataDefinitionBuilder(
     }
 
     private fun <TObject : Any> buildDataDefinition(
-        type: KClass<out TObject>,
+        type: KClass<TObject>,
         instanceAccessor: InstanceAccessor<TObject>
     ): List<DataDefinition<*>> {
         return type.memberProperties
@@ -56,10 +57,17 @@ class DataDefinitionBuilder(
     }
 
     private fun <TObject : Any> buildDataDefinition(
-        instanceType: KClass<out TObject>,
-        prop: KProperty1<out TObject, *>,
+        instanceType: KClass<TObject>,
+        prop: KProperty1<TObject, *>,
         instanceAccessor: InstanceAccessor<TObject>,
     ): List<DataDefinition<*>> {
+        prop.findAnnotationEverywhere<Import>()?.let {
+            return buildImportedDataDefinition(
+                prop as KProperty1<TObject, Any>,
+                instanceAccessor
+            )
+        }
+
         if (!isDataProperty(prop)) {
             return emptyList()
         }
@@ -72,14 +80,30 @@ class DataDefinitionBuilder(
         )
     }
 
+    private fun <TParentObject : Any, TProperty : Any> buildImportedDataDefinition(
+        prop: KProperty1<TParentObject, TProperty>,
+        parentInstanceAccessor: InstanceAccessor<TParentObject>
+    ): List<DataDefinition<*>> {
+        val returnType: KClass<TProperty> = ReflectionUtils.findReturnClass(prop)
+        val newInstanceAccessor: InstanceAccessor<TProperty> = parentInstanceAccessor.and {
+            val parent: TParentObject = it
+            prop.get(parent)
+        }
+
+        return buildDataDefinition(
+            returnType,
+            newInstanceAccessor
+        )
+    }
+
     /**
      * Introspects the given property and constructs a corresponding [DataDefinition] object.
      * @return A [Data] object backed by the given property.
      * If the property defines a setter, an instance of [ModifiableData] is returned.
      */
     private fun <TObject : Any> buildDataDefinitionFromProperty(
-        instanceType: KClass<out TObject>,
-        prop: KProperty1<out TObject, *>,
+        instanceType: KClass<TObject>,
+        prop: KProperty1<TObject, *>,
         instanceAccessor: InstanceAccessor<TObject>,
     ): DataDefinition<*> {
         @Suppress("UNCHECKED_CAST")
@@ -108,7 +132,7 @@ class DataDefinitionBuilder(
     }
 
     private fun <TObject : Any, TProp : Any> buildDataDefinitionFromTypedProperty(
-        instanceType: KClass<out TObject>,
+        instanceType: KClass<TObject>,
         prop: KProperty1<TObject, TProp>,
         instanceAccessor: InstanceAccessor<TObject>
     ): DataDefinition<TProp?> {

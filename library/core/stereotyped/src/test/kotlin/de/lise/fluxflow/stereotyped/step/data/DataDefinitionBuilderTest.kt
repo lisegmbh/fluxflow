@@ -1,7 +1,9 @@
 package de.lise.fluxflow.stereotyped.step.data
 
 import de.lise.fluxflow.api.step.stateful.data.Data
+import de.lise.fluxflow.api.step.stateful.data.DataKind
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
+import de.lise.fluxflow.stereotyped.Import
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStep
@@ -90,7 +92,7 @@ class DataDefinitionBuilderTest {
             instance,
             ModifiableTestClass::modifiableStringProperty
         )
-            as ModifiableData<String>
+                as ModifiableData<String>
 
         // Act
         data.set("But what is the question?")
@@ -109,7 +111,7 @@ class DataDefinitionBuilderTest {
             instance,
             ModifiableTestClass::modifiableStringProperty
         )
-            as ModifiableData<String>
+                as ModifiableData<String>
 
         // Assert 
         assertThat(data.definition.isCalculatedValue).isFalse()
@@ -125,7 +127,7 @@ class DataDefinitionBuilderTest {
             instance,
             ModifiableTestClassWithOverwrittenIsCalculated::overwrittenProperty
         )
-            as ModifiableData<String>
+                as ModifiableData<String>
 
         // Assert 
         assertThat(data.definition.isCalculatedValue).isTrue()
@@ -141,10 +143,95 @@ class DataDefinitionBuilderTest {
             instance,
             TestClassWithCalculatedProperty::calculatedProperty
         )
-            as ModifiableData<String>
+                as ModifiableData<String>
 
         // Assert 
         assertThat(data.definition.isCalculatedValue).isTrue()
+    }
+
+    @Test
+    fun `build should include imported data definitions`() {
+        // Arrange
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            listenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(TestWithImport::class)
+
+        // Assert
+        assertThat(
+            definitions.map { it.kind }
+        ).contains(
+            DataKindInspector.getDataKind(SimpleImportableDataClass::name),
+            DataKindInspector.getDataKind(SimpleImportableDataClass::modifiableProperty)
+        )
+    }
+
+    @Test
+    fun `build should keep regular data definitions, even if others are imported`() {
+        // Arrange
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            listenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(TestWithImport::class)
+
+        // Assert
+        assertThat(
+            definitions.map { it.kind }
+        ).contains(
+            DataKindInspector.getDataKind(TestWithImport::regularDataDefinition)
+        )
+    }
+
+    @Test
+    fun `build should not recognize properties annotated with @Import as direct data definitions`() {
+        // Arrange
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            listenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(TestWithImport::class)
+
+        // Assert
+        assertThat(
+            definitions.map { it.kind }
+        ).doesNotContain(
+            DataKindInspector.getDataKind(TestWithImport::importProperty)
+        )
+    }
+
+    @Test
+    fun `returned data definitions should be capable to get and set values`() {
+        // Arrange
+        val instance = TestWithImport(
+            importProperty = SimpleImportableDataClass(
+                "name",
+                false
+            ),
+            regularDataDefinition = 42
+        )
+
+        // Act
+        val data = createDataObject<Boolean>(
+            instance,
+            DataKindInspector.getDataKind(SimpleImportableDataClass::modifiableProperty)
+        )
+        val originalValue = data.get()
+        (data as? ModifiableData<Boolean>)?.set(true)
+
+        // Assert
+        assertThat(originalValue).isFalse()
+        assertThat(instance.importProperty.modifiableProperty).isTrue()
     }
 
     @Test
@@ -198,20 +285,27 @@ class DataDefinitionBuilderTest {
         assertThat(isDataProperty).isFalse
     }
 
-    private fun <TObject : Any, TProp> createDataObject(
-        testInstance: TObject,
-        prop: KProperty1<out TObject, TProp>,
+    private fun <TObject : Any> mockReflectedStatefulStep(
+        testInstance: TObject
+    ): ReflectedStatefulStep {
+        val step = mock<ReflectedStatefulStep> {
+            on { instance } doReturn testInstance
+        }
+        return step
+    }
+
+    private fun <TProp> createDataObject(
+        testInstance: Any,
+        expectedKind: DataKind
     ): Data<TProp> {
+        val step = mockReflectedStatefulStep(testInstance)
+
         val dataDefinitionBuilder = DataDefinitionBuilder(
             listenerDefinitionBuilder,
             mock<ValidationBuilder> {},
             mock<MetadataBuilder> {}
         )
-        val step = mock<ReflectedStatefulStep> {
-            on { instance } doReturn testInstance
-        }
 
-        val expectedKind = DataKindInspector.getDataKind(prop)
 
         @Suppress("UNCHECKED_CAST")
         return dataDefinitionBuilder.buildDataDefinition(
@@ -219,6 +313,16 @@ class DataDefinitionBuilderTest {
         )
             .first { expectedKind == it.kind }
             .createData(step) as Data<TProp>
+    }
+
+    private fun <TObject : Any, TProp> createDataObject(
+        testInstance: TObject,
+        prop: KProperty1<out TObject, TProp>,
+    ): Data<TProp> {
+        return createDataObject(
+            testInstance,
+            DataKindInspector.getDataKind(prop),
+        )
     }
 
     class TestClass(
@@ -249,5 +353,16 @@ class DataDefinitionBuilderTest {
     class TestClassWithJobProp(
         val testJob: TestJob,
     )
-}
 
+    class TestWithImport(
+        @Import
+        val importProperty: SimpleImportableDataClass,
+        val regularDataDefinition: Int
+    )
+
+    data class SimpleImportableDataClass(
+        @de.lise.fluxflow.stereotyped.step.data.Data
+        val name: String,
+        var modifiableProperty: Boolean
+    )
+}
