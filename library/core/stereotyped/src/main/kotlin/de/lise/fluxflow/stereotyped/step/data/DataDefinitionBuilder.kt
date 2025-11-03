@@ -161,7 +161,8 @@ class DataDefinitionBuilder(
         val dataListenerDefinitions = dataListenerDefinitionBuilder.build<TObject, TProp?>(
             kind,
             valueType,
-            instanceType
+            instanceType,
+            instanceAccessor
         ).toList()
         
         val validations = validationBuilder.buildValidations(
