@@ -211,7 +211,28 @@ class DataDefinitionBuilderTest {
     }
 
     @Test
-    fun `returned data definitions should be capable to get and set values`() {
+    fun `build should honor prefixes specified on @Import annotations`() {
+        // Arrange
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            listenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(StepWithPrefixedImport::class)
+
+        // Assert
+        assertThat(
+            definitions.map { it.kind }
+        ).contains(
+            DataKind("prefix.${DataKindInspector.getDataKind(SimpleImportableDataClass::name).value}"),
+            DataKind("prefix.${DataKindInspector.getDataKind(SimpleImportableDataClass::modifiableProperty).value}"),
+        )
+    }
+
+    @Test
+    fun `returned data definitions should be capable to get and set values for imported data definitions`() {
         // Arrange
         val instance = TestWithImport(
             importProperty = SimpleImportableDataClass(
@@ -364,5 +385,10 @@ class DataDefinitionBuilderTest {
         @de.lise.fluxflow.stereotyped.step.data.Data
         val name: String,
         var modifiableProperty: Boolean
+    )
+
+    data class StepWithPrefixedImport(
+        @Import("prefix.")
+        val prefixedImportProperty: SimpleImportableDataClass
     )
 }

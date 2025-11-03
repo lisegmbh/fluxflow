@@ -2,6 +2,7 @@ package de.lise.fluxflow.stereotyped.step.data
 
 import de.lise.fluxflow.api.job.continuation.JobContinuation
 import de.lise.fluxflow.api.step.stateful.data.DataDefinition
+import de.lise.fluxflow.api.step.stateful.data.DataKind
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.api.step.stateful.data.ModificationPolicy
 import de.lise.fluxflow.reflection.ReflectionUtils
@@ -38,12 +39,14 @@ class DataDefinitionBuilder(
     ):  List<DataDefinition<*>> {
         return buildDataDefinition(
             type,
+            "",
             InstanceAccessor.fromStepInstance()
         )
     }
 
     private fun <TObject : Any> buildDataDefinition(
         type: KClass<TObject>,
+        kindPrefix: String,
         instanceAccessor: InstanceAccessor<TObject>
     ): List<DataDefinition<*>> {
         return type.memberProperties
@@ -51,6 +54,7 @@ class DataDefinitionBuilder(
                 buildDataDefinition(
                     type,
                     it,
+                    kindPrefix,
                     instanceAccessor
                 )
             }
@@ -59,11 +63,13 @@ class DataDefinitionBuilder(
     private fun <TObject : Any> buildDataDefinition(
         instanceType: KClass<TObject>,
         prop: KProperty1<TObject, *>,
+        kindPrefix: String,
         instanceAccessor: InstanceAccessor<TObject>,
     ): List<DataDefinition<*>> {
-        prop.findAnnotationEverywhere<Import>()?.let {
+        prop.findAnnotationEverywhere<Import>()?.let { importAnnotation ->
             return buildImportedDataDefinition(
                 prop as KProperty1<TObject, Any>,
+                "$kindPrefix${importAnnotation.prefix}",
                 instanceAccessor
             )
         }
@@ -75,6 +81,7 @@ class DataDefinitionBuilder(
             buildDataDefinitionFromProperty(
                 instanceType,
                 prop,
+                kindPrefix,
                 instanceAccessor,
             )
         )
@@ -82,6 +89,7 @@ class DataDefinitionBuilder(
 
     private fun <TParentObject : Any, TProperty : Any> buildImportedDataDefinition(
         prop: KProperty1<TParentObject, TProperty>,
+        kindPrefix: String,
         parentInstanceAccessor: InstanceAccessor<TParentObject>
     ): List<DataDefinition<*>> {
         val returnType: KClass<TProperty> = ReflectionUtils.findReturnClass(prop)
@@ -92,6 +100,7 @@ class DataDefinitionBuilder(
 
         return buildDataDefinition(
             returnType,
+            kindPrefix,
             newInstanceAccessor
         )
     }
@@ -104,12 +113,14 @@ class DataDefinitionBuilder(
     private fun <TObject : Any> buildDataDefinitionFromProperty(
         instanceType: KClass<TObject>,
         prop: KProperty1<TObject, *>,
+        kindPrefix: String,
         instanceAccessor: InstanceAccessor<TObject>,
     ): DataDefinition<*> {
         @Suppress("UNCHECKED_CAST")
         return buildDataDefinitionFromTypedProperty(
             instanceType,
             prop as KProperty1<TObject, Any>,
+            kindPrefix,
             instanceAccessor,
         )
     }
@@ -134,9 +145,12 @@ class DataDefinitionBuilder(
     private fun <TObject : Any, TProp : Any> buildDataDefinitionFromTypedProperty(
         instanceType: KClass<TObject>,
         prop: KProperty1<TObject, TProp>,
+        kindPrefix: String,
         instanceAccessor: InstanceAccessor<TObject>
     ): DataDefinition<TProp?> {
-        val kind = DataKindInspector.getDataKind(prop)
+        val kind = DataKind(
+          "$kindPrefix${DataKindInspector.getDataKind(prop).value}"
+        )
         val modificationPolicy = prop.findAnnotationEverywhere<Data>()
             ?.modificationPolicy
             ?: ModificationPolicy.InheritSetting
