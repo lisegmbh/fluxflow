@@ -226,8 +226,14 @@ class DataDefinitionBuilderTest {
         assertThat(
             definitions.map { it.kind }
         ).contains(
-            DataKind("prefix.${DataKindInspector.getDataKind(SimpleImportableDataClass::name).value}"),
-            DataKind("prefix.${DataKindInspector.getDataKind(SimpleImportableDataClass::modifiableProperty).value}"),
+            DataKindInspector.getDataKind(
+                StepWithPrefixedImport::prefixedImportProperty,
+                SimpleImportableDataClass::name
+            ),
+            DataKindInspector.getDataKind(
+                StepWithPrefixedImport::prefixedImportProperty,
+                SimpleImportableDataClass::modifiableProperty
+            ),
         )
     }
 

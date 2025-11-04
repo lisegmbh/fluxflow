@@ -41,9 +41,12 @@ package de.lise.fluxflow.stereotyped
  *
  * @param prefix Optional prefix to add to imported property names to avoid naming conflicts.
  *               When specified, all imported properties will be prefixed with this string.
+ * @param prefixStrategy Specifies how the prefix parameter is interpreted and applied to the name to be prefixed.
+ * Defaults to [PrefixStrategy.CamelCase].
  */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Import(
-    val prefix: String = ""
+    val prefix: String = "",
+    val prefixStrategy: PrefixStrategy = PrefixStrategy.CamelCase
 )

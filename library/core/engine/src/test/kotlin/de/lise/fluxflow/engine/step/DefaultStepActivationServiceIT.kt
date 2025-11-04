@@ -71,8 +71,8 @@ class DefaultStepActivationServiceIT {
         )
 
         // Assert
-        val data = (result as? StatefulStep)?.data?.single { 
-            it.definition.kind == DataKind("subsomeProperty") 
+        val data = (result as? StatefulStep)?.data?.single {
+            it.definition.kind == DataKind("subSomeProperty")
         }
         assertThat(data).isNotNull()
         assertThat(data!!.get()).isEqualTo("The answer is 42")
