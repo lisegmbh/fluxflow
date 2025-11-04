@@ -2,6 +2,8 @@ package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.step.Status
+import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.step.stateful.data.DataKind
 import de.lise.fluxflow.api.versioning.DefaultCompatibilityTester
 import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.api.versioning.VersionCompatibility
@@ -20,9 +22,10 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
 class DefaultStepActivationServiceIT {
-
     @Test
     fun `activateFromPersistence should be able to activate steps with simple imported data definitions`() {
+        val workflow = mock<Workflow<Any>> { }
+        val activationService = createActivationService()
         val stepData = StepData(
             id = "step-id",
             workflowId = "workflow-id",
@@ -34,32 +37,7 @@ class DefaultStepActivationServiceIT {
             status = Status.Active,
             metadata = emptyMap()
         )
-
-        val activationService = DefaultStepActivationService(
-            iocProvider,
-            StepDefinitionBuilder(
-                mockedVersionBuilder,
-                ActionDefinitionBuilder(
-                    mockedContinuationBuilder,
-                    mock {},
-                    mock {}
-                ),
-                DataDefinitionBuilder(
-                    mock {},
-                    mock {},
-                    mock {}
-                ),
-                mock {},
-                mock {},
-                mutableMapOf()
-            ),
-            StepTypeResolverImpl(TestStepWithImportedData::class.java.classLoader),
-            VersionCompatibility.Unknown,
-            DefaultCompatibilityTester()
-        )
-
-        val workflow = mock<Workflow<Any>> { }
-
+        
         // Act
         val result = activationService.activateFromPersistence(
             workflow,
@@ -70,12 +48,63 @@ class DefaultStepActivationServiceIT {
         assertThat(result).isNotNull()
     }
 
+    @Test
+    fun `activateFromPersistence should be able to activate steps with prefixed imported data definitions`() {
+        val workflow = mock<Workflow<Any>> { }
+        val activationService = createActivationService()
+        val stepData = StepData(
+            id = "step-id",
+            workflowId = "workflow-id",
+            kind = TestStepWithPrefixedImportedData::class.java.canonicalName,
+            version = null,
+            data = mapOf(
+                "subsomeProperty" to "The answer is 42"
+            ),
+            status = Status.Active,
+            metadata = emptyMap()
+        )
+
+        // Act
+        val result = activationService.activateFromPersistence(
+            workflow,
+            stepData
+        )
+
+        // Assert
+        val data = (result as? StatefulStep)?.data?.single { 
+            it.definition.kind == DataKind("subsomeProperty") 
+        }
+        assertThat(data).isNotNull()
+        assertThat(data!!.get()).isEqualTo("The answer is 42")
+    }
+
+    private fun createActivationService(): DefaultStepActivationService = DefaultStepActivationService(
+        iocProvider,
+        StepDefinitionBuilder(
+            mockedVersionBuilder,
+            ActionDefinitionBuilder(
+                mockedContinuationBuilder,
+                mock {},
+                mock {}
+            ),
+            DataDefinitionBuilder(
+                mock {},
+                mock {},
+                mock {}
+            ),
+            mock {},
+            mock {},
+            mutableMapOf()
+        ),
+        StepTypeResolverImpl(TestStepWithImportedData::class.java.classLoader),
+        VersionCompatibility.Unknown,
+        DefaultCompatibilityTester()
+    )
+
     private val mockedVersionBuilder = mock<VersionBuilder> {
         on { build(any()) } doReturn NoVersion()
     }
-
     private val mockedContinuationBuilder = mock<ContinuationBuilder> { }
-
     private val iocProvider = mock<IocProvider> {}
 }
 
@@ -85,5 +114,10 @@ data class ImportableTestModel(
 
 data class TestStepWithImportedData(
     @Import
+    val importedProperty: ImportableTestModel
+)
+
+data class TestStepWithPrefixedImportedData(
+    @Import("sub")
     val importedProperty: ImportableTestModel
 )
