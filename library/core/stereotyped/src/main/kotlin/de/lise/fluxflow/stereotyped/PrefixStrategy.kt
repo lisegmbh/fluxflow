@@ -47,6 +47,9 @@ enum class PrefixStrategy {
         prefix: String,
         nameToBePrefixed: String
     ): String {
+        if (prefix.isBlank()) {
+            return nameToBePrefixed
+        }
         return when (this) {
             Plain -> "$prefix$nameToBePrefixed"
             CamelCase -> "$prefix${capitalize(nameToBePrefixed)}"
