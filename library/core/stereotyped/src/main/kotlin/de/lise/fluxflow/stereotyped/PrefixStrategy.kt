@@ -45,7 +45,7 @@ enum class PrefixStrategy {
      */
     fun apply(
         prefix: String,
-        nameToBePrefixed: String
+        nameToBePrefixed: String,
     ): String {
         if (prefix.isBlank()) {
             return nameToBePrefixed
@@ -65,17 +65,45 @@ enum class PrefixStrategy {
      */
     fun remove(
         prefix: String,
-        prefixedName: String
+        prefixedName: String,
     ): String {
-        return prefixedName.removePrefix(prefix)
+        return when (this) {
+            Plain -> prefixedName.removePrefix(prefix)
+            CamelCase -> uncapitalize(
+                prefixedName.removePrefix(prefix)
+            )
+        }
     }
 
-    
+    /**
+     * Checks if the given value starts with the specified prefix according to the selected strategy.
+     *
+     * @param prefix The prefix to check for.
+     * @param value The value to check.
+     * @return True if the value starts with the prefix, false otherwise.
+     */
+    fun isPrefixed(
+        prefix: String,
+        value: String,
+    ): Boolean {
+        return when (this) {
+            else -> value.startsWith(prefix)
+        }
+    }
+
     private fun capitalize(value: String): String {
         return when (value.length) {
             0 -> value
             1 -> value.uppercase()
             else -> "${value.take(1).uppercase()}${value.substring(1)}"
+        }
+    }
+
+    private fun uncapitalize(value: String): String {
+        return when (value.length) {
+            0 -> value
+            1 -> value.lowercase()
+            else -> "${value.take(1).lowercase()}${value.substring(1)}"
         }
     }
 }

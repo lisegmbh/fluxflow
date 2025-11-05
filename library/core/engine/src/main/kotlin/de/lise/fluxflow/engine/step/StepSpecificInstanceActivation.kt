@@ -81,8 +81,8 @@ class StepSpecificInstanceActivation<TWorkflowModel>(
             val relevantData: Map<String, Any?> = when(annotation.prefix) {
                 "" -> stepData.data
                 else -> stepData.data
-                    .filter { it.key.startsWith(annotation.prefix) }
-                    .mapKeys { it.key.removePrefix(annotation.prefix) }
+                    .filter { annotation.prefixStrategy.isPrefixed(annotation.prefix, it.key) }
+                    .mapKeys { annotation.prefixStrategy.remove(annotation.prefix, it.key) }
             }
             return BasicTypeActivator(
                 BasicFunctionResolver(
