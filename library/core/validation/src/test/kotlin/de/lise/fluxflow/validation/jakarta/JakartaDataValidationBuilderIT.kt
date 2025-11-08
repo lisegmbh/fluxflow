@@ -4,12 +4,14 @@ import de.lise.fluxflow.api.step.stateful.data.DataKind
 import de.lise.fluxflow.api.step.stateful.data.validation.PropertyValidationConstraint
 import de.lise.fluxflow.api.step.stateful.data.validation.PropertyValidationConstraintImpl
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
+import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStep
 import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
 import de.lise.fluxflow.stereotyped.step.data.DataListenerDefinitionBuilder
 import jakarta.validation.Validation
 import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
 class JakartaDataValidationBuilderIT {
@@ -22,9 +24,9 @@ class JakartaDataValidationBuilderIT {
     private val builder = JakartaDataValidationBuilder(validator)
 
     private val dataDefinitionBuilder = DataDefinitionBuilder(
-        mock<DataListenerDefinitionBuilder> { },
-        builder,
-        mock<MetadataBuilder> { }
+        dataListenerDefinitionBuilder = mock<DataListenerDefinitionBuilder> { },
+        validationBuilder = builder,
+        metadataBuilder = mock<MetadataBuilder> { }
     )
 
     @Test
@@ -79,7 +81,51 @@ class JakartaDataValidationBuilderIT {
 
         // Assert
         val dataDefinition = dataDefinitions.single { it.kind == DataKind(ImportedData::someProperty.name) }
-        val propertyConstraint = dataDefinition.validation?.constraints?.first()
-        assertThat(propertyConstraint).isNotNull()
+        val importedConstraint = dataDefinition.validation?.constraints?.first()
+        assertThat(importedConstraint).isNotNull()
+    }
+
+    @Test
+    fun `should validate imported data properties`() {
+        // Arrange
+        val dataDefinition = dataDefinitionBuilder.buildDataDefinition(TestModelWithImportedData::class).single {
+            it.kind == DataKind(ImportedData::someProperty.name)
+        }
+        val importedValidation = dataDefinition.validation!!
+
+        val invalidStepInstance = TestModelWithImportedData(
+            ImportedData(
+                someProperty = ""
+            )
+        )
+        val invalidStep = mock<ReflectedStatefulStep> {
+            on { instance } doReturn invalidStepInstance
+        }
+        val invalidData = dataDefinition.createData(invalidStep)
+        val failingValidation = importedValidation.create(invalidData)
+
+        val validStepInstance = TestModelWithImportedData(
+            ImportedData(
+                someProperty = "Not blank value"
+            )
+        )
+        val validStep = mock<ReflectedStatefulStep> {
+            on { instance } doReturn validStepInstance
+        }
+        val validData = dataDefinition.createData(validStep)
+        val succeedingValidation = importedValidation.create(validData)
+
+        // Act
+        val failingResult = failingValidation.validate(emptySet())
+        val succeedingResult = succeedingValidation.validate(emptySet())
+
+        // Assert
+        assertThat(succeedingResult).isEmpty()
+
+        assertThat(failingResult).hasSize(1)
+
+        val validationIssue = failingResult.single()
+        assertThat(validationIssue.dataKind).isEqualTo(DataKind(ImportedData::someProperty.name))
+        assertThat(validationIssue.message).isEqualTo("must not be blank")
     }
 }
