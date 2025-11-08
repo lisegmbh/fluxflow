@@ -49,7 +49,7 @@ class DataDefinitionBuilder(
         type: KClass<TObject>,
         kindPrefixBuilder: KindPrefixBuilder?,
         instanceAccessor: InstanceAccessor<TObject>
-    ): List<DataDefinition<*>> {
+    ): List<ReflectedDataDefinition<*,*>> {
         return type.memberProperties
             .flatMap {
                 buildDataDefinition(
@@ -66,15 +66,15 @@ class DataDefinitionBuilder(
         prop: KProperty1<TObject, *>,
         kindPrefixBuilder: KindPrefixBuilder?,
         instanceAccessor: InstanceAccessor<TObject>,
-    ): List<DataDefinition<*>> {
+    ): List<ReflectedDataDefinition<*,*>> {
         prop.findAnnotationEverywhere<Import>()?.let { importAnnotation ->
             return buildImportedDataDefinition(
+                instanceType,
                 prop as KProperty1<TObject, Any>,
                 kindPrefixBuilder.and(importAnnotation),
                 instanceAccessor
             )
         }
-
         if (!isDataProperty(prop)) {
             return emptyList()
         }
@@ -89,21 +89,31 @@ class DataDefinitionBuilder(
     }
 
     private fun <TParentObject : Any, TProperty : Any> buildImportedDataDefinition(
+        parentType: KClass<TParentObject>,
         prop: KProperty1<TParentObject, TProperty>,
         kindPrefixBuilder: KindPrefixBuilder?,
-        parentInstanceAccessor: InstanceAccessor<TParentObject>
-    ): List<DataDefinition<*>> {
+        parentInstanceAccessor: InstanceAccessor<TParentObject>,
+    ): List<ReflectedDataDefinition<*,*>> {
         val returnType: KClass<TProperty> = ReflectionUtils.findReturnClass(prop)
         val newInstanceAccessor: InstanceAccessor<TProperty> = parentInstanceAccessor.and {
             val parent: TParentObject = it
             prop.get(parent)
         }
-
-        return buildDataDefinition(
+        val importedDataDefinitions = buildDataDefinition(
             returnType,
             kindPrefixBuilder,
             newInstanceAccessor
         )
+        
+        return importedDataDefinitions.map { importedResult ->
+            val listenersFromImportingLocation = dataListenerDefinitionBuilder.build<TParentObject, Any?>(
+                importedResult.kind,
+                importedResult.type,
+                parentType,
+                parentInstanceAccessor
+            )
+            importedResult.withAdditionalListeners(listenersFromImportingLocation)
+        }
     }
 
     /**
@@ -116,7 +126,7 @@ class DataDefinitionBuilder(
         prop: KProperty1<TObject, *>,
         kindPrefixBuilder: KindPrefixBuilder?,
         instanceAccessor: InstanceAccessor<TObject>,
-    ): DataDefinition<*> {
+    ): ReflectedDataDefinition<*,*> {
         @Suppress("UNCHECKED_CAST")
         return buildDataDefinitionFromTypedProperty(
             instanceType,
@@ -148,7 +158,7 @@ class DataDefinitionBuilder(
         prop: KProperty1<TObject, TProp>,
         kindPrefixBuilder: KindPrefixBuilder?,
         instanceAccessor: InstanceAccessor<TObject>
-    ): DataDefinition<TProp?> {
+    ): ReflectedDataDefinition<TObject, TProp?> {
         val kind = kindPrefixBuilder.build(prop)
         val modificationPolicy = prop.findAnnotationEverywhere<Data>()
             ?.modificationPolicy

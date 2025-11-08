@@ -4,6 +4,7 @@ import de.lise.fluxflow.api.step.stateful.data.Data
 import de.lise.fluxflow.api.step.stateful.data.DataKind
 import de.lise.fluxflow.api.step.stateful.data.ModifiableData
 import de.lise.fluxflow.stereotyped.Import
+import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStep
@@ -312,6 +313,75 @@ class DataDefinitionBuilderTest {
         assertThat(isDataProperty).isFalse
     }
 
+    @Test
+    fun `imported data definitions should include listeners defined on the importing step`() {
+        // Arrange
+        // We use a real DataListenerDefinitionBuilder to verify merging listeners from parent and imported type.
+        val realListenerDefinitionBuilder = DataListenerDefinitionBuilder(
+            ContinuationBuilder()
+        ) { null }
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            realListenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(ParentWithImportAndListeners::class)
+        val kind = DataKindInspector.getDataKind(ImportableWithListener::value)
+        val importedDefinition = definitions.first { it.kind == kind } as ReflectedDataDefinition<*, *>
+
+        // Assert
+        // Expect two listeners: one declared on imported type, one on parent type.
+        assertThat(importedDefinition.updateListeners).hasSize(2)
+    }
+
+    @Test
+    fun `prefixed imported data definitions should include listeners defined on the importing step using the prefixed kind`() {
+        // Arrange
+        val realListenerDefinitionBuilder = DataListenerDefinitionBuilder(
+            ContinuationBuilder()
+        ) { null }
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            realListenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(ParentWithPrefixedImportAndListener::class)
+        val kind = DataKindInspector.getDataKind(
+            ParentWithPrefixedImportAndListener::imported,
+            ImportableWithListener::value
+        )
+        val importedDefinition = definitions.first { it.kind == kind } as ReflectedDataDefinition<*, *>
+
+        // Assert
+        // Only one listener expected (defined on parent), since imported type does not know prefix.
+        assertThat(importedDefinition.updateListeners).hasSize(1)
+    }
+
+    @Test
+    fun `imported data definitions should only include listeners from imported type when parent defines none`() {
+        // Arrange
+        val realListenerDefinitionBuilder = DataListenerDefinitionBuilder(
+            ContinuationBuilder()
+        ) { null }
+        val dataDefinitionBuilder = DataDefinitionBuilder(
+            realListenerDefinitionBuilder,
+            mock<ValidationBuilder> {},
+            mock<MetadataBuilder> {}
+        )
+
+        // Act
+        val definitions = dataDefinitionBuilder.buildDataDefinition(ParentWithImportNoListener::class)
+        val kind = DataKindInspector.getDataKind(ImportableWithListener::value)
+        val importedDefinition = definitions.first { it.kind == kind } as ReflectedDataDefinition<*, *>
+
+        // Assert
+        assertThat(importedDefinition.updateListeners).hasSize(1)
+    }
+
     private fun <TObject : Any> mockReflectedStatefulStep(
         testInstance: TObject
     ): ReflectedStatefulStep {
@@ -396,5 +466,35 @@ class DataDefinitionBuilderTest {
     data class StepWithPrefixedImport(
         @Import("prefix.")
         val prefixedImportProperty: SimpleImportableDataClass
+    )
+
+    // Additional helper / fixture types for new tests
+    data class ImportableWithListener(
+        @de.lise.fluxflow.stereotyped.step.data.Data
+        val value: String
+    ) {
+        @DataListener("value")
+        fun onValueChanged(oldValue: String?, newValue: String?) { /* no-op for test */ }
+    }
+
+    class ParentWithImportAndListeners(
+        @Import
+        val imported: ImportableWithListener
+    ) {
+        @DataListener("value")
+        fun onImportedValueChanged(oldValue: String?, newValue: String?) { /* no-op for test */ }
+    }
+
+    class ParentWithPrefixedImportAndListener(
+        @Import("prefix")
+        val imported: ImportableWithListener
+    ) {
+        @DataListener("prefixValue")
+        fun onPrefixedImportedValueChanged(oldValue: String?, newValue: String?) { /* no-op for test */ }
+    }
+
+    class ParentWithImportNoListener(
+        @Import
+        val imported: ImportableWithListener
     )
 }
