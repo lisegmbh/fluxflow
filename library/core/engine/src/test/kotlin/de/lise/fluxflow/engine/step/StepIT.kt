@@ -265,4 +265,28 @@ class StepIT {
         assertThat(newName.get()).isEqualTo("Arthur Dent")
         assertThat(wasUpdated.get()).isTrue()
     }
+
+    @Test
+    fun `listeners defined on the importing step should be invoked when updating imported data`() {
+        // Arrange
+        val workflow = workflowStarterService!!.start(
+            Any(),
+            Continuation.step(
+                TestStepWithImportAndParentListener(
+                    TestDataToBeImported("Ford Prefect")
+                )
+            )
+        )
+        val step = stepService!!.findSteps(workflow).first() as StatefulStep
+        val nameData: Data<String> = step.data.single { it.definition.kind == DataKind("name") } as Data<String>
+
+        // Act
+        stepDataService.setValue(nameData, "Arthur Dent")
+
+        // Assert
+        val wasImportedNameUpdated = stepDataService.getData<Boolean>(step, DataKind("nameWasUpdatedToArthurDent"))
+        val parentListenerTriggered = stepDataService.getData<Boolean>(step, DataKind("parentListenerTriggered"))
+        assertThat(wasImportedNameUpdated.get()).isTrue()
+        assertThat(parentListenerTriggered.get()).isTrue()
+    }
 }
