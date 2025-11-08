@@ -87,7 +87,17 @@ enum class PrefixStrategy {
         value: String,
     ): Boolean {
         return when (this) {
-            else -> value.startsWith(prefix)
+            Plain -> value.startsWith(prefix)
+            CamelCase -> {
+                if (!value.startsWith(prefix)) {
+                    false
+                } else if (value.length > prefix.length) {
+                    val nextChar = value[prefix.length].toString()
+                    nextChar == nextChar.uppercase()
+                } else {
+                    false
+                }
+            }
         }
     }
 

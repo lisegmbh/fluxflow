@@ -58,7 +58,7 @@ class DefaultStepActivationServiceIT {
             kind = TestStepWithPrefixedImportedData::class.java.canonicalName,
             version = null,
             data = mapOf(
-                "subsomeProperty" to "The answer is 42"
+                "subSomeProperty" to "The answer is 42"
             ),
             status = Status.Active,
             metadata = emptyMap()
