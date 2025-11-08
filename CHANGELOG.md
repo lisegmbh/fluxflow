@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. **FlowQuery API**<br/>
    Introduces an expression-based querying approach that offers a more expressive and unified API.
    [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
+2. **Reusable step data imports (`@Import`)**<br/>
+   Enables reusing and composing common step data sets by importing data definitions from another type.
+   Supports optional kind prefixing (CamelCase or Plain) 
+   and merges data listeners from the imported and parent step, 
+   reducing duplication and improving maintainability.
+   [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
 
 ### Changed
 ### Deprecated

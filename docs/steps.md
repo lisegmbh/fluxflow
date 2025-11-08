@@ -399,10 +399,146 @@ dependency injection.
 [Data listeners](#step_data_listen_for_changes) can also return a
 `Continuation`, that can be used to control the workflow’s execution.
 
-For more details regarding continuations, see [Continuing the workflow
-using return values](#step_action_continuation).
+For more details regarding continuations,
+see [Continuing the workflow using return values](#continuing-the-workflow-using-return-values).
 
-#### Adding metadata to step definitions
+### Importing reusable step data structures
+
+When multiple steps need to consume and expose the same set of data 
+(e.g. an employee’s name and social security number across different HR related steps), 
+declaring those properties repeatedly leads to duplication and higher maintenance.
+The `@Import` annotation lets a step reuse data declarations from another type.
+Every property of the imported type that is recognized as step data (public property or annotated with `@Data`) is imported
+and behaves as if it were declared directly on the step.
+The property carrying `@Import` itself does not become a data definition – only its imported children do.
+This mechanism centralizes common data shapes and preserves all FluxFlow data capabilities 
+(listeners, validation, metadata, continuation control).
+
+!!! warning "Future support for other workflow elements"
+    As of now, the `@Import` annotation only imports data definitions.
+    If a future version also imports other workflow elements like actions or automation functions, 
+    they would appear in every importing step, expanding exposure, side effects, and the step's general functionality.
+    To stay safe, keep imported types strictly data‑only and move behavior into dedicated step or service classes.
+
+#### Basic example
+
+```kotlin
+data class EmployeeInformation(
+    @Data
+    val name: String,
+    @Data
+    val socialSecurityNumber: String
+)
+
+@Step
+class RequestVacationStep(
+    @Import
+    val employeeInformation: EmployeeInformation
+)
+
+@Step
+class ApproveVacationRequestStep(
+    @Import
+    val employeeInformation: EmployeeInformation
+)
+```
+
+Equivalent without `@Import`:
+
+```kotlin
+@Step
+class RequestVacationStep(
+    @Data
+    val name: String,
+    @Data
+    val socialSecurityNumber: String
+)
+
+@Step
+class ApproveVacationRequestStep(
+    @Data
+    val name: String,
+    @Data
+    val socialSecurityNumber: String
+)
+```
+
+#### Prefixing imported kinds
+
+Apply an optional `prefix` together with a `prefixStrategy` to avoid naming conflicts.
+If no strategy is specified, `CamelCase` is used.
+An empty prefix leaves the original kind unchanged.
+Prefixes never insert separators automatically.
+
+!!! note "Prefix separators"
+    FluxFlow never inserts a separator automatically when applying a prefix.
+    If you want a dot or underscore, include it explicitly (e.g. `"hr."`, `"user_"`).
+
+Examples:
+```kotlin
+@Step
+class OnboardingStep(
+    @Import(prefix = "employee", prefixStrategy = PrefixStrategy.CamelCase)
+    val employeeInfo: EmployeeInformation,
+    @Import(prefix = "hr.", prefixStrategy = PrefixStrategy.Plain)
+    val hrInfo: EmployeeInformation,
+    @Import // no prefix
+    val rawInfo: EmployeeInformation,
+    @Import(prefix = "employee", prefixStrategy = PrefixStrategy.Plain)
+    val employeePlainInfo: EmployeeInformation
+)
+```
+
+Table: Resulting kinds by strategy
+
+| Prefix   | Strategy                                               | Original data kind   | Result kind                  |
+|----------|--------------------------------------------------------|----------------------|------------------------------|
+| employee | CamelCase                                              | name                 | employeeName                 |
+| employee | CamelCase                                              | socialSecurityNumber | employeeSocialSecurityNumber |
+| hr.      | Plain                                                  | name                 | hr.name                      |
+| hr.      | Plain                                                  | socialSecurityNumber | hr.socialSecurityNumber      |
+| (empty)  | (implicit CamelCase default ignored because no prefix) | name                 | name                         |
+| employee | Plain                                                  | name                 | employeename                 |
+| employee | Plain                                                  | socialSecurityNumber | employeesocialSecurityNumber |
+
+#### Listeners on imported data
+
+Listeners declared on the imported type are kept.
+Additional listeners declared on the importing step are merged.
+
+```kotlin
+data class ImportableWithListener(
+    @Data
+    val value: String
+) {
+    @DataListener("value")
+    fun onValueChanged(oldValue: String?, newValue: String?) { /* ... */ }
+}
+
+@Step
+class ParentWithImportAndListeners(
+    @Import
+    val imported: ImportableWithListener
+) {
+    @DataListener("value")
+    fun onImportedValueChanged(oldValue: String?, newValue: String?) { /* ... */ }
+}
+
+@Step
+class ParentWithPrefixedImportAndListener(
+    @Import(prefix = "prefix", prefixStrategy = PrefixStrategy.CamelCase)
+    val imported: ImportableWithListener
+) {
+    @DataListener("prefixValue")
+    fun onPrefixedImportedValueChanged(oldValue: String?, newValue: String?) { /* ... */ }
+}
+```
+
+#### When to use `@Import`
+Use to encapsulate cohesive data (address, employee, payment info) and reduce duplication.
+Avoid for one-off data or types mixing unrelated concerns.
+
+### Adding metadata to step definitions
 Step data can also carry metadata. 
 As data is always tied to a specific step, it doesn't have any state on its own.
 Consequently, metadata is always static and only present on the `DataDefinition`.
@@ -1153,11 +1289,11 @@ class UserTaskService(
     fun assignUsers(step: Step, userIds: List<String>) {
         stepService.setMetadata(step, ASSIGNED_USERS_KEY, userIds)
     }
-    
+
     fun clearAssignedUsers(step: Step) {
         stepService.removeMetadata(step, ASSIGNED_USERS_KEY)
     }
-    
+
     private companion object {
         const val ASSIGNED_USERS_KEY = "assignedUsers"
     }
