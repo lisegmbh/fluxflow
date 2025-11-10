@@ -5,6 +5,7 @@ import de.lise.fluxflow.api.step.stateful.data.DataListenerDefinition
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.isInvokableInstanceFunction
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
+import de.lise.fluxflow.stereotyped.step.InstanceAccessor
 import de.lise.fluxflow.stereotyped.step.action.ImplicitStatusBehavior
 import java.lang.reflect.Type
 import kotlin.reflect.KClass
@@ -20,22 +21,24 @@ class DataListenerDefinitionBuilder(
         dataKind: DataKind,
         dataType: Type,
         instanceType: KClass<*>,
+        instanceAccessor: InstanceAccessor<TFunctionOwner>
     ): Set<DataListenerDefinition<TProp>> {
         return instanceType.functions
             .mapNotNull {
                 build<TFunctionOwner, TProp>(
                     dataKind,
                     dataType,
+                    instanceAccessor,
                     it
                 )
             }
             .toSet()
     }
-    
-    
+
     private fun <TFunctionOwner : Any, TProp> build(
         dataKind: DataKind,
         dataType: Type,
+        instanceAccessor: InstanceAccessor<TFunctionOwner>,
         function: KFunction<*>,
     ): DataListenerDefinition<TProp>? {
         if (!function.isInvokableInstanceFunction()) {
@@ -59,7 +62,9 @@ class DataListenerDefinitionBuilder(
             function
         )
 
-        return ReflectedDataListenerDefinition<TFunctionOwner, TProp> { step, instance, old, new ->
+        return ReflectedDataListenerDefinition(
+            instanceAccessor
+        ) { step, instance, old, new ->
             val callable = DataListenerFunctionResolver(
                 parameterResolver,
                 function,

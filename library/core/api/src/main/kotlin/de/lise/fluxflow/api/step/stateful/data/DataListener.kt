@@ -5,7 +5,7 @@ import de.lise.fluxflow.api.continuation.Continuation
 /**
  * A [DataListener] is a listener that is invoked whenever certain step data is updated.
  */
-interface DataListener<T> {
+interface DataListener<in T> {
     /**
      * The definition of this listener.
      */
