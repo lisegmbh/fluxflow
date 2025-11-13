@@ -1,7 +1,11 @@
 package de.lise.fluxflow.api.workflow
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
+import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.FlowQueryBuilder
 import de.fluxflow.flowquery.service.ResourceQueryService
 import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
+import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable.Companion.model
 import de.lise.fluxflow.api.workflow.query.WorkflowQuery
 import de.lise.fluxflow.query.pagination.Page
 import kotlin.reflect.KClass
@@ -74,4 +78,60 @@ interface WorkflowQueryService : ResourceQueryService<Workflow<*>, WorkflowQuery
      * @return the workflow with the given identifier, or `null` if there is no workflow with the given [identifier].
      */
     fun <TWorkflowModel> getOrNull(identifier: WorkflowIdentifier): Workflow<TWorkflowModel>?
+
+    /**
+     * Returns a page of workflows whose model type matches [type] and that satisfy the constraints
+     * defined in [query]. Callers do not need to manually filter by model type or cast; the resulting
+     * page contains only workflows with a model of the requested type.
+     *
+     * The supplied [query] may include filters, sorting and pagination; these are applied after the
+     * automatic type filtering. If no workflows match, an empty page is returned.
+     *
+     * @param type the workflow model class to select
+     * @param query the flow query specifying additional filters, sorting and pagination
+     * @param TWorkflowModel the workflow model type
+     * @return a page containing only workflows whose model is of type [TWorkflowModel]
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <TWorkflowModel : Any> findAll(
+        type: KClass<TWorkflowModel>,
+        query: FlowQuery<WorkflowQueryable<TWorkflowModel>, WorkflowQueryable<TWorkflowModel>>
+    ): Page<Workflow<TWorkflowModel>> {
+        val typedQuery = FlowQuery.of<WorkflowQueryable<Any>>().where {
+            model.isType(type) // This asserts the model type, so we can safely cast the workflow data model
+        } as FlowQuery<WorkflowQueryable<TWorkflowModel>, WorkflowQueryable<TWorkflowModel>>
+        
+        val combinedQuery = typedQuery.append(
+            query
+        )
+        
+        return findAll(combinedQuery as FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>).map {
+            it as Workflow<TWorkflowModel>
+        }
+    }
+    
+    /**
+     * Returns a page of workflows of the given model [type] using a query built by [queryBuilder].
+     * Implementations automatically restrict results to the specified model type, so callers can focus
+     * solely on defining domain filters, sorting or pagination inside the builder.
+     *
+     * If the built query matches
+     * no workflows, an empty page is returned.
+     *
+     * @param type the workflow model class to select
+     * @param queryBuilder lambda receiving a fresh query to configure and returning the built query
+     * @param TWorkflowModel the workflow model type
+     * @return a page containing only workflows whose model is of type [TWorkflowModel]
+     */
+    fun <TWorkflowModel: Any> findAll(
+        type: KClass<TWorkflowModel>,
+        queryBuilder: FlowQueryBuilder<WorkflowQueryable<TWorkflowModel>, WorkflowQueryable<TWorkflowModel>>
+    ): Page<Workflow<TWorkflowModel>> {
+        return findAll(
+            type,
+            queryBuilder(
+                FlowQuery.of()
+            )
+        )
+    }
 }

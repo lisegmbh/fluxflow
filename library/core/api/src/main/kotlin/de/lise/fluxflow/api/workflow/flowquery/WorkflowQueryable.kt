@@ -3,7 +3,7 @@ package de.lise.fluxflow.api.workflow.flowquery
 import de.fluxflow.flowquery.expression.Expression
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 
-interface WorkflowQueryable<TModel> {
+interface WorkflowQueryable<out TModel> {
     val identifier: WorkflowIdentifier
     val model: TModel
 
