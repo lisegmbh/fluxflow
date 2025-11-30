@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.continuation.history
 
 import de.lise.fluxflow.api.WorkflowObjectReference
 import de.lise.fluxflow.api.continuation.ContinuationType
+import de.lise.fluxflow.api.continuation.reason.Reason
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document
@@ -15,8 +16,9 @@ data class ContinuationRecordDocument(
     val type: ContinuationType,
     val originatingObject: WorkflowObjectReference?,
     val targetObject: WorkflowObjectReference?,
+    val reason: Reason?
 ) {
-    
+
     constructor(
         id: String,
         recordData: ContinuationRecordData
@@ -26,7 +28,8 @@ data class ContinuationRecordDocument(
         recordData.timeOfOccurrence,
         recordData.type,
         recordData.originatingObject,
-        recordData.targetObject
+        recordData.targetObject,
+        recordData.reason
     )
     
     fun toRecordData(): ContinuationRecordData {
@@ -36,7 +39,8 @@ data class ContinuationRecordDocument(
             timeOfOccurrence,
             type,
             originatingObject,
-            targetObject
+            targetObject,
+            reason
         )
     }
 }

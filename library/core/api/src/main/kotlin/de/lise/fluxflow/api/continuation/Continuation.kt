@@ -1,6 +1,7 @@
 package de.lise.fluxflow.api.continuation
 
 import de.lise.fluxflow.api.WorkflowObjectKind
+import de.lise.fluxflow.api.continuation.reason.Reason
 import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.continuation.JobCancellationContinuation
 import de.lise.fluxflow.api.job.continuation.JobContinuation
@@ -45,6 +46,12 @@ interface Continuation<out T> {
     val validationGroups: Set<KClass<*>>
 
     /**
+     * The reason why this continuation was chosen, providing context for debugging and auditing.
+     * Defaults to null for backward compatibility.
+     */
+    val reason: Reason? get() = null
+
+    /**
      * Returns a new continuation with [Continuation.statusBehavior] set to [statusBehavior].
      * @param statusBehavior The behavior that should be applied to the originating step's behavior.
      * @return A new instance of this continuation.
@@ -74,16 +81,34 @@ interface Continuation<out T> {
         return withValidationGroups(setOf(*groups))
     }
 
+    /**
+     * Returns a new continuation with the specified reason.
+     * @param reason The reason why this continuation was chosen.
+     * @return A new instance of this continuation with the reason attached.
+     */
+    fun withReason(reason: Reason): Continuation<T> = ReasonedContinuation(this, reason)
+
+    /**
+     * Returns a new continuation with the specified reason message and optional context.
+     * @param message A human-readable explanation of why this continuation was chosen.
+     * @param context Additional structured data providing context for the reason.
+     * @return A new instance of this continuation with the reason attached.
+     */
+    fun withReason(message: String, context: Map<String, Any?> = emptyMap()): Continuation<T> =
+        withReason(Reason(message, context))
+
     companion object {
         /**
          * Returns a new step continuation, indicating that the workflow should continue with the step provided with [model].
          * @param model The step that should be executed next.
+         * @param reason The reason why this continuation was chosen (optional).
          */
-        fun <T> step(model: T): StepContinuation<T> {
-            return StepContinuation(
+        fun <T> step(model: T, reason: Reason? = null): Continuation<T> {
+            val base = StepContinuation(
                 model,
-                validationGroups = emptySet()    
+                validationGroups = emptySet()
             )
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
 
         /**
@@ -94,63 +119,75 @@ interface Continuation<out T> {
          * @param cancellationKey The cancellation key that can be used to cancel this job.
          * If the job should not be cancelable, `null` might be used (default).
          * Note that all previously scheduled jobs having the same key are going to be canceled if such is specified.
+         * @param reason The reason why this continuation was chosen (optional).
          */
         fun <T> job(
             scheduledTime: Instant,
             model: T,
-            cancellationKey: CancellationKey? = null
-        ): JobContinuation<T> {
-            return JobContinuation(
+            cancellationKey: CancellationKey? = null,
+            reason: Reason? = null
+        ): Continuation<T> {
+            val base = JobContinuation(
                 scheduledTime,
                 cancellationKey,
                 model,
                 validationGroups = emptySet()
             )
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
 
         /**
          * Returns a new continuation,
          * indicating that all scheduled jobs with the provided [cancellationKey] should be canceled.
          * @param cancellationKey The cancellation key that should be used to search for jobs to be canceled.
+         * @param reason The reason why this continuation was chosen (optional).
          */
         fun cancelJobs(
-            cancellationKey: CancellationKey
-        ): JobCancellationContinuation {
-            return JobCancellationContinuation(
+            cancellationKey: CancellationKey,
+            reason: Reason? = null
+        ): Continuation<Unit> {
+            val base = JobCancellationContinuation(
                 cancellationKey,
                 validationGroups = emptySet()
             )
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
 
         /**
          * Returns a continuation indicating that there is no more work to be done.
+         * @param reason The reason why this continuation was chosen (optional).
          */
-        fun none(): Continuation<*> {
-            return NoContinuation(
+        fun none(reason: Reason? = null): Continuation<*> {
+            val base = NoContinuation(
                 validationGroups = emptySet()
             )
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
 
         /**
          * Returns a continuation that wraps all given [continuations]
          * and can be used if the workflow should be continued with multiple operations.
+         * @param reason The reason why this continuation was chosen (optional).
          */
-        fun multiple(vararg continuations: Continuation<*>): MultipleContinuation {
-            return MultipleContinuation(
+        fun multiple(vararg continuations: Continuation<*>, reason: Reason? = null): Continuation<Unit> {
+            val base = MultipleContinuation(
                 continuations.toSet(),
                 validationGroups = emptySet(),
             )
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
 
         /**
          * Returns a continuation that wraps all given [continuations]
          * and can be used if the workflow should be continued with multiple operations.
+         * @param reason The reason why this continuation was chosen (optional).
          */
-        fun multiple(continuations: Collection<Continuation<*>>): MultipleContinuation {
-            return MultipleContinuation(
+        fun multiple(continuations: Collection<Continuation<*>>, reason: Reason? = null): Continuation<Unit> {
+            val base = MultipleContinuation(
                 continuations.toSet(),
                 validationGroups = emptySet()
             )
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
 
         /**
@@ -158,10 +195,12 @@ interface Continuation<out T> {
          * By default, the current step is going to be canceled.
          * @param TPreviousStepModel Serves no purpose, except from documenting the previous step type.
          * Might be [Unit].
+         * @param reason The reason why this continuation was chosen (optional).
          * @return a [RollbackContinuation].
          */
-        fun <TPreviousStepModel> rollback(): RollbackContinuation {
-            return RollbackContinuation(validationGroups = emptySet())
+        fun <TPreviousStepModel> rollback(reason: Reason? = null): Continuation<Unit> {
+            val base = RollbackContinuation(validationGroups = emptySet())
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
 
         /**
@@ -173,14 +212,16 @@ interface Continuation<out T> {
          * @param workflowModel The initial value for the new workflow's model.
          * @param initialWorkflowContinuation The initial continuation that should be executed when starting the new workflow.
          * @param forkBehavior The fork behavior controlling the controls what is happening to the old/original workflow.
+         * @param reason The reason why this continuation was chosen (optional).
          */
         fun <TWorkflowModel, TContinuation> workflow(
             workflowModel: TWorkflowModel,
             initialWorkflowContinuation: Continuation<TContinuation>,
             forkBehavior: ForkBehavior = ForkBehavior.Fork,
-            replacementScope: Set<WorkflowObjectKind> = emptySet()
-        ): WorkflowContinuation<TWorkflowModel, TContinuation> {
-            return WorkflowContinuation(
+            replacementScope: Set<WorkflowObjectKind> = emptySet(),
+            reason: Reason? = null
+        ): Continuation<TWorkflowModel> {
+            val base = WorkflowContinuation(
                 initialWorkflowContinuation,
                 workflowModel,
                 StatusBehavior.Complete,
@@ -189,6 +230,7 @@ interface Continuation<out T> {
                 validationGroups = emptySet(),
                 replacementScope
             )
+            return reason?.let { ReasonedContinuation(base, it) } ?: base
         }
     }
 }

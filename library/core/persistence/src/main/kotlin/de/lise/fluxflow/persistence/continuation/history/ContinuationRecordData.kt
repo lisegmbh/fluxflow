@@ -5,6 +5,7 @@ import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.continuation.ContinuationType
 import de.lise.fluxflow.api.continuation.history.ContinuationRecord
 import de.lise.fluxflow.api.continuation.history.ContinuationRecordIdentifier
+import de.lise.fluxflow.api.continuation.reason.Reason
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import java.time.Instant
 
@@ -29,7 +30,8 @@ data class ContinuationRecordData(
      * Describes the workflow object that resulted from the continuation.
      * Might be `null`, if there is no resulting workflow object (e.g., for [Continuation.none]).
      */
-    val targetObject: WorkflowObjectReference? 
+    val targetObject: WorkflowObjectReference?,
+    val reason: Reason?
 ) {
 
     fun toDomainObject(): ContinuationRecord {
@@ -39,7 +41,8 @@ data class ContinuationRecordData(
             timeOfOccurrence = timeOfOccurrence,
             type = type,
             originatingObject = originatingObject,
-            targetObject = targetObject
+            targetObject = targetObject,
+            reason = reason
         )
     }
 }

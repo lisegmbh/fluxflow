@@ -35,6 +35,10 @@ class ContinuationRecordQueryableToDataMapper : ExpressionMapper {
                 ContinuationRecordQueryable::targetObject,
                 ContinuationRecordData::targetObject
             ),
+            ExpressionReplacer.property(
+                ContinuationRecordQueryable::reason,
+                ContinuationRecordData::reason
+            ),
             CommonToDataMapper()
         )
     )

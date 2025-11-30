@@ -2,6 +2,7 @@ package de.lise.fluxflow.api.continuation.history
 
 import de.lise.fluxflow.api.WorkflowObjectReference
 import de.lise.fluxflow.api.continuation.ContinuationType
+import de.lise.fluxflow.api.continuation.reason.Reason
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import java.time.Instant
 
@@ -11,5 +12,6 @@ data class ContinuationRecord(
     val timeOfOccurrence: Instant,
     val type: ContinuationType,
     val originatingObject: WorkflowObjectReference?,
-    val targetObject: WorkflowObjectReference?
+    val targetObject: WorkflowObjectReference?,
+    val reason: Reason?
 )
