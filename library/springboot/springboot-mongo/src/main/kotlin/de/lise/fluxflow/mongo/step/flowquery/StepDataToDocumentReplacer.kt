@@ -2,15 +2,14 @@ package de.lise.fluxflow.mongo.step.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.PropertyExpression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.persistence.step.StepData
 
-class StepDataToDocumentMapper : ExpressionMapper {
-    private val mapper = PriorityExpressionReplacer(
+class StepDataToDocumentReplacer : ExpressionReplacer {
+    private val replacer = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.property(
                 StepData::id,
@@ -50,6 +49,6 @@ class StepDataToDocumentMapper : ExpressionMapper {
     )
 
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(expression)
+        return replacer.replace(expression)
     }
 }

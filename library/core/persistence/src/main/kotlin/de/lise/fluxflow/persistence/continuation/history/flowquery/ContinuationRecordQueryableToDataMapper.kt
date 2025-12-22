@@ -5,7 +5,7 @@ import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQueryable
-import de.lise.fluxflow.persistence.CommonToDataMapper
+import de.lise.fluxflow.persistence.CommonToDataReplacer
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 
 class ContinuationRecordQueryableToDataMapper : ExpressionMapper {
@@ -35,11 +35,11 @@ class ContinuationRecordQueryableToDataMapper : ExpressionMapper {
                 ContinuationRecordQueryable::targetObject,
                 ContinuationRecordData::targetObject
             ),
-            CommonToDataMapper()
+            CommonToDataReplacer()
         )
-    )
-    
-    override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(expression)
+    ).toMapper()
+
+    override fun map(expression: Expression<*, *>): Expression<*, *> {
+        return mapper.map(expression)
     }
 }

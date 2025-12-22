@@ -45,15 +45,15 @@ import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersi
 import de.lise.fluxflow.persistence.continuation.history.flowquery.ContinuationRecordQueryableToDataMapper
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
-import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataMapper
+import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataReplacer
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
-import de.lise.fluxflow.persistence.step.flowquery.StepQueryableToDataMapper
+import de.lise.fluxflow.persistence.step.flowquery.StepQueryableToDataReplacer
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
-import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowQueryableToDataMapper
+import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowQueryableToDataReplacer
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
@@ -232,7 +232,7 @@ open class BasicConfiguration {
     @Bean
     open fun workflowQueryToDataMapper(): QueryMapper<WorkflowQueryable<*>, WorkflowData> {
         return QueryMapperImpl(
-            WorkflowQueryableToDataMapper()
+            WorkflowQueryableToDataReplacer().toMapper()
         )
     }
 
@@ -538,7 +538,7 @@ open class BasicConfiguration {
     @Bean
     open fun stepDataMapper(): QueryMapper<StepQueryable, StepData> {
         return QueryMapperImpl(
-            StepQueryableToDataMapper()
+            StepQueryableToDataReplacer().toMapper()
         )
     }
 
@@ -642,7 +642,7 @@ open class BasicConfiguration {
     @Bean
     open fun jobToDataMapper(): QueryMapper<JobQueryable, JobData> {
         return QueryMapperImpl(
-            JobQueryableToDataMapper()
+            JobQueryableToDataReplacer().toMapper()
         )
     }
     

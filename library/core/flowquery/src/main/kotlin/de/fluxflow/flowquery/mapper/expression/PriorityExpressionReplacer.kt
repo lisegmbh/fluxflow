@@ -5,9 +5,10 @@ import de.fluxflow.flowquery.expression.Expression
 class PriorityExpressionReplacer(
     private val expressionReplacer: List<ExpressionReplacer>
 ) : ExpressionReplacer {
+
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return ExpressionWalker().walk(expression) { currentExp ->
-            doProcess(currentExp)
+        return ExpressionWalker().walk(expression) { context ->
+            doProcess(context.expression)
         }.replaceWith
     }
 
@@ -24,4 +25,3 @@ class PriorityExpressionReplacer(
         }
     }
 }
-

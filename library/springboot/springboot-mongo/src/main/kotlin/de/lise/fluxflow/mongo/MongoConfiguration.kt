@@ -38,7 +38,9 @@ open class MongoConfiguration {
 
     @Bean
     internal open fun mongoQueryCompiler(subclassProvider: SubclassProvider): MongoCompiler {
-        return MongoCompiler(subclassProvider)
+        return MongoCompiler(
+            subclassProvider,
+        )
     }
 
     @Bean

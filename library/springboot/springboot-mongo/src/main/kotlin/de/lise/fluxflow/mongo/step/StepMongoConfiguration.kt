@@ -6,7 +6,7 @@ import de.lise.fluxflow.mongo.ConditionalOnFluxFlowMongo
 import de.lise.fluxflow.mongo.flowquery.repository.MongoExecutor
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
-import de.lise.fluxflow.mongo.step.flowquery.StepDataToDocumentMapper
+import de.lise.fluxflow.mongo.step.flowquery.StepDataToDocumentReplacer
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import org.springframework.context.annotation.Bean
@@ -33,7 +33,9 @@ open class StepMongoConfiguration {
 
     @Bean
     open fun stepDocumentMapper(): QueryMapper<StepData, StepDocument> {
-        return QueryMapperImpl(StepDataToDocumentMapper())
+        return QueryMapperImpl(
+            StepDataToDocumentReplacer().toMapper()
+        )
     }
 
     @Bean

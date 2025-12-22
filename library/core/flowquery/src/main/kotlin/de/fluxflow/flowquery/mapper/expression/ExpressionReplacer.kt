@@ -7,7 +7,21 @@ import kotlin.reflect.KProperty1
 
 fun interface ExpressionReplacer {
     fun replace(expression: Expression<*, *>): Expression<*, *>?
-
+    
+    fun recursive(): ExpressionReplacer {
+        return PriorityExpressionReplacer(
+            listOf(
+                this
+            )
+        )
+    }
+    
+    fun toMapper(): ExpressionMapper {
+        return ExpressionMapper {
+            replace(it) ?: it
+        }
+    }
+    
     companion object {
         inline fun <reified T> constantOfType(
             crossinline replacement: (exp: T) -> Expression<*,*>

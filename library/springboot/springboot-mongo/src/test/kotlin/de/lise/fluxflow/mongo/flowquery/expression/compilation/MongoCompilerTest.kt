@@ -7,14 +7,13 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.or
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
 import de.fluxflow.flowquery.expression.compilation.CompilationException
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping.MongoCompilerMapper
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
+import org.mockito.kotlin.*
 import kotlin.reflect.KClass
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains as stringContains
 
@@ -22,13 +21,20 @@ class MongoCompilerTest {
     private lateinit var mockSubclassProvider: SubclassProvider
     private lateinit var compiler: MongoCompiler
     private lateinit var config: MongoCompilerConfig
-
+    private lateinit var mongoCompilerMapper: MongoCompilerMapper
+    
     @BeforeEach
     fun setup() {
         // Arrange
         mockSubclassProvider = mock()
         config = MongoCompilerConfig(typeFieldName = "_class")
-        compiler = MongoCompiler(mockSubclassProvider, config)
+        mongoCompilerMapper = mock<MongoCompilerMapper> { 
+            on { map<Any, Any>(any()) } doAnswer {it.rawArguments[0] as Expression<Any, Any>}
+        }
+        compiler = MongoCompiler(
+            subclassProvider = mockSubclassProvider,
+            config = config
+        )
     }
 
     @Test
@@ -87,7 +93,10 @@ class MongoCompilerTest {
     fun `compile should use custom type field name from config`() {
         // Arrange
         val customConfig = MongoCompilerConfig(typeFieldName = "customType")
-        val customCompiler = MongoCompiler(mockSubclassProvider, customConfig)
+        val customCompiler = MongoCompiler(
+            subclassProvider = mockSubclassProvider,
+            config = customConfig
+        )
 
         val mockClass = mock<KClass<String>>()
         val subclass = String::class.java
@@ -317,9 +326,6 @@ class MongoCompilerTest {
         assertThat(result.result).isInstanceOf(AnonymousPropertyToken::class.java)
     }
 
-    // --------------------------------------------------------------------------------------------
-    // Complex Expression Combinations
-    // --------------------------------------------------------------------------------------------
 
     @Test
     fun `compile should handle complex nested logical operations correctly`() {
@@ -491,6 +497,82 @@ class MongoCompilerTest {
 
         // Assert
         assertThat(result.result).isInstanceOf(AndToken::class.java)
+    }
+
+    @Test
+    fun `compile should call mapper with the input expression`() {
+        // Arrange
+        val mockMapper = mock<MongoCompilerMapper>()
+        val compilerWithMapper = MongoCompiler(
+            subclassProvider = mockSubclassProvider,
+            expressionMapper = mockMapper,
+            config = config
+        )
+        
+        val inputExpression = Expression.root<TestUser>()
+        whenever(mockMapper.map<TestUser, TestUser>(any())).thenReturn(inputExpression)
+
+        // Act
+        compilerWithMapper.compile(inputExpression)
+
+        // Assert - Verify mapper was called with the original expression
+        verify(mockMapper).map(inputExpression)
+    }
+
+    @Test
+    fun `compile should use mapped expression result for compilation`() {
+        // Arrange
+        val mockMapper = mock<MongoCompilerMapper>()
+        val compilerWithMapper = MongoCompiler(
+            subclassProvider = mockSubclassProvider,
+            expressionMapper = mockMapper,
+            config = config
+        )
+        
+        // Original expression that accesses 'name' property
+        val originalExpression = Expression.root<TestUser>().get(TestUser::name)
+        
+        // Mapped expression that accesses 'email' property instead
+        val mappedExpression = Expression.root<TestUser>().get(TestUser::email)
+        
+        whenever(mockMapper.map(originalExpression)).thenReturn(mappedExpression)
+
+        // Act
+        val result = compilerWithMapper.compile(originalExpression)
+
+        // Assert - The result should be based on the mapped expression (email, not name)
+        verify(mockMapper).map(originalExpression)
+        assertThat(result.result).isInstanceOf(PropertyToken::class.java)
+        val propertyToken = result.result as PropertyToken
+        assertThat(propertyToken.property).isEqualTo(TestUser::email)
+    }
+
+    @Test
+    fun `compile should use mapper result even when it differs from input`() {
+        // Arrange - Mapper transforms the expression type
+        val mockMapper = mock<MongoCompilerMapper>()
+        val compilerWithMapper = MongoCompiler(
+            subclassProvider = mockSubclassProvider,
+            expressionMapper = mockMapper,
+            config = config
+        )
+        
+        // Input: constant expression
+        val inputExpression = Expression.const<TestUser, String>("input")
+        
+        // Mapped: different constant
+        val mappedExpression = Expression.const<TestUser, String>("mapped")
+        
+        whenever(mockMapper.map(inputExpression)).thenReturn(mappedExpression)
+
+        // Act
+        val result = compilerWithMapper.compile(inputExpression)
+
+        // Assert - Should use the mapped expression's value
+        verify(mockMapper).map(inputExpression)
+        assertThat(result.result).isInstanceOf(ConstantToken::class.java)
+        val constantToken = result.result as ConstantToken
+        assertThat(constantToken.toValue()).isEqualTo("mapped")
     }
 
     /**

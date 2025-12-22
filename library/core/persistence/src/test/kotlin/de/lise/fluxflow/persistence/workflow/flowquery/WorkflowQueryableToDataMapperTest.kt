@@ -11,7 +11,7 @@ class WorkflowQueryableToDataMapperTest {
     @Test
     fun `mapping should produces the correct results`() {
         // Arrange
-        val mapper = WorkflowQueryableToDataMapper()
+        val mapper = WorkflowQueryableToDataReplacer().toMapper()
         val testExpressions = mapOf(
             Expression.root<WorkflowQueryable<Any>>()
                 .get(WorkflowQueryable<Any>::model)
@@ -36,7 +36,7 @@ class WorkflowQueryableToDataMapperTest {
 
         // Act
         val results = testExpressions.mapValues {
-            mapper.mapOrKeep(it.key)
+            mapper.map(it.key)
         }
 
         // Assert

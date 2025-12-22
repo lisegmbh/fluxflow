@@ -6,7 +6,7 @@ import de.lise.fluxflow.mongo.ConditionalOnFluxFlowMongo
 import de.lise.fluxflow.mongo.flowquery.repository.MongoExecutor
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
-import de.lise.fluxflow.mongo.job.flowquery.JobDataToDocumentMapper
+import de.lise.fluxflow.mongo.job.flowquery.JobDataToDocumentReplacer
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
 import org.springframework.context.annotation.Bean
@@ -33,7 +33,9 @@ open class JobMongoConfiguration {
 
     @Bean
     open fun jobQueryMapper(): QueryMapper<JobData, JobDocument> {
-        return QueryMapperImpl(JobDataToDocumentMapper())
+        return QueryMapperImpl(
+            JobDataToDocumentReplacer().toMapper()
+        )
     }
 
     @Bean

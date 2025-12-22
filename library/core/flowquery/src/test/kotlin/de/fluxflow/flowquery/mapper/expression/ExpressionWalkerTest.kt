@@ -9,14 +9,14 @@ class ExpressionWalkerTest {
     @Test
     fun `walker should apply and return the new replacement expression`() {
         val walker = ExpressionWalker()
-        val originalExpression = Expression.Companion.root<NestedElement>()
+        val originalExpression = Expression.root<NestedElement>()
             .get(NestedElement::value)
 
         val result = walker.walk(originalExpression) {
-            when(it) {
+            when(it.expression) {
                 is RootExpression<*> -> {
                     ExpressionWalkerResult.Replace(
-                        Expression.Companion.root<TestRoot>()
+                        Expression.root<TestRoot>()
                             .get(TestRoot::nestedElement)
                     )
                 }
@@ -25,7 +25,7 @@ class ExpressionWalkerTest {
         }
 
         Assertions.assertThat(result.replaceWith).isEqualTo(
-            Expression.Companion.root<TestRoot>()
+            Expression.root<TestRoot>()
                 .get(TestRoot::nestedElement)
                 .get(NestedElement::value)
         )

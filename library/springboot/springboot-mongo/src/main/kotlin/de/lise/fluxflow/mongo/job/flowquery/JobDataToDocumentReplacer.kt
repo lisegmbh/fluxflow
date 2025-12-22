@@ -2,15 +2,14 @@ package de.lise.fluxflow.mongo.job.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.PropertyExpression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.persistence.job.JobData
 
-class JobDataToDocumentMapper : ExpressionMapper {
-    private val mapper = PriorityExpressionReplacer(
+class JobDataToDocumentReplacer : ExpressionReplacer {
+    private val replacer = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.property(
                 JobData::id,
@@ -47,6 +46,6 @@ class JobDataToDocumentMapper : ExpressionMapper {
     )
 
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(expression)
+        return replacer.replace(expression)
     }
 }

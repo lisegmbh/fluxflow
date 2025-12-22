@@ -1,14 +1,13 @@
 package de.lise.fluxflow.mongo.workflow.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 
-class WorkflowDataToDocumentMapper : ExpressionMapper {
-    private val mapper = PriorityExpressionReplacer(
+class WorkflowDataToDocumentReplacer : ExpressionReplacer {
+    private val replacer = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.property(
                 WorkflowData::id,
@@ -22,7 +21,7 @@ class WorkflowDataToDocumentMapper : ExpressionMapper {
     )
 
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(
+        return replacer.replace(
             expression
         )
     }
