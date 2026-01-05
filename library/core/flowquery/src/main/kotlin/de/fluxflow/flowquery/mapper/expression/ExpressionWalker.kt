@@ -5,19 +5,36 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
 class ExpressionWalker {
-    fun <TRoot, TCurrent> walk(
-        expression: Expression<TRoot, TCurrent>,
-        callback: (exp: Expression<*, *>) -> ExpressionWalkerResult
+    fun walk(
+        expression: Expression<*, *>,
+        callback: ExpressionWalkerCallback
     ): ExpressionWalkerResult {
-        val result = callback.invoke(expression)
+        return walk(
+            WalkingContext(
+                parent = null,
+                expression = expression,
+                level = 0
+            ),
+            callback
+        )
+    }
+    
+    private fun walk(
+        context: WalkingContext,
+        callback: ExpressionWalkerCallback,
+    ): ExpressionWalkerResult {
+        val result = callback.invoke(context)
         if (!result.drillDown || result.replaceWith != null) {
             return result
         }
 
-        return when (expression) {
+        return when (val expression = context.expression) {
             is CastExpression<*, *, *> -> {
-                val instanceReplacement = walk(expression.instance, callback).replaceWith
-                when(instanceReplacement){
+                val instanceReplacement = walk(
+                    context.sub(expression.instance),
+                    callback
+                ).replaceWith
+                when (instanceReplacement) {
                     null -> ExpressionWalkerResult.Continue
                     else -> ExpressionWalkerResult.Replace(
                         CastExpression(
@@ -29,8 +46,11 @@ class ExpressionWalker {
             }
 
             is IsTypeExpression<*, *, *> -> {
-                val instanceReplacement = walk(expression.instance, callback).replaceWith
-                when(instanceReplacement){
+                val instanceReplacement = walk(
+                    context.sub(expression.instance),
+                    callback
+                ).replaceWith
+                when (instanceReplacement) {
                     null -> ExpressionWalkerResult.Continue
                     else -> ExpressionWalkerResult.Replace(
                         IsTypeExpression(
@@ -42,7 +62,12 @@ class ExpressionWalker {
             }
 
             is AndExpression<*> -> {
-                val replacements = expression.predicates.associateWith { walk(it, callback).replaceWith }
+                val replacements = expression.predicates.associateWith {
+                    walk(
+                        context.sub(it),
+                        callback
+                    ).replaceWith
+                }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
                 } else {
@@ -58,13 +83,22 @@ class ExpressionWalker {
             }
 
             is IsAnyOfOperator<*, *> -> {
-                val replacement = walk(expression.valueToTest, callback).replaceWith
+                val replacement = walk(
+                    context.sub(expression.valueToTest),
+                    callback
+                ).replaceWith
                 if (replacement != null) {
                     ExpressionWalkerResult.Replace(
                         IsAnyOfOperator(
                             replacement as Expression<Any?, Any?>,
                             expression.anyOf.map {
-                                (walk(it, callback).replaceWith ?: it) as Expression<*, Any?>
+                                (
+                                    walk(
+                                        context.sub(it),
+                                        callback
+                                    ).replaceWith
+                                        ?: it
+                                ) as Expression<*, Any?>
                             }.toSet()
                         )
                     )
@@ -74,8 +108,14 @@ class ExpressionWalker {
             }
 
             is StartsWithExpression<*> -> {
-                val valueReplacement = walk(expression.value, callback).replaceWith
-                val prefixReplacement = walk(expression.prefix, callback).replaceWith
+                val valueReplacement = walk(
+                    context.sub(expression.value),
+                    callback
+                ).replaceWith
+                val prefixReplacement = walk(
+                    context.sub(expression.prefix),
+                    callback
+                ).replaceWith
 
                 when {
                     valueReplacement != null || prefixReplacement != null -> StartsWithExpression(
@@ -89,8 +129,14 @@ class ExpressionWalker {
             }
 
             is MapAccessExpression<*, *, *, *> -> {
-                val instanceReplacement = walk(expression.instance, callback).replaceWith
-                val keyReplacement = walk(expression.key, callback).replaceWith
+                val instanceReplacement = walk(
+                    context.sub(expression.instance),
+                    callback
+                ).replaceWith
+                val keyReplacement = walk(
+                    context.sub(expression.key),
+                    callback
+                ).replaceWith
 
                 when {
                     instanceReplacement != null || keyReplacement != null -> MapAccessExpression(
@@ -105,8 +151,14 @@ class ExpressionWalker {
             }
 
             is EndsWithExpression<*> -> {
-                val valueReplacement = walk(expression.value, callback).replaceWith
-                val suffixReplacement = walk(expression.suffix, callback).replaceWith
+                val valueReplacement = walk(
+                    context.sub(expression.value),
+                    callback
+                ).replaceWith
+                val suffixReplacement = walk(
+                    context.sub(expression.suffix),
+                    callback
+                ).replaceWith
 
                 when {
                     valueReplacement != null || suffixReplacement != null -> EndsWithExpression(
@@ -120,8 +172,14 @@ class ExpressionWalker {
             }
 
             is ContainsExpression<*> -> {
-                val valueReplacement = walk(expression.value, callback).replaceWith
-                val substringReplacement = walk(expression.substring, callback).replaceWith
+                val valueReplacement = walk(
+                    context.sub(expression.value),
+                    callback
+                ).replaceWith
+                val substringReplacement = walk(
+                    context.sub(expression.substring),
+                    callback
+                ).replaceWith
 
                 when {
                     valueReplacement != null || substringReplacement != null -> ContainsExpression(
@@ -135,12 +193,20 @@ class ExpressionWalker {
             }
 
             is ContainsElementThatExpression<*, *, *> -> {
-                val collectionReplacement = walk(expression.collection, callback).replaceWith
-                val predicateReplacement = walk(expression.elementPredicate, callback).replaceWith
+                val collectionReplacement = walk(
+                    context.sub(expression.collection),
+                    callback
+                ).replaceWith
+                val predicateReplacement = walk(
+                    context.sub(expression.elementPredicate),
+                    callback
+                ).replaceWith
                 when {
                     collectionReplacement != null || predicateReplacement != null -> ContainsElementThatExpression(
-                        collection = (collectionReplacement ?: expression.collection) as Expression<Any?, Collection<Any?>>,
-                        elementPredicate = (predicateReplacement ?: expression.elementPredicate) as Expression<Any?, Boolean>,
+                        collection = (collectionReplacement
+                            ?: expression.collection) as Expression<Any?, Collection<Any?>>,
+                        elementPredicate = (predicateReplacement
+                            ?: expression.elementPredicate) as Expression<Any?, Boolean>,
                     ).let { ExpressionWalkerResult.Replace(it) }
 
                     else -> ExpressionWalkerResult.Continue
@@ -148,11 +214,18 @@ class ExpressionWalker {
             }
 
             is ContainsElementExpression<*, *, *> -> {
-                val collectionReplacement = walk(expression.collection, callback).replaceWith
-                val elementReplacement = walk(expression.element, callback).replaceWith
+                val collectionReplacement = walk(
+                    context.sub(expression.collection),
+                    callback
+                ).replaceWith
+                val elementReplacement = walk(
+                    context.sub(expression.element),
+                    callback
+                ).replaceWith
                 when {
                     collectionReplacement != null || elementReplacement != null -> ContainsElementExpression(
-                        collection = (collectionReplacement ?: expression.collection) as Expression<Any?, Collection<*>>,
+                        collection = (collectionReplacement
+                            ?: expression.collection) as Expression<Any?, Collection<*>>,
                         element = (elementReplacement ?: expression.element) as Expression<Any?, Any?>,
                     ).let { ExpressionWalkerResult.Replace(it) }
 
@@ -161,8 +234,14 @@ class ExpressionWalker {
             }
 
             is BinaryOperationExpression<*, *, *, *> -> {
-                val leftReplacement = walk(expression.leftOperand, callback).replaceWith
-                val rightReplacement = walk(expression.rightOperand, callback).replaceWith
+                val leftReplacement = walk(
+                    context.sub(expression.leftOperand),
+                    callback
+                ).replaceWith
+                val rightReplacement = walk(
+                    context.sub(expression.rightOperand),
+                    callback
+                ).replaceWith
                 when {
                     leftReplacement != null && rightReplacement != null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
                         leftReplacement as Expression<Any?, Any?>,
@@ -192,7 +271,10 @@ class ExpressionWalker {
                 }
             }
 
-            is NotExpression<*> -> walk(expression.expression, callback).replaceWith
+            is NotExpression<*> -> walk(
+                context.sub(expression.expression),
+                callback
+            ).replaceWith
                 ?.let {
                     ExpressionWalkerResult.Replace(
                         NotExpression(
@@ -202,7 +284,12 @@ class ExpressionWalker {
                 } ?: ExpressionWalkerResult.Continue
 
             is OrExpression<*> -> {
-                val replacements = expression.predicates.associate { it to walk(it, callback).replaceWith }
+                val replacements = expression.predicates.associate {
+                    it to walk(
+                        context.sub(it),
+                        callback
+                    ).replaceWith
+                }
                 if (replacements.values.filterNotNull().isEmpty()) {
                     ExpressionWalkerResult.Continue
                 } else {
@@ -217,7 +304,10 @@ class ExpressionWalker {
                 }
             }
 
-            is PropertyExpression<*, *, *> -> walk(expression.instance, callback).replaceWith
+            is PropertyExpression<*, *, *> -> walk(
+                context.sub(expression.instance),
+                callback
+            ).replaceWith
                 ?.let {
                     ExpressionWalkerResult.Replace(
                         PropertyExpression(
@@ -229,6 +319,50 @@ class ExpressionWalker {
                 ?: ExpressionWalkerResult.Continue
 
             is ConjunctionExpression<*, *>, is ConstantExpression<*, *>, is RootExpression<*> -> result
+        }
+    }
+    
+    companion object {
+        /**
+         * Checks if this expression has any direct child (level 1) that matches the given predicate.
+         * 
+         * This function only examines the immediate children of this expression and does not
+         * recursively traverse nested children. For example, in a binary operation expression
+         * like `property.isEqual(value)`, the direct children would be the property expression
+         * and the constant value expression.
+         * 
+         * @param predicate The condition to check against each direct child expression
+         * @return `true` if at least one direct child matches the predicate, `false` otherwise
+         * 
+         * @see ExpressionWalker.walk for recursive tree traversal
+         */
+        fun Expression<*,*>.hasAnyDirectChildThat(
+            predicate: (Expression<*, *>) -> Boolean
+        ): Boolean {
+            var result = false
+            
+            ExpressionWalker().walk(
+                this
+            ) { currentChildContext ->
+                
+                when(currentChildContext.level) {
+                    0 -> ExpressionWalkerResult.Continue
+                    1 -> {
+                        result = result || predicate(currentChildContext.expression)
+                        ExpressionWalkerResult(
+                            null,
+                            false
+                        )
+                    }
+                    else -> ExpressionWalkerResult(
+                        null,
+                        false
+                    )
+                }
+                
+            }
+            
+            return result
         }
     }
 }

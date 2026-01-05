@@ -1,6 +1,6 @@
 package de.lise.fluxflow.mongo.flowquery.expression.compilation.token
 
-import org.springframework.data.mapping.toDotPath
+import de.lise.fluxflow.mongo.query.getMongoFieldName
 import kotlin.reflect.KProperty
 
 internal class PropertyToken(
@@ -9,8 +9,8 @@ internal class PropertyToken(
 ): StatementToken {
     override fun toStatement(): String {
         return when(instance) {
-            is RootToken -> property.toDotPath()
-            else -> "${instance.toStatement()}.${property.toDotPath()}"
+            is RootToken -> property.getMongoFieldName()
+            else -> "${instance.toStatement()}.${property.getMongoFieldName()}"
         }
     }
 }

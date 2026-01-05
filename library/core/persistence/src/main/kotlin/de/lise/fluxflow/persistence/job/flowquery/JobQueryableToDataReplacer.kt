@@ -1,16 +1,15 @@
 package de.lise.fluxflow.persistence.job.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.job.query.JobQueryable
-import de.lise.fluxflow.persistence.CommonToDataMapper
+import de.lise.fluxflow.persistence.CommonToDataReplacer
 import de.lise.fluxflow.persistence.job.JobData
 
-class JobQueryableToDataMapper : ExpressionMapper {
+class JobQueryableToDataReplacer : ExpressionReplacer {
     
-    private val mapper = PriorityExpressionReplacer(
+    private val replacer = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.property(
                 JobQueryable::identifier,
@@ -40,11 +39,11 @@ class JobQueryableToDataMapper : ExpressionMapper {
                 JobQueryable::status,
                 JobData::status
             ),
-            CommonToDataMapper()
+            CommonToDataReplacer()
         )
     )
     
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(expression)
+        return replacer.replace(expression)
     }
 }

@@ -4,31 +4,34 @@ import de.fluxflow.flowquery.expression.*
 import de.fluxflow.flowquery.expression.compilation.CompilationException
 import de.fluxflow.flowquery.expression.compilation.CompilationResult
 import de.fluxflow.flowquery.expression.compilation.ExpressionCompiler
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping.MongoCompilerMapper
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping.MongoCompilerMapperImpl
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.bson.Document
 import org.slf4j.LoggerFactory
 
-
-
 internal class MongoCompiler(
     private val subclassProvider: SubclassProvider,
+    private val expressionMapper: MongoCompilerMapper = MongoCompilerMapperImpl(),
     private val config: MongoCompilerConfig = MongoCompilerConfig()
 ) : ExpressionCompiler<MongoToken> {
 
+    
     private val logger = LoggerFactory.getLogger(MongoCompiler::class.java)
 
     override fun <TRoot, TResult> compile(
         expression: Expression<TRoot, TResult>
     ): CompilationResult<MongoToken> {
+        val mappedExpression = expressionMapper.map(expression)
         return try {
-            val result = doCompile(expression, expression)
+            val result = doCompile(mappedExpression, mappedExpression)
             if (logger.isTraceEnabled) {
-                logger.trace("Successfully compiled expression {} to MongoDB token: {}", expression, result)
+                logger.trace("Successfully compiled expression {} to MongoDB token: {}", mappedExpression, result)
             }
             CompilationResult(result)
         } catch (e: Exception) {
-            logger.error("Failed to compile expression: {}", expression, e)
-            throw CompilationException(expression, expression, "Compilation failed: ${e.message}")
+            logger.error("Failed to compile expression: {}", mappedExpression, e)
+            throw CompilationException(mappedExpression, mappedExpression, "Compilation failed: ${e.message}")
         }
     }
 

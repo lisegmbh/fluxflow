@@ -2,9 +2,9 @@ package de.lise.fluxflow.mongo.query
 
 import de.lise.fluxflow.reflection.property.findAnnotationEverywhere
 import org.springframework.data.mongodb.core.mapping.Field
-import kotlin.reflect.KProperty1
+import kotlin.reflect.KProperty
 
-fun KProperty1<*, *>.getMongoFieldName(): String {
+fun KProperty<*>.getMongoFieldName(): String {
     val nameFromAnnotation = this.findAnnotationEverywhere<Field>()
         ?.let {
             it.name.ifEmpty { it.value }

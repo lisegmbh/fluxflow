@@ -1,18 +1,16 @@
 package de.lise.fluxflow.persistence.step.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.step.query.StepQueryable
-import de.lise.fluxflow.persistence.CommonToDataMapper
+import de.lise.fluxflow.persistence.CommonToDataReplacer
 import de.lise.fluxflow.persistence.step.StepData
 
-class StepQueryableToDataMapper : ExpressionMapper {
-
-    private val mapper = PriorityExpressionReplacer(
+class StepQueryableToDataReplacer : ExpressionReplacer {
+    private val replacer = PriorityExpressionReplacer(
         listOf(
-            CommonToDataMapper(),
+            CommonToDataReplacer(),
             ExpressionReplacer.property(
                 StepQueryable::identifier,
                 StepData::id
@@ -41,6 +39,6 @@ class StepQueryableToDataMapper : ExpressionMapper {
     )
 
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(expression)
+        return replacer.replace(expression)
     }
 }

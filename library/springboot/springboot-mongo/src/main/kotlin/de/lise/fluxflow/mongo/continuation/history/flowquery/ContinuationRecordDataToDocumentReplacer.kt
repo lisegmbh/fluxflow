@@ -1,14 +1,13 @@
 package de.lise.fluxflow.mongo.continuation.history.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordData
 
-class ContinuationRecordDataToDocumentMapper : ExpressionMapper {
-    private val mapper = PriorityExpressionReplacer(
+class ContinuationRecordDataToDocumentReplacer : ExpressionReplacer {
+    private val replacer = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.property(
                 ContinuationRecordData::id,
@@ -38,6 +37,6 @@ class ContinuationRecordDataToDocumentMapper : ExpressionMapper {
     )
 
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(expression)
+        return replacer.replace(expression)
     }
 }

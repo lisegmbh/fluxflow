@@ -1,7 +1,6 @@
 package de.lise.fluxflow.persistence
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.continuation.history.ContinuationRecordIdentifier
@@ -11,7 +10,7 @@ import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.StepKind
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 
-class CommonToDataMapper : ExpressionMapper {
+class CommonToDataReplacer : ExpressionReplacer {
     private val mapper = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.domainValue(WorkflowIdentifier::value),
@@ -24,8 +23,6 @@ class CommonToDataMapper : ExpressionMapper {
     )
 
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(
-            expression
-        )
+        return mapper.replace(expression)
     }
 }

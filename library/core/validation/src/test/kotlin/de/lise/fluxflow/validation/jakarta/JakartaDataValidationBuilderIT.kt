@@ -126,6 +126,6 @@ class JakartaDataValidationBuilderIT {
 
         val validationIssue = failingResult.single()
         assertThat(validationIssue.dataKind).isEqualTo(DataKind(ImportedData::someProperty.name))
-        assertThat(validationIssue.message).isEqualTo("must not be blank")
+        assertThat(validationIssue.constraint.name).isEqualTo("NotBlank")
     }
 }

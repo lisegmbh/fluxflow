@@ -1,15 +1,14 @@
 package de.lise.fluxflow.persistence.workflow.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
-import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
-import de.lise.fluxflow.persistence.CommonToDataMapper
+import de.lise.fluxflow.persistence.CommonToDataReplacer
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 
-class WorkflowQueryableToDataMapper : ExpressionMapper {
-    private val mapper = PriorityExpressionReplacer(
+class WorkflowQueryableToDataReplacer : ExpressionReplacer {
+    private val replacer = PriorityExpressionReplacer(
         listOf(
             ExpressionReplacer.property(
                 WorkflowQueryable<*>::identifier,
@@ -19,12 +18,12 @@ class WorkflowQueryableToDataMapper : ExpressionMapper {
                 WorkflowQueryable<*>::model,
                 WorkflowData::model
             ),
-            CommonToDataMapper(),
+            CommonToDataReplacer(),
         )
     )
 
     override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return mapper.replace(
+        return replacer.replace(
             expression
         )
     }
