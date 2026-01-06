@@ -149,6 +149,28 @@ class ExpressionWalker {
                     else -> ExpressionWalkerResult.Continue
                 }
             }
+            
+            is HasKeyExpression<*,*> -> {
+                val instanceReplacement = walk(
+                    context.sub(expression.instance),
+                    callback
+                ).replaceWith
+                val keyReplacement = walk(
+                    context.sub(expression.key),
+                    callback
+                ).replaceWith
+                
+                when {
+                    instanceReplacement != null || keyReplacement != null -> HasKeyExpression(
+                        instance = (instanceReplacement ?: expression.instance) as Expression<Any?, Map<Any?, Any?>>,
+                        key = (keyReplacement ?: expression.key) as Expression<Any?, Any?>
+                    ).let {
+                        ExpressionWalkerResult.Replace(it)
+                    }
+                    
+                    else -> ExpressionWalkerResult.Continue
+                }
+            }
 
             is EndsWithExpression<*> -> {
                 val valueReplacement = walk(

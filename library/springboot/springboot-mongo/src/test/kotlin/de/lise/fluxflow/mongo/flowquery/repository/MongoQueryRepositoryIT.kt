@@ -4,6 +4,8 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.contain
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.containsElementThat
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.and
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.hasKey
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
@@ -401,6 +403,63 @@ class MongoQueryRepositoryIT {
 
         assertThat(result.nullableNestedProperty?.anIntProperty).isEqualTo(4)
     }
+    
+    @Test
+    fun `find should support filtering on map entries`() {
+        val result = repo.findSingle(Map::class) { 
+            where { 
+                get(TestDocument::mapProperty)["testKey1"]
+                    .asType(Int::class)
+                    .isGreaterThan(0)
+            }.project {
+                get(TestDocument::mapProperty)
+            }
+        } as Map<String, Any?>
+        assertThat(result["testKey1"] as Int).isGreaterThan(0)
+    }
+    
+    @Test
+    fun `find should support filtering for the presence of map keys`() {
+        val result = repo.find { 
+            where {
+                get(TestDocument::mapProperty)
+                    .hasKey("testKey1")
+            }
+        }
+        
+        assertThat(result.items).hasSize(1)
+        assertThat(result.items).allMatch { 
+            it.mapProperty.containsKey("testKey1")
+        }
+    }
+
+    @Test
+    fun `find should support filtering for the absence of map keys`() {
+        val result1 = repo.find {
+            where {
+                get(TestDocument::mapProperty)
+                    .hasKey("testKey1")
+                    .not()
+            }
+        }
+        assertThat(result1.items).hasSize(2)
+        assertThat(result1.items).noneMatch {
+            it.mapProperty.containsKey("testKey1")
+        }
+
+        val result2 = repo.find {
+            where {
+                get(TestDocument::mapProperty)
+                    .hasKey("nonExisting")
+                    .not()
+            }
+        }
+        assertThat(result2.items).hasSize(3)
+        assertThat(result2.items).noneMatch {
+            it.mapProperty.containsKey("nonExisting")
+        }
+    }
+    
 
     // -------------------------------------------------------------------------
     // Test Data
@@ -449,7 +508,12 @@ class MongoQueryRepositoryIT {
             ),
             aBooleanProperty = null,
             nestedProperty = NestedTestDocument(anIntProperty = 3),
-            nullableNestedProperty = NestedTestDocument(anIntProperty = 4)
+            nullableNestedProperty = NestedTestDocument(anIntProperty = 4),
+            mapProperty = mapOf(
+                "testKey1" to 4,
+                "testKey2" to "Hello",
+                "testKey3" to null,
+            )
         )
     )
 
@@ -463,6 +527,7 @@ class MongoQueryRepositoryIT {
         val collectionProp: List<NestedTestDocument> = emptyList(),
         val nestedProperty: NestedTestDocument,
         val nullableNestedProperty: NestedTestDocument? = null,
+        val mapProperty: Map<String, Any?> = emptyMap(),
     )
 
     data class NestedTestDocument(
