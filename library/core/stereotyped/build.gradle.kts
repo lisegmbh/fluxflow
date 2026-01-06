@@ -1,5 +1,5 @@
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.21")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.3.0")
     implementation(kotlin("reflect"))
 
     implementation(project(":core:api"))
