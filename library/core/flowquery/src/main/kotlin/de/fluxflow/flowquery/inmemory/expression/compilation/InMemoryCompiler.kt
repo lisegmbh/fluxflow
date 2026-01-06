@@ -208,6 +208,17 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOp<*, *>> {
                     exp.key
                 ) as InMemoryOp<TRoot, Any?>
             )
+            
+            is HasKeyExpression<TRoot, *> -> InMemoryHasKeyOp(
+                doCompile(
+                    rootExpression,
+                    exp.instance
+                ) as InMemoryOp<TRoot, Map<Any?, Any?>>,
+                doCompile(
+                    rootExpression,
+                    exp.key
+                ) as InMemoryOp<TRoot, Any?>
+            )
 
         } as InMemoryOp<TRoot, TResult>
     }

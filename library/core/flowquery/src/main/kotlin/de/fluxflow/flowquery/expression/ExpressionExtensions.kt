@@ -1,5 +1,7 @@
 package de.fluxflow.flowquery.expression
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.hasKey
 import kotlin.reflect.KClass
 
 /**
@@ -419,12 +421,53 @@ object ExpressionExtensions {
          * ```
          *
          * @param key the constant key
+         * @see get for the overload accepting key expressions
          * @return an [Expression] representing the map value at the specified key
          */
         operator fun <TRoot, TCurrent : Map<TKey, TValue>, TKey, TValue> Expression<TRoot, TCurrent>.get(
             key: TKey
         ): Expression<TRoot, TValue> {
             return this.get(Expression.const(key))
+        }
+        
+        /**
+         * Creates a predicate that checks whether the map contains the given key expression.
+         *
+         * Example:
+         * ```
+         * val root = Expression.root<Map<String, Int>>()
+         *
+         * root.hasKey(Expression.const("entry"))
+         * ```
+         *
+         * @see hasKey for a convenience overload accepting constant keys
+         * @param key the key expression to check for
+         * @return an [Expression] of type [Boolean] representing whether the key exists
+         */
+        fun <TRoot, TCurrent : Map<TKey, *>, TKey> Expression<TRoot, TCurrent>.hasKey(
+            key: Expression<TRoot, TKey>
+        ): Expression<TRoot, Boolean> {
+            return HasKeyExpression(this, key)
+        }
+        
+        /**
+         * Creates a predicate that checks whether the map contains the given constant key.
+         *
+         * Example:
+         * ```
+         * val root = Expression.root<Map<String, Int>>()
+         *
+         * root.hasKey("entry")
+         * ```
+         *
+         * @see hasKey for the overload accepting key expressions
+         * @param key the constant key to check for
+         * @return an [Expression] of type [Boolean] representing whether the key exists
+         */
+        fun <TRoot, TCurrent : Map<TKey, *>, TKey> Expression<TRoot, TCurrent>.hasKey(
+            key: TKey
+        ): Expression<TRoot, Boolean> {
+            return this.hasKey(Expression.const(key))
         }
     }
 }

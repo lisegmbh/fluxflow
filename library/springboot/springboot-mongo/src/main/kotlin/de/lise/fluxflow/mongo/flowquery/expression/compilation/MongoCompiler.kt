@@ -54,6 +54,7 @@ internal class MongoCompiler(
             is ContainsElementExpression<TRoot, *, *> -> handleContainsElementExpression(root, current)
             is PropertyExpression<TRoot, *, *> -> handlePropertyExpression(root, current)
             is MapAccessExpression<TRoot, *, *, *> -> handleMapAccessExpression(root, current)
+            is HasKeyExpression<TRoot, *> -> handleHasKeyExpression(root, current)
             is RootExpression<*>, is ConjunctionExpression<TRoot, *> -> RootToken()
             is AndExpression<TRoot> -> handleAndExpression(root, current)
             is OrExpression<TRoot> -> handleOrExpression(root, current)
@@ -175,6 +176,25 @@ internal class MongoCompiler(
         return AnonymousPropertyToken(instanceToken, keyToken)
     }
 
+    private fun <TRoot> handleHasKeyExpression(
+        root: Expression<TRoot, *>,
+        current: HasKeyExpression<TRoot, *>
+    ): MongoToken {
+        val instanceToken = doCompile(root, current.instance).asStatementToken(root, current.instance)
+        val keyToken = doCompile(root, current.key).asValueToken(root, current.key)
+        
+        return MatchToken(
+            StatementOperationToken(
+                AnonymousPropertyToken(
+                    instanceToken,
+                    keyToken
+                ),
+                "exists",
+                ConstantToken(true)
+            )
+        )
+    }
+    
     private fun <TRoot> handleAndExpression(
         root: Expression<TRoot, *>,
         current: AndExpression<TRoot>
