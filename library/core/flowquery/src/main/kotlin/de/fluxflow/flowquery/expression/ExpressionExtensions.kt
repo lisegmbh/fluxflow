@@ -389,8 +389,12 @@ object ExpressionExtensions {
          * Creates an expression that accesses a value in a map by the given key expression.
          *
          * Example:
-         * ```
-         * val expr = user.get(User::settings).get(other.get(Setting::key))
+         * ```kotlin
+         * val root = Expression.root<Map<String, Int>>()
+         *
+         * root.get(
+         *     Expression.const("entry")
+         * ).isEqual(4)
          * ```
          *
          * @param key the key expression
@@ -400,6 +404,27 @@ object ExpressionExtensions {
             key: Expression<TRoot, TKey>,
         ): Expression<TRoot, TValue> {
             return MapAccessExpression(this, key)
+        }
+        
+        /**
+         * Creates an expression that accesses a value in a map by the given constant key.
+         *
+         * Example:
+         * ```
+         * val root = Expression.root<Map<String, Int>>()
+         *
+         * root["entry"].isEqual(4)
+         * // OR
+         * root.get("entry").isEqual(4)
+         * ```
+         *
+         * @param key the constant key
+         * @return an [Expression] representing the map value at the specified key
+         */
+        operator fun <TRoot, TCurrent : Map<TKey, TValue>, TKey, TValue> Expression<TRoot, TCurrent>.get(
+            key: TKey
+        ): Expression<TRoot, TValue> {
+            return this.get(Expression.const(key))
         }
     }
 }

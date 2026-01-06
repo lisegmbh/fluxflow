@@ -4,6 +4,7 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.contain
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.containsElementThat
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.and
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
@@ -401,6 +402,20 @@ class MongoQueryRepositoryIT {
 
         assertThat(result.nullableNestedProperty?.anIntProperty).isEqualTo(4)
     }
+    
+    @Test
+    fun `find should support map entries`() {
+        val result = repo.findSingle(Map::class) { 
+            where { 
+                get(TestDocument::mapProperty)["testKey1"]
+                    .asType(Int::class)
+                    .isGreaterThan(0)
+            }.project {
+                get(TestDocument::mapProperty)
+            }
+        } as Map<String, Any?>
+        assertThat(result["testKey1"] as Int).isGreaterThan(0)
+    }
 
     // -------------------------------------------------------------------------
     // Test Data
@@ -449,7 +464,12 @@ class MongoQueryRepositoryIT {
             ),
             aBooleanProperty = null,
             nestedProperty = NestedTestDocument(anIntProperty = 3),
-            nullableNestedProperty = NestedTestDocument(anIntProperty = 4)
+            nullableNestedProperty = NestedTestDocument(anIntProperty = 4),
+            mapProperty = mapOf(
+                "testKey1" to 4,
+                "testKey2" to "Hello",
+                "testKey3" to null,
+            )
         )
     )
 
@@ -463,6 +483,7 @@ class MongoQueryRepositoryIT {
         val collectionProp: List<NestedTestDocument> = emptyList(),
         val nestedProperty: NestedTestDocument,
         val nullableNestedProperty: NestedTestDocument? = null,
+        val mapProperty: Map<String, Any?> = emptyMap(),
     )
 
     data class NestedTestDocument(
