@@ -83,22 +83,27 @@ class ExpressionWalker {
             }
 
             is IsAnyOfOperator<*, *> -> {
-                val replacement = walk(
+                val valueToTestReplacement = walk(
                     context.sub(expression.valueToTest),
                     callback
                 ).replaceWith
-                if (replacement != null) {
+
+                val anyOfReplacements = expression.anyOf.associateWith {
+                    walk(
+                        context.sub(it),
+                        callback
+                    ).replaceWith
+                }
+
+                if (
+                    valueToTestReplacement != null
+                    || anyOfReplacements.values.filterNotNull().isNotEmpty()
+                ) {
                     ExpressionWalkerResult.Replace(
                         IsAnyOfOperator(
-                            replacement as Expression<Any?, Any?>,
-                            expression.anyOf.map {
-                                (
-                                    walk(
-                                        context.sub(it),
-                                        callback
-                                    ).replaceWith
-                                        ?: it
-                                ) as Expression<*, Any?>
+                            (valueToTestReplacement ?: expression.valueToTest) as Expression<Any?, Any?>,
+                            anyOfReplacements.entries.map {
+                                (it.value ?: it.key) as Expression<*, Any?>
                             }.toSet()
                         )
                     )
