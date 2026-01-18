@@ -62,7 +62,7 @@ subprojects {
 
     dependencies {
         // Test
-        testImplementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
+        testImplementation("org.mockito.kotlin:mockito-kotlin:6.2.1")
         testImplementation("org.assertj:assertj-core:3.27.6")
         testImplementation("org.mockito:mockito-inline:5.2.0")
 
