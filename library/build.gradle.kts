@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm") version "2.3.10"
     id("org.jetbrains.dokka") version "2.1.0"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.vanniktech.maven.publish") version "0.34.0"
+    id("com.vanniktech.maven.publish") version "0.36.0"
 }
 
 repositories {
