@@ -25,6 +25,11 @@ subprojects {
     val subProject = this
     val springBootVersion = "3.5.7"
 
+    if (intermediateProjectPaths.contains(subProject.path)) {
+        println("Intermediate sub project ${subProject.path} is skipped.")
+        return@subprojects
+    }
+
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "io.spring.dependency-management")
     apply(plugin = "com.vanniktech.maven.publish")
@@ -76,12 +81,8 @@ subprojects {
     }
     
     mavenPublishing {
-        if(intermediateProjectPaths.contains(subProject.path)) {
-            println("Maven publishing is skipped for intermediate sub project ${subProject.path}")
-        } else {
-            publishToMavenCentral()
-            signAllPublications()    
-        }
+        publishToMavenCentral()
+        signAllPublications()
 
         coordinates(
             subProject.group.toString(),
