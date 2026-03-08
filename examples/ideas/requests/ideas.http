@@ -1,0 +1,33 @@
+#### 1. Create new workflow
+POST {{api}}/idea
+
+### Get workflows
+GET {{api}}/workflow
+
+### Get single workflow
+GET {{api}}/workflow/0
+
+
+### Get workflow steps
+GET {{api}}/workflow/0/step
+
+### Get single workflow step
+GET {{api}}/workflow/0/step/1
+
+### Get all workflow step data
+GET {{api}}/workflow/0/step/1/data
+
+### Get single workflow step data
+GET {{api}}/workflow/0/step/1/data/author
+
+### Get single workflow step data's value
+GET {{api}}/workflow/0/step/1/data/author/value
+
+### Set single workflow step data's value
+PUT {{api}}/workflow/0/step/1/data/author/value
+Content-Type: application/json
+
+"Max Mustermann"
+
+### Delete by id
+DELETE {{api}}/workflow/0
