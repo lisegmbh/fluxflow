@@ -15,6 +15,8 @@ import de.lise.fluxflow.rest.mapping.Mapping
 import de.lise.fluxflow.rest.mapping.Mapping.Companion.mapWith
 import de.lise.fluxflow.rest.mapping.ToDtoConverter
 import de.lise.fluxflow.rest.workflow.step.data.StepDataDto
+import de.lise.fluxflow.springboot.rest.patch.JsonPatch
+import de.lise.fluxflow.springboot.rest.patch.PatchRegistry
 import de.lise.fluxflow.springboot.rest.workflow.step.StepNotFoundException
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.*
@@ -28,7 +30,8 @@ class StepDataController(
     private val fromDtoConverter: FromDtoConverter<JsonNode>,
     private val workflowService: WorkflowService,
     private val stepService: StepService,
-    private val stepDataService: StepDataService
+    private val stepDataService: StepDataService,
+    private val stepDataPatchRegistry: PatchRegistry<Data<*>>
 ) {
     @GetMapping
     fun getAll(
@@ -82,10 +85,7 @@ class StepDataController(
             step,
             DataKind(kind)
         )
-        val actualValue = fromDtoConverter.fromDto(
-            value,
-            data.definition.type
-        )
+        val actualValue = toValue(data, value)
 
         stepDataService.setValue(
             data,
@@ -97,6 +97,37 @@ class StepDataController(
         }
     }
 
+    @PatchMapping("/{kind}")
+    fun patch(
+        @PathVariable workflowId: String,
+        @PathVariable stepId: String,
+        @PathVariable kind: String,
+        @RequestBody patch: JsonPatch
+    ): StepDataDto {
+        val step = getStep(workflowId, stepId)
+        val data = stepDataService.getData<Any?>(
+            step,
+            DataKind(kind)
+        )
+
+        val operation = stepDataPatchRegistry.toOperation(
+            data,
+            patch
+        )
+
+        val result = operation.perform(data)
+        return result.mapWith(stepDataMapping)
+    }
+
+    private fun toValue(
+        targetData: Data<*>,
+        value: JsonNode
+    ): Any? {
+        return fromDtoConverter.fromDto(
+            value,
+            targetData.definition.type
+        )
+    }
 
     private fun getStep(
         workflowId: String,

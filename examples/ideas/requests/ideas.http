@@ -20,6 +20,19 @@ GET {{api}}/workflow/0/step/1/data
 ### Get single workflow step data
 GET {{api}}/workflow/0/step/1/data/author
 
+### Patch single workflow step data
+PATCH {{api}}/workflow/0/step/1/data/author
+Content-Type: application/json
+
+[
+  {
+    "op": "replace",
+    "path": "/value",
+    "value": "Erica Example"
+  }
+]
+
+
 ### Get single workflow step data's value
 GET {{api}}/workflow/0/step/1/data/author/value
 

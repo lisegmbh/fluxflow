@@ -1,6 +1,7 @@
 package de.lise.fluxflow.springboot.rest
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import de.lise.fluxflow.api.ExperimentalApi
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.StepService
@@ -14,6 +15,11 @@ import de.lise.fluxflow.rest.mapping.ToDtoConverter
 import de.lise.fluxflow.rest.workflow.WorkflowDto
 import de.lise.fluxflow.rest.workflow.step.StepDto
 import de.lise.fluxflow.rest.workflow.step.data.StepDataDto
+import de.lise.fluxflow.springboot.rest.patch.JsonReplaceOperation
+import de.lise.fluxflow.springboot.rest.patch.PatchAction
+import de.lise.fluxflow.springboot.rest.patch.PatchCapability
+import de.lise.fluxflow.springboot.rest.patch.PatchCapability.Builder.Companion.forPath
+import de.lise.fluxflow.springboot.rest.patch.PatchRegistry
 import de.lise.fluxflow.springboot.rest.workflow.WorkflowController
 import de.lise.fluxflow.springboot.rest.workflow.step.WorkflowStepController
 import de.lise.fluxflow.springboot.rest.workflow.step.data.StepDataController
@@ -57,6 +63,7 @@ open class RestConfiguration {
         workflowService: WorkflowService,
         stepService: StepService,
         stepDataService: StepDataService,
+        patchRegistry: PatchRegistry<Data<*>>
     ): StepDataController {
         return StepDataController(
             stepDataMapping = stepDataMapping,
@@ -65,7 +72,36 @@ open class RestConfiguration {
             workflowService = workflowService,
             stepService = stepService,
             stepDataService = stepDataService,
+            stepDataPatchRegistry = patchRegistry
         )
+    }
+
+
+    @Bean
+    open fun patchReplaceStepDataValue(
+        objectMapper: ObjectMapper,
+        stepDataService: StepDataService,
+    ): PatchCapability<Data<*>> {
+        return PatchCapability.withDescription<Data<*>>("Replace on /value")
+            .forOperationType<JsonReplaceOperation>()
+            .forPath("/value")
+            .build { original, op ->
+                val updatedValue = objectMapper.convertValue<Any?>(
+                    op.value,
+                    objectMapper.typeFactory.constructType(original.definition.type)
+                )
+                PatchAction { data ->
+                    stepDataService.setValue(data as Data<Any?>, updatedValue)
+                    data
+                }
+            }
+    }
+
+    @Bean
+    open fun stepDataPatchRegistry(
+        capabilities: List<PatchCapability<Data<*>>>
+    ): PatchRegistry<Data<*>> {
+        return PatchRegistry(capabilities)
     }
 
     @Bean
