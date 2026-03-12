@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController
 @ExperimentalApi
 @RestController
 @RequestMapping($$"${fluxflow.api.prefix:/api}/workflow/{workflowId}/step")
-class WorkflowStepController(
+class StepController(
     private val stepMapping: Mapping<Step, StepDto>,
     private val workflowService: WorkflowService,
     private val stepService: StepService

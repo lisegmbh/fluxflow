@@ -21,7 +21,7 @@ import de.lise.fluxflow.springboot.rest.patch.PatchCapability
 import de.lise.fluxflow.springboot.rest.patch.PatchCapability.Builder.Companion.forPath
 import de.lise.fluxflow.springboot.rest.patch.PatchRegistry
 import de.lise.fluxflow.springboot.rest.workflow.WorkflowController
-import de.lise.fluxflow.springboot.rest.workflow.step.WorkflowStepController
+import de.lise.fluxflow.springboot.rest.workflow.step.StepController
 import de.lise.fluxflow.springboot.rest.workflow.step.data.StepDataController
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -47,8 +47,8 @@ open class RestConfiguration {
         stepMapping: Mapping<Step, StepDto>,
         workflowService: WorkflowService,
         stepService: StepService
-    ): WorkflowStepController {
-        return WorkflowStepController(
+    ): StepController {
+        return StepController(
             stepMapping,
             workflowService,
             stepService
