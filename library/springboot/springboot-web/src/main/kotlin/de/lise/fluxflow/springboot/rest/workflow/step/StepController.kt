@@ -2,6 +2,7 @@ package de.lise.fluxflow.springboot.rest.workflow.step
 
 import de.lise.fluxflow.api.ExperimentalApi
 import de.lise.fluxflow.api.step.Step
+import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.StepService
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowService
@@ -31,5 +32,26 @@ class StepController(
 
         return stepService.findSteps(workflow)
             .mapWith(stepMapping)
+    }
+
+    @GetMapping("/{stepId}")
+    fun getById(
+        @PathVariable workflowId: String,
+        @PathVariable stepId: String
+    ): StepDto {
+        val workflowIdentifier = WorkflowIdentifier(workflowId)
+        val workflow = workflowService.get<Any?>(
+            workflowIdentifier
+        )
+
+        val stepIdentifier = StepIdentifier(stepId)
+        return stepService.findStep(
+            workflow,
+            StepIdentifier(stepId)
+        )?.mapWith(stepMapping)
+            ?: throw StepNotFoundException(
+                workflowIdentifier,
+                stepIdentifier
+            )
     }
 }

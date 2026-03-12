@@ -18,7 +18,6 @@ import de.lise.fluxflow.rest.workflow.step.data.StepDataDto
 import de.lise.fluxflow.springboot.rest.patch.JsonReplaceOperation
 import de.lise.fluxflow.springboot.rest.patch.PatchAction
 import de.lise.fluxflow.springboot.rest.patch.PatchCapability
-import de.lise.fluxflow.springboot.rest.patch.PatchCapability.Builder.Companion.forPath
 import de.lise.fluxflow.springboot.rest.patch.PatchRegistry
 import de.lise.fluxflow.springboot.rest.workflow.WorkflowController
 import de.lise.fluxflow.springboot.rest.workflow.step.StepController
