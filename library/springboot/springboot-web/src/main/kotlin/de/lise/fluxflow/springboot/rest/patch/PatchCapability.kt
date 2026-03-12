@@ -12,7 +12,7 @@ interface PatchCapability<TElement> {
 
     companion object {
         fun <TElement> withDescription(description: String): Builder<TElement, JsonPatchOperation> {
-            return Builder<TElement, JsonPatchOperation>(
+            return Builder(
                 description = description,
                 condition = { true },
                 mapper = { it }
@@ -44,6 +44,16 @@ interface PatchCapability<TElement> {
             )
         }
 
+        fun forPath(
+            path: String
+        ): Builder<TElement, TPatch> {
+            return copy(
+                condition = {
+                    condition(it) && it.path == path
+                }
+            )
+        }
+
         fun build(
             then: (original: TElement, patch: TPatch) -> PatchAction<TElement>
         ): PatchCapability<TElement> {
@@ -52,20 +62,6 @@ interface PatchCapability<TElement> {
                     true -> then(original, mapper(op))
                     false -> null
                 }
-            }
-        }
-
-        companion object {
-            fun <TElement> Builder<TElement, JsonReplaceOperation>.forPath(
-                path: String
-            ): Builder<TElement, JsonReplaceOperation> {
-                return Builder(
-                    description = description,
-                    condition = {
-                        this.condition(it) && it.path == path
-                    },
-                    mapper = mapper
-                )
             }
         }
     }

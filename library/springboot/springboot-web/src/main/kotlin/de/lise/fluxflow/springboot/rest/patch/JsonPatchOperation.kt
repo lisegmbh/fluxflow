@@ -11,5 +11,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 )
 interface JsonPatchOperation {
     val op: String
+    val path: String
 }
 
