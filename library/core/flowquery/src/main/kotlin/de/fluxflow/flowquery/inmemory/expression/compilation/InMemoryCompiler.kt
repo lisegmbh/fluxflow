@@ -108,7 +108,9 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOp<*, *>> {
                 val valueAccessor = doCompile(rootExpression, exp.valueToTest)
                 IsAnyOfOp(
                     valueAccessor,
-                    exp.anyOf
+                    exp.anyOf.map {
+                        doCompile(rootExpression, it) as InMemoryOp<TRoot, *>
+                    }.toSet()
                 )
             }
 

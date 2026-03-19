@@ -20,11 +20,12 @@ import org.springframework.web.bind.annotation.RestController
 class StepController(
     private val stepMapping: Mapping<Step, StepDto>,
     private val workflowService: WorkflowService,
-    private val stepService: StepService
+    private val stepService: StepService,
 ) {
     @GetMapping
     fun getAll(
-      @PathVariable workflowId: String
+      @PathVariable workflowId: String,
+      filter: StepFilter
     ): List<StepDto> {
         val workflow = workflowService.get<Any?>(
             WorkflowIdentifier(workflowId)
