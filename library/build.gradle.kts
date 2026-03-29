@@ -23,7 +23,7 @@ val intermediateProjectPaths = setOf(":core", ":springboot")
 
 subprojects {
     val subProject = this
-    val springBootVersion = "3.5.7"
+    val springBootVersion = "4.0.5"
 
     if (intermediateProjectPaths.contains(subProject.path)) {
         println("Intermediate sub project ${subProject.path} is skipped.")
