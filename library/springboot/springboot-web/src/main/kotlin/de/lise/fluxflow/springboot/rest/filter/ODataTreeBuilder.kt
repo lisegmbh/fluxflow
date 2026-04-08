@@ -6,11 +6,14 @@ import de.lise.fluxflow.springboot.odata.filter.grammar.ODataFilterParser
 import org.antlr.v4.runtime.tree.TerminalNode
 import java.util.*
 import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.memberProperties
 
 @Suppress("UNCHECKED_CAST")
 class ODataTreeBuilder<TElement : Any>(
-    private val elementKind: KClass<TElement>
+    private val elementKind: KClass<TElement>,
+    private val includedTypes: Set<KClass<*>> = emptySet()
 ) {
     fun build(
         lexerTree: ODataFilterParser.FilterContext
@@ -213,9 +216,7 @@ class ODataTreeBuilder<TElement : Any>(
             return expression
         }
         val currentPath = remaining.poll()
-        val foundProperty = currentType.memberProperties.firstOrNull {
-            it.name == currentPath.text
-        }
+        val foundProperty = findPropertyOnType(currentType, currentPath)
 
         if (foundProperty != null) {
             val nextExpression: PropertyExpression<TElement, TCurrent, Any> = expression.get(foundProperty)
@@ -227,10 +228,42 @@ class ODataTreeBuilder<TElement : Any>(
             )
         }
 
+        if (currentType.isSubclassOf(Map::class)) {
+            val nextExpression = MapAccessExpression(
+                expression as Expression<TElement, Map<String, Any>>,
+                Expression.const(currentPath.text)
+            )
+            return doBuildPath(
+                nextExpression,
+                Any::class,
+                remaining
+            )
+        }
+
         throw ExpressionParsingException(
             currentPath.symbol,
             "Property '${currentPath.text}' could not be found on ${currentType.simpleName}."
         )
+    }
+
+    private fun <TCurrent : Any> findPropertyOnType(
+        currentType: KClass<out TCurrent>,
+        currentPath: TerminalNode
+    ): KProperty1<out TCurrent, *>? {
+        val directProperty = currentType.memberProperties.firstOrNull {
+            it.name == currentPath.text
+        }
+        if(directProperty != null) {
+            return directProperty
+        }
+
+        return includedTypes.filter {
+            it.isSubclassOf(currentType)
+        }.firstNotNullOfOrNull { subtype ->
+           subtype.memberProperties.firstOrNull { subtypeProp ->
+                subtypeProp.name == currentPath.text
+            } as KProperty1<TCurrent, *>?
+        }
     }
 
     private fun doBuildLiteral(
