@@ -1,6 +1,9 @@
 package de.fluxflow.flowquery.expression
 
 import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
+import kotlin.reflect.full.starProjectedType
+import kotlin.reflect.typeOf
 
 /**
  * Represents a node within a type-safe query expression tree.
@@ -15,7 +18,6 @@ import kotlin.reflect.KProperty1
  * @param TCurrent the value type represented by this expression node
  */
 sealed interface Expression<TRoot, TCurrent> {
-
     /**
      * Returns a textual representation of this expression, such as `"user.age > 18"`.
      *
@@ -25,6 +27,20 @@ sealed interface Expression<TRoot, TCurrent> {
      */
     fun toText(): String
 
+    val returnType: KType?
+        get() {
+           return when(this) {
+                is BinaryOperationExpression<*,*,*> -> typeOf<Boolean>()
+                is PropertyExpression<*,*,*> -> this.property.returnType
+                is LogicalExpression<*> -> typeOf<Boolean>()
+                is CastExpression<*, *, *> -> this.requiredType.starProjectedType
+                is ConstantExpression<*, *> -> this.value?.let { it::class.starProjectedType } ?: typeOf<Any?>()
+
+                is MapAccessExpression<*, *, *, *> -> typeOf<Any?>()
+                is RootExpression<*> -> typeOf<Any?>()
+                is ConjunctionExpression<*, *> -> typeOf<Any?>()
+            }
+        }
 
     // --------------------------------------------------------------------------------------------
     // Logical Composition

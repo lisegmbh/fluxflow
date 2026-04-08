@@ -2,7 +2,7 @@ package de.fluxflow.flowquery.expression
 
 class NotExpression<TRoot>(
     expression: PredicateExpression<TRoot>
-): PredicateExpression<TRoot> {
+): LogicalExpression<TRoot> {
     val expression: PredicateExpression<TRoot> = simplify(expression)
 
     private companion object {

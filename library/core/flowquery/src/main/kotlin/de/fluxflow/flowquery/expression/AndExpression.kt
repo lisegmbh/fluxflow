@@ -1,6 +1,6 @@
 package de.fluxflow.flowquery.expression
 
-class AndExpression<TRoot>(predicates: List<PredicateExpression<TRoot>>) : PredicateExpression<TRoot> {
+class AndExpression<TRoot>(predicates: List<PredicateExpression<TRoot>>) : LogicalExpression<TRoot> {
     val predicates = predicates.simplify()
 
     private companion object {

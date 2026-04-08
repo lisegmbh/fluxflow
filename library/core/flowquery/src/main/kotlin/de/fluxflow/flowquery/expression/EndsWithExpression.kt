@@ -4,7 +4,7 @@ data class EndsWithExpression<TRoot>(
     val value: Expression<TRoot, String>,
     val suffix: Expression<TRoot, String>,
     val ignoreCasing: Boolean
-) : PredicateExpression<TRoot> {
+) : LogicalExpression<TRoot> {
     override fun toText(): String {
         return "(${value.toText()}).endsWith(${suffix.toText()}, ${
             when (ignoreCasing) {

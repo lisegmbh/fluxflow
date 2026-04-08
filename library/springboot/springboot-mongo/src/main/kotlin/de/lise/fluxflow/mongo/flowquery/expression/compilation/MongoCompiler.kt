@@ -46,7 +46,7 @@ internal class MongoCompiler(
         return when (current) {
             is CastExpression<TRoot, *, *> -> doCompile(root, current.instance)
             is IsTypeExpression<TRoot, *, *> -> handleIsTypeExpression(root, current)
-            is BinaryOperationExpression<TRoot, *, *, *> -> handleBinaryOperation(root, current)
+            is BinaryOperationExpression<TRoot, *, *> -> handleBinaryOperation(root, current)
             is StartsWithExpression<TRoot> -> handleStartsWithExpression(root, current)
             is EndsWithExpression<TRoot> -> handleEndsWithExpression(root, current)
             is ContainsExpression<TRoot> -> handleContainsExpression(root, current)
@@ -80,7 +80,7 @@ internal class MongoCompiler(
 
     private fun <TRoot> handleBinaryOperation(
         root: Expression<TRoot, *>,
-        current: BinaryOperationExpression<TRoot, *, *, *>
+        current: BinaryOperationExpression<TRoot, *, *>
     ): MongoToken {
         val leftToken = doCompile(root, current.leftOperand).asStatementToken(root, current.leftOperand)
         val rightToken = doCompile(root, current.rightOperand).asValueToken(root, current.rightOperand)

@@ -2,7 +2,7 @@ package de.fluxflow.flowquery.expression
 
 class OrExpression<TRoot>(
     predicates: List<PredicateExpression<TRoot>>
-): PredicateExpression<TRoot> {
+): LogicalExpression<TRoot> {
     val predicates = predicates.simplify()
 
     private companion object {

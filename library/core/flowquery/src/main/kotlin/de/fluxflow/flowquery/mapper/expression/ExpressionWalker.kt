@@ -260,7 +260,7 @@ class ExpressionWalker {
                 }
             }
 
-            is BinaryOperationExpression<*, *, *, *> -> {
+            is BinaryOperationExpression<*, *, *> -> {
                 val leftReplacement = walk(
                     context.sub(expression.leftOperand),
                     callback
@@ -270,7 +270,7 @@ class ExpressionWalker {
                     callback
                 ).replaceWith
                 when {
-                    leftReplacement != null && rightReplacement != null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
+                    leftReplacement != null && rightReplacement != null -> BinaryOperationExpression(
                         leftReplacement as Expression<Any?, Any?>,
                         expression.operation,
                         rightReplacement as Expression<Any?, Any?>
@@ -278,7 +278,7 @@ class ExpressionWalker {
                         ExpressionWalkerResult.Replace(it)
                     }
 
-                    leftReplacement != null && rightReplacement == null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
+                    leftReplacement != null && rightReplacement == null -> BinaryOperationExpression(
                         leftReplacement as Expression<Any?, Any?>,
                         expression.operation,
                         expression.rightOperand as Expression<Any?, Any?>
@@ -286,7 +286,7 @@ class ExpressionWalker {
                         ExpressionWalkerResult.Replace(it)
                     }
 
-                    leftReplacement == null && rightReplacement != null -> BinaryOperationExpression<Any?, Any?, Any?, Any?>(
+                    leftReplacement == null && rightReplacement != null -> BinaryOperationExpression(
                         expression.leftOperand as Expression<Any?, Any?>,
                         expression.operation,
                         rightReplacement as Expression<Any?, Any?>

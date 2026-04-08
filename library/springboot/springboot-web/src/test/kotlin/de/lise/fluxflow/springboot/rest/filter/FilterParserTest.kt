@@ -16,7 +16,7 @@ class FilterParserTest {
         val result = parser.parse("age eq 30")
 
         assertThat(result).isInstanceOf(BinaryOperationExpression::class.java)
-        assertThat((result as BinaryOperationExpression<*, *, *, *>).operation).isEqualTo(BinaryOperation.Equal)
+        assertThat((result as BinaryOperationExpression<*, *, *>).operation).isEqualTo(BinaryOperation.Equal)
     }
 
     // -- ne --
@@ -26,7 +26,7 @@ class FilterParserTest {
         val result = parser.parse("age ne 30")
 
         assertThat(result).isInstanceOf(BinaryOperationExpression::class.java)
-        assertThat((result as BinaryOperationExpression<*, *, *, *>).operation).isEqualTo(BinaryOperation.NotEqual)
+        assertThat((result as BinaryOperationExpression<*, *, *>).operation).isEqualTo(BinaryOperation.NotEqual)
     }
 
     // -- gt --
@@ -36,7 +36,7 @@ class FilterParserTest {
         val result = parser.parse("age gt 18")
 
         assertThat(result).isInstanceOf(BinaryOperationExpression::class.java)
-        assertThat((result as BinaryOperationExpression<*, *, *, *>).operation).isEqualTo(BinaryOperation.GreaterThan)
+        assertThat((result as BinaryOperationExpression<*, *, *>).operation).isEqualTo(BinaryOperation.GreaterThan)
     }
 
     // -- lt --
@@ -46,7 +46,7 @@ class FilterParserTest {
         val result = parser.parse("age lt 50")
 
         assertThat(result).isInstanceOf(BinaryOperationExpression::class.java)
-        assertThat((result as BinaryOperationExpression<*, *, *, *>).operation).isEqualTo(BinaryOperation.LessThan)
+        assertThat((result as BinaryOperationExpression<*, *, *>).operation).isEqualTo(BinaryOperation.LessThan)
     }
 
     // -- ge --
@@ -56,7 +56,7 @@ class FilterParserTest {
         val result = parser.parse("age ge 18")
 
         assertThat(result).isInstanceOf(BinaryOperationExpression::class.java)
-        assertThat((result as BinaryOperationExpression<*, *, *, *>).operation).isEqualTo(BinaryOperation.GreaterThanOrEqual)
+        assertThat((result as BinaryOperationExpression<*, *, *>).operation).isEqualTo(BinaryOperation.GreaterThanOrEqual)
     }
 
     // -- le --
@@ -66,7 +66,7 @@ class FilterParserTest {
         val result = parser.parse("age le 50")
 
         assertThat(result).isInstanceOf(BinaryOperationExpression::class.java)
-        assertThat((result as BinaryOperationExpression<*, *, *, *>).operation).isEqualTo(BinaryOperation.LessThanOrEqual)
+        assertThat((result as BinaryOperationExpression<*, *, *>).operation).isEqualTo(BinaryOperation.LessThanOrEqual)
     }
 
     // -- and --
@@ -121,7 +121,7 @@ class FilterParserTest {
 
     @Test
     fun `parses integer literal`() {
-        val result = parser.parse("age eq 42") as BinaryOperationExpression<*, *, *, *>
+        val result = parser.parse("age eq 42") as BinaryOperationExpression<*, *, *>
 
         assertThat(result.rightOperand).isInstanceOf(ConstantExpression::class.java)
         assertThat((result.rightOperand as ConstantExpression<*, *>).value).isEqualTo(42)
@@ -129,7 +129,7 @@ class FilterParserTest {
 
     @Test
     fun `parses double literal`() {
-        val result = parser.parse("score eq 3.14") as BinaryOperationExpression<*, *, *, *>
+        val result = parser.parse("score eq 3.14") as BinaryOperationExpression<*, *, *>
 
         assertThat(result.rightOperand).isInstanceOf(ConstantExpression::class.java)
         assertThat((result.rightOperand as ConstantExpression<*, *>).value).isEqualTo(3.14)
@@ -137,7 +137,7 @@ class FilterParserTest {
 
     @Test
     fun `parses string literal`() {
-        val result = parser.parse("name eq 'hello'") as BinaryOperationExpression<*, *, *, *>
+        val result = parser.parse("name eq 'hello'") as BinaryOperationExpression<*, *, *>
 
         assertThat(result.rightOperand).isInstanceOf(ConstantExpression::class.java)
         assertThat((result.rightOperand as ConstantExpression<*, *>).value).isEqualTo("hello")
@@ -145,7 +145,7 @@ class FilterParserTest {
 
     @Test
     fun `parses boolean literal`() {
-        val result = parser.parse("isActive eq true") as BinaryOperationExpression<*, *, *, *>
+        val result = parser.parse("isActive eq true") as BinaryOperationExpression<*, *, *>
 
         assertThat(result.rightOperand).isInstanceOf(ConstantExpression::class.java)
         assertThat((result.rightOperand as ConstantExpression<*, *>).value).isEqualTo(true)
@@ -153,7 +153,7 @@ class FilterParserTest {
 
     @Test
     fun `parses null literal`() {
-        val result = parser.parse("name eq null") as BinaryOperationExpression<*, *, *, *>
+        val result = parser.parse("name eq null") as BinaryOperationExpression<*, *, *>
 
         assertThat(result.rightOperand).isInstanceOf(ConstantExpression::class.java)
         assertThat((result.rightOperand as ConstantExpression<*, *>).value).isNull()
@@ -161,7 +161,7 @@ class FilterParserTest {
 
     @Test
     fun `unescapes single quote in string literal`() {
-        val result = parser.parse("name eq 'it''s'") as BinaryOperationExpression<*, *, *, *>
+        val result = parser.parse("name eq 'it''s'") as BinaryOperationExpression<*, *, *>
 
         assertThat((result.rightOperand as ConstantExpression<*, *>).value).isEqualTo("it's")
     }
