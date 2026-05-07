@@ -36,7 +36,7 @@ subprojects {
     apply(plugin = "org.jetbrains.dokka")
 
     group = "de.lise.fluxflow"
-    version = projVersion ?: "0.3.0-SNAPSHOT-5"
+    version = projVersion ?: "0.3.0-SNAPSHOT-6"
     
     repositories {
         mavenCentral()
