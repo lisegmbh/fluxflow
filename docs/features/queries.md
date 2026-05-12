@@ -48,7 +48,7 @@ grouped into the following categories:
 ### Conditional Filtering
 
 When filters depend on optional input values,
-you can use `whenPresent` to conditionally append a predicate.
+you can use `ifPresent` to conditionally append a predicate.
 
 A value is considered absent when it is:
 - `null`
@@ -64,12 +64,12 @@ data class WorkflowSearchRequest(
 )
 
 val query = FlowQuery.of<WorkflowQueryable>()
-    .whenPresent(request.city) { city ->
+    .ifPresent(request.city) { city ->
         get(WorkflowQueryable::model)
             .get(PizzaOrder::city)
             .isEqual(city)
     }
-    .whenPresent(request.statuses) { statuses ->
+    .ifPresent(request.statuses) { statuses ->
         get(WorkflowQueryable::status)
             .isAnyOf(statuses)
     }
