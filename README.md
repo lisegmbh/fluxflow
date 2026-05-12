@@ -5,7 +5,7 @@
 # FluxFlow
 **Code-First Workflow Engine for Modern Applications**
 
-[![Maven Central](https://img.shields.io/maven-central/v/de.lise.fluxflow/springboot.svg?label=Maven%20Central&color=blue)](https://search.maven.org/search?q=g:%22de.lise.fluxflow%22%20AND%20a:%22springboot%22)
+[![Maven Central](https://img.shields.io/maven-central/v/de.lise.fluxflow/springboot-spring3.svg?label=Maven%20Central&color=blue)](https://search.maven.org/search?q=g:%22de.lise.fluxflow%22%20AND%20a:%22springboot-spring3%22)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://build.lise.de/buildStatus/icon?job=Hessen+Mobil%2Ffluxflow%2Fdevelop)](https://build.lise.de/job/Hessen%20Mobil/job/fluxflow/job/develop/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2+-purple.svg?logo=kotlin)](https://kotlinlang.org)
@@ -110,13 +110,15 @@ Transform this pizza ordering process into executable code:
 
 **1. Add FluxFlow to your project:**
 
+> **Spring Boot 3:** Use Maven coordinates ending in `-spring3` (for example `springboot-spring3`, `springboot-mongo-spring3`). Coordinates without that suffix (such as `springboot` or `mongo`) are **legacy**: they remain for older releases only and do **not** receive new versions.
+
 <details>
 <summary><strong>Gradle (Kotlin DSL)</strong></summary>
 
 ```kotlin
 dependencies {
-    implementation("de.lise.fluxflow:springboot:0.2.0")
-    implementation("de.lise.fluxflow:mongo:0.2.0") // For MongoDB persistence
+    implementation("de.lise.fluxflow:springboot-spring3:0.3.0")
+    implementation("de.lise.fluxflow:springboot-mongo-spring3:0.3.0") // For MongoDB persistence
 }
 ```
 </details>
@@ -126,8 +128,8 @@ dependencies {
 
 ```gradle
 dependencies {
-    implementation 'de.lise.fluxflow:springboot:0.2.0'
-    implementation 'de.lise.fluxflow:mongo:0.2.0' // For MongoDB persistence
+    implementation 'de.lise.fluxflow:springboot-spring3:0.3.0'
+    implementation 'de.lise.fluxflow:springboot-mongo-spring3:0.3.0' // For MongoDB persistence
 }
 ```
 </details>
@@ -138,13 +140,13 @@ dependencies {
 ```xml
 <dependency>
     <groupId>de.lise.fluxflow</groupId>
-    <artifactId>springboot</artifactId>
-    <version>0.2.0</version>
+    <artifactId>springboot-spring3</artifactId>
+    <version>0.3.0</version>
 </dependency>
 <dependency>
     <groupId>de.lise.fluxflow</groupId>
-    <artifactId>mongo</artifactId>
-    <version>0.2.0</version>
+    <artifactId>springboot-mongo-spring3</artifactId>
+    <version>0.3.0</version>
 </dependency>
 ```
 </details>
@@ -333,13 +335,15 @@ FluxFlow is well-suited for various business scenarios:
 
 ### 1️⃣ Add FluxFlow to your project
 
+> **Spring Boot 3:** Use Maven coordinates ending in `-spring3` (for example `springboot-spring3`, `springboot-mongo-spring3`). Coordinates without that suffix (such as `springboot` or `mongo`) are **legacy**: they remain for older releases only and do **not** receive new versions.
+
 <details>
 <summary><strong>Gradle (Kotlin DSL)</strong></summary>
 
 ```kotlin
 dependencies {
-    implementation("de.lise.fluxflow:springboot:0.2.0")
-    implementation("de.lise.fluxflow:mongo:0.2.0") // For MongoDB persistence
+    implementation("de.lise.fluxflow:springboot-spring3:0.3.0")
+    implementation("de.lise.fluxflow:springboot-mongo-spring3:0.3.0") // For MongoDB persistence
 }
 ```
 </details>
@@ -349,8 +353,8 @@ dependencies {
 
 ```gradle
 dependencies {
-    implementation 'de.lise.fluxflow:springboot:0.2.0'
-    implementation 'de.lise.fluxflow:mongo:0.2.0' // For MongoDB persistence
+    implementation 'de.lise.fluxflow:springboot-spring3:0.3.0'
+    implementation 'de.lise.fluxflow:springboot-mongo-spring3:0.3.0' // For MongoDB persistence
 }
 ```
 </details>
@@ -361,13 +365,13 @@ dependencies {
 ```xml
 <dependency>
     <groupId>de.lise.fluxflow</groupId>
-    <artifactId>springboot</artifactId>
-    <version>0.2.0</version>
+    <artifactId>springboot-spring3</artifactId>
+    <version>0.3.0</version>
 </dependency>
 <dependency>
     <groupId>de.lise.fluxflow</groupId>
-    <artifactId>mongo</artifactId>
-    <version>0.2.0</version>
+    <artifactId>springboot-mongo-spring3</artifactId>
+    <version>0.3.0</version>
 </dependency>
 ```
 </details>
