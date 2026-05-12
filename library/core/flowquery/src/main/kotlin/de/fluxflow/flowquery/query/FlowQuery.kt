@@ -222,6 +222,54 @@ interface FlowQuery<TRoot, TResult> {
     }
 
     /**
+     * Adds a filter only if [value] is considered present.
+     *
+     * A value is considered absent if it is:
+     * - `null`
+     * - a blank [CharSequence]
+     * - an empty [Collection]
+     * - an empty [Map]
+     * - an empty [Array]
+     *
+     * Example:
+     * ```
+     * val cityFilter: String? = request.city
+     *
+     * val query = FlowQuery.of<WorkflowQueryable>()
+     *     .ifPresent(cityFilter) { city ->
+     *         get(WorkflowQueryable::model)
+     *             .get(PizzaOrder::city)
+     *             .isEqual(city)
+     *     }
+     * ```
+     *
+     * @param value the optional value that controls whether the filter is added
+     * @param builder builds the predicate using the present, non-null [value]
+     * @return the unchanged query if [value] is absent; otherwise a new query with the added filter
+     */
+    fun <TValue> ifPresent(
+        value: TValue?,
+        builder: Expression<TRoot, TResult>.(TValue) -> Expression<TRoot, Boolean>,
+    ): FlowQuery<TRoot, TResult> {
+        val presentValue = value ?: return this
+        val isAbsent = when (presentValue) {
+            is CharSequence -> presentValue.isBlank()
+            is Collection<*> -> presentValue.isEmpty()
+            is Map<*, *> -> presentValue.isEmpty()
+            is Array<*> -> presentValue.isEmpty()
+            else -> false
+        }
+
+        if (isAbsent) {
+            return this
+        }
+
+        return where {
+            builder(presentValue)
+        }
+    }
+
+    /**
      * Appends another query's operations to this one, preserving the current root and result type.
      *
      * Example:

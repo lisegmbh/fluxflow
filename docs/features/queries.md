@@ -45,6 +45,38 @@ val query = FlowQuery.of<WorkflowQueryable>()
 The FlowQuery API provides various filtering operations,
 grouped into the following categories:
 
+### Conditional Filtering
+
+When filters depend on optional input values,
+you can use `ifPresent` to conditionally append a predicate.
+
+A value is considered absent when it is:
+- `null`
+- a blank `CharSequence`
+- an empty `Collection`
+- an empty `Map`
+- an empty `Array`
+
+```kotlin
+data class WorkflowSearchRequest(
+    val city: String?,
+    val statuses: List<String>?,
+)
+
+val query = FlowQuery.of<WorkflowQueryable>()
+    .ifPresent(request.city) { city ->
+        get(WorkflowQueryable::model)
+            .get(PizzaOrder::city)
+            .isEqual(city)
+    }
+    .ifPresent(request.statuses) { statuses ->
+        get(WorkflowQueryable::status)
+            .isAnyOf(statuses)
+    }
+```
+
+This keeps query building fluent and avoids manual `if` branches around each optional filter.
+
 | Category                            | Operations                                                   |
 |-------------------------------------|--------------------------------------------------------------|
 | [Logical](#logical-operators)       | `allTrue`, `anyTrue`, `and`, `or`, `not`                     |
