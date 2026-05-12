@@ -84,9 +84,14 @@ subprojects {
         publishToMavenCentral()
         signAllPublications()
 
+        val publishedArtifactId = when {
+            subProject.path.startsWith(":springboot:") -> "${subProject.name}-spring3"
+            else -> subProject.name
+        }
+
         coordinates(
             subProject.group.toString(),
-            subProject.name,
+            publishedArtifactId,
             subProject.version.toString()
         )
 
