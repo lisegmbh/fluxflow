@@ -1,5 +1,5 @@
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.3.10")
+    implementation(kotlin("reflect"))
 
     implementation("org.springframework.data:spring-data-mongodb")
     implementation("org.springframework.boot:spring-boot-autoconfigure")
@@ -14,8 +14,8 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-    testImplementation("org.testcontainers:testcontainers:2.0.5")
-    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
-    testImplementation("org.testcontainers:testcontainers-mongodb:2.0.5")
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:mongodb")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
 }

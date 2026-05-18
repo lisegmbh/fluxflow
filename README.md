@@ -112,6 +112,8 @@ Transform this pizza ordering process into executable code:
 
 > **Spring Boot 3:** Use Maven coordinates ending in `-spring3` (for example `springboot-spring3`, `springboot-mongo-spring3`). Coordinates without that suffix (such as `springboot` or `mongo`) are **legacy**: they remain for older releases only and do **not** receive new versions.
 
+> **Dependency alignment:** Use your application’s **Spring Boot BOM** (for example `spring-boot-starter-parent` in Maven, or `platform("org.springframework.boot:spring-boot-dependencies:…")` in Gradle) so versions of libraries that Boot manages (Jackson, Jakarta Servlet, SLF4J, and similar) stay consistent with your chosen Boot release. FluxFlow’s published POMs import `spring-boot-dependencies` for that alignment and do not declare explicit versions for those coordinates in the dependency graph.
+
 <details>
 <summary><strong>Gradle (Kotlin DSL)</strong></summary>
 
@@ -337,6 +339,8 @@ FluxFlow is well-suited for various business scenarios:
 
 > **Spring Boot 3:** Use Maven coordinates ending in `-spring3` (for example `springboot-spring3`, `springboot-mongo-spring3`). Coordinates without that suffix (such as `springboot` or `mongo`) are **legacy**: they remain for older releases only and do **not** receive new versions.
 
+> **Dependency alignment:** Use your application’s **Spring Boot BOM** (for example `spring-boot-starter-parent` in Maven, or `platform("org.springframework.boot:spring-boot-dependencies:…")` in Gradle) so versions of libraries that Boot manages (Jackson, Jakarta Servlet, SLF4J, and similar) stay consistent with your chosen Boot release. FluxFlow’s published POMs import `spring-boot-dependencies` for that alignment and do not declare explicit versions for those coordinates in the dependency graph.
+
 <details>
 <summary><strong>Gradle (Kotlin DSL)</strong></summary>
 
@@ -515,6 +519,8 @@ It includes comprehensive monitoring, metrics, error handling, and has been batt
 | **Kotlin** | 2.0+ | ✅ Full Support |
 | **Spring Boot** | 3.0+ | ✅ Full Support |
 | **Jakarta EE** | 9+ | ✅ Full Support |
+
+Spring Boot applications should keep using their Boot BOM for third-party versions. FluxFlow Spring integration artifacts are built against the same model so your BOM—not FluxFlow—remains the source of truth for aligned dependency versions.
 
 ## 🤝 Community & Support
 
