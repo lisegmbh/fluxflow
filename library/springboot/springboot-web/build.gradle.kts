@@ -4,8 +4,8 @@ dependencies {
     implementation("org.springframework:spring-web")
     implementation("org.springframework:spring-context")
 
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.3")
-    implementation("jakarta.servlet:jakarta.servlet-api:6.1.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("jakarta.servlet:jakarta.servlet-api")
 
     implementation(kotlin("reflect"))
 }

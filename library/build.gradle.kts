@@ -59,7 +59,7 @@ subprojects {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion") {
                 bomProperties(
-                    mapOf("kotlin.version" to "2.2.0")
+                    mapOf("kotlin.version" to "2.3.10")
                 )
             }
         }
@@ -84,9 +84,14 @@ subprojects {
         publishToMavenCentral()
         signAllPublications()
 
+        val publishedArtifactId = when {
+            subProject.path.startsWith(":springboot:") -> "${subProject.name}-spring3"
+            else -> subProject.name
+        }
+
         coordinates(
             subProject.group.toString(),
-            subProject.name,
+            publishedArtifactId,
             subProject.version.toString()
         )
 
