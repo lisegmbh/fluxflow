@@ -20,6 +20,10 @@ val projVersion = project.findProperty("projVersion")
     }
 
 val intermediateProjectPaths = setOf(":core", ":springboot")
+val defaultProjectVersion = "0.3.0-SNAPSHOT-6"
+val resolvedProjectVersion = projVersion ?: defaultProjectVersion
+version = resolvedProjectVersion
+group = "de.lise.fluxflow"
 
 subprojects {
     val subProject = this
@@ -36,7 +40,7 @@ subprojects {
     apply(plugin = "org.jetbrains.dokka")
 
     group = "de.lise.fluxflow"
-    version = projVersion ?: "0.3.0-SNAPSHOT-6"
+    version = resolvedProjectVersion
     
     repositories {
         mavenCentral()
@@ -82,7 +86,9 @@ subprojects {
     
     mavenPublishing {
         publishToMavenCentral()
-        signAllPublications()
+        if (!providers.gradleProperty("skipSigning").isPresent) {
+            signAllPublications()
+        }
 
         val publishedArtifactId = when {
             subProject.path.startsWith(":springboot:") -> "${subProject.name}-spring3"
