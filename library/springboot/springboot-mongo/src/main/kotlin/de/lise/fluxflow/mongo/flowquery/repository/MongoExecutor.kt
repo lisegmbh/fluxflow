@@ -5,15 +5,15 @@ import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.aggregation.Aggregation
 import org.springframework.data.support.PageableExecutionUtils
 
-internal class MongoExecutor<TRoot>(
+internal class MongoExecutor<TRoot : Any>(
     private val mongoTemplate: MongoTemplate,
     private val rootType: Class<TRoot>,
 ) {
-    fun <TResult> executeUnpaged(aggregation: Aggregation, resultType: Class<TResult>): List<TResult> {
+    fun <TResult : Any> executeUnpaged(aggregation: Aggregation, resultType: Class<TResult>): List<TResult> {
         return mongoTemplate.aggregate(aggregation, rootType, resultType).mappedResults
     }
 
-    fun <TResult> executePaged(
+    fun <TResult : Any> executePaged(
         aggregation: Aggregation,
         countAggregation: Aggregation,
         pageRequest: PageRequest,
@@ -28,11 +28,11 @@ internal class MongoExecutor<TRoot>(
         )
     }
 
-    fun <TResult> findAll(resultType: Class<TResult>): List<TResult> {
+    fun <TResult : Any> findAll(resultType: Class<TResult>): List<TResult> {
         return mongoTemplate.findAll(resultType)
     }
 
-    fun <TResult> findPaged(pageRequest: PageRequest, resultType: Class<TResult>): PagedMongoResults<TResult> {
+    fun <TResult : Any> findPaged(pageRequest: PageRequest, resultType: Class<TResult>): PagedMongoResults<TResult> {
         val query = org.springframework.data.mongodb.core.query.Query().with(pageRequest)
         val collectionName = mongoTemplate.getCollectionName(rootType)
         val results = mongoTemplate.find(

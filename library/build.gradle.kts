@@ -19,11 +19,22 @@ val projVersion = project.findProperty("projVersion")
         }
     }
 
-val intermediateProjectPaths = setOf(":core", ":springboot")
+val springBoot3Version = "3.5.7"
+val springBoot4Version = "4.0.6"
+val defaultProjectVersion = "0.3.0-SNAPSHOT-6"
+val resolvedProjectVersion = projVersion ?: defaultProjectVersion
+
+val intermediateProjectPaths = setOf(":core", ":springboot", ":springboot4")
+
+version = resolvedProjectVersion
+group = "de.lise.fluxflow"
 
 subprojects {
     val subProject = this
-    val springBootVersion = "3.5.7"
+    val springBootVersion = when {
+        subProject.path.startsWith(":springboot4:") -> springBoot4Version
+        else -> springBoot3Version
+    }
 
     if (intermediateProjectPaths.contains(subProject.path)) {
         println("Intermediate sub project ${subProject.path} is skipped.")
@@ -36,7 +47,7 @@ subprojects {
     apply(plugin = "org.jetbrains.dokka")
 
     group = "de.lise.fluxflow"
-    version = projVersion ?: "0.3.0-SNAPSHOT-6"
+    version = resolvedProjectVersion
     
     repositories {
         mavenCentral()
@@ -82,9 +93,12 @@ subprojects {
     
     mavenPublishing {
         publishToMavenCentral()
-        signAllPublications()
+        if (!providers.gradleProperty("skipSigning").isPresent) {
+            signAllPublications()
+        }
 
         val publishedArtifactId = when {
+            subProject.path.startsWith(":springboot4:") -> "${subProject.name}-spring4"
             subProject.path.startsWith(":springboot:") -> "${subProject.name}-spring3"
             else -> subProject.name
         }

@@ -6,6 +6,10 @@ class MongoLowerThanEqualsFilter<TModel>(
     private val value: TModel
 ) : MongoFilter<TModel> {
     override fun apply(path: String): Criteria {
-        return Criteria(path).lte(value)
+        return Criteria(path).lte(
+            requireNotNull(value) {
+                "LowerThanEqualsFilter does not support null comparison values."
+            }
+        )
     }
 }

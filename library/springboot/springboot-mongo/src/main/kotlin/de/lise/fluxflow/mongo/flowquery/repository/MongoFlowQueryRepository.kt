@@ -34,13 +34,16 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     // --------------------------------------------------------------------------------------------
 
     override fun <TResult> find(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): List<TResult> {
-        return execute(query, resultType).elements.toList()
+        return castElements(
+            elements = execute(query, resultType).elements,
+            resultType = resultType,
+        )
     }
 
     override fun find(query: FlowQuery<TRoot, TRoot>): Page<TRoot> {
         val results = execute(query, rootType).page
         return Page(
-            items = results.content,
+            items = castElements(results.content, rootType),
             pageSize = query.pagination?.pageSize ?: results.totalElements.toInt(),
             pageIndex = query.pagination?.pageIndex ?: 0,
             totalPages = results.totalPages,
@@ -51,8 +54,10 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findFirst(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult {
-        return execute(query.limit(1), resultType).elements.first()
+        val first = execute(query.limit(1), resultType).elements.firstOrNull()
             ?: throw QueryExecutionException("Expected at least one result but found none.")
+
+        return castElement(first, resultType)
     }
 
     override fun findFirst(query: FlowQuery<TRoot, TRoot>): TRoot {
@@ -60,7 +65,8 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findFirstOrNull(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult? {
-        return execute(query.limit(1), resultType).elements.firstOrNull()
+        val first = execute(query.limit(1), resultType).elements.firstOrNull() ?: return null
+        return castElement(first, resultType)
     }
 
     override fun findFirstOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
@@ -68,8 +74,10 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findSingle(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult {
-        return execute(query.limit(2), resultType).elements.singleOrNull()
+        val single = execute(query.limit(2), resultType).elements.singleOrNull()
             ?: throw QueryExecutionException("Expected exactly one result but found none or multiple.")
+
+        return castElement(single, resultType)
     }
 
     override fun findSingle(query: FlowQuery<TRoot, TRoot>): TRoot {
@@ -77,7 +85,8 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findSingleOrNull(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult? {
-        return execute(query.limit(2), resultType).elements.singleOrNull()
+        val single = execute(query.limit(2), resultType).elements.singleOrNull() ?: return null
+        return castElement(single, resultType)
     }
 
     override fun findSingleOrNull(query: FlowQuery<TRoot, TRoot>): TRoot? {
@@ -91,30 +100,37 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     private fun <TResult> execute(
         query: FlowQuery<TRoot, TResult>,
         resultType: Class<TResult>
-    ): MongoExecutionResults<TResult> {
+    ): MongoExecutionResults<Any> {
         validateResultType(resultType)
+        val mappedResultType = resultType.toMappedResultType()
 
         val pagination = query.pagination
         val pageRequest = pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
         // Shortcut: plain collection scan without operations
         if (query.operations.isEmpty()) {
-            return when (pageRequest) {
-                null -> UnpagedMongoResults(executor.findAll(resultType))
-                else -> executor.findPaged(pageRequest, resultType)
+            return if (pageRequest == null) {
+                UnpagedMongoResults(executor.findAll(mappedResultType))
+            } else {
+                executor.findPaged(pageRequest, mappedResultType)
             }
         }
 
         val aggregation = translator.translate(query)
-
         return if (pageRequest == null) {
-            UnpagedMongoResults(executor.executeUnpaged(aggregation, resultType))
+            UnpagedMongoResults(executor.executeUnpaged(aggregation, mappedResultType))
         } else {
-            executePaged(aggregation, pageRequest, pagination!!.pageIndex, pagination.pageSize, resultType)
+            executePaged(
+                aggregation,
+                pageRequest,
+                pagination.pageIndex,
+                pagination.pageSize,
+                mappedResultType,
+            )
         }
     }
 
-    private fun <TResult> executePaged(
+    private fun <TResult : Any> executePaged(
         aggregation: Aggregation,
         pageRequest: PageRequest,
         pageIndex: Int,
@@ -130,6 +146,24 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         )
 
         return executor.executePaged(pagedAggregation, countAggregation, pageRequest, resultType)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <TResult> Class<TResult>.toMappedResultType(): Class<Any> = this as Class<Any>
+
+    private fun <TResult> castElements(elements: Iterable<Any>, resultType: Class<TResult>): List<TResult> {
+        return elements.map { castElement(it, resultType) }
+    }
+
+    private fun <TResult> castElement(value: Any, resultType: Class<TResult>): TResult {
+        if (!resultType.isInstance(value)) {
+            throw QueryExecutionException(
+                "Result mapping type mismatch: expected ${resultType.canonicalName}, got ${value::class.java.canonicalName}"
+            )
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return value as TResult
     }
 
     private fun validateResultType(resultType: Class<*>) {
