@@ -11,6 +11,10 @@ class MongoDoesNotContainElementFilter<TCollection : Collection<TModel>, TModel>
     )
 
     override fun apply(path: String): Criteria {
-        return Criteria.where(path).nin(element)
+        return Criteria.where(path).nin(
+            requireNotNull(element) {
+                "DoesNotContainElementFilter does not support null elements."
+            }
+        )
     }
 }

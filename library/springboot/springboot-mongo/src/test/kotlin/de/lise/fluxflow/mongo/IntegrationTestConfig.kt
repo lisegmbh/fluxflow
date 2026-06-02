@@ -8,7 +8,6 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean
 import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.MongoDBContainer
-import org.testcontainers.utility.DockerImageName
 
 @ConditionalOnDocker
 @EnableAutoConfiguration
@@ -18,9 +17,10 @@ open class IntegrationTestConfig {
     @Bean
     @ServiceConnection
     open fun mongoDbContainer(): MongoDBContainer? {
-        return if(DockerClientFactory.instance().isDockerAvailable) {
-            return MongoDBContainer(DockerImageName.parse("mongo:5.0"))
-        } else null
+        return if (DockerClientFactory.instance().isDockerAvailable) {
+            MongoDBContainer("mongo")
+        } else {
+            null
+        }
     }
 }
-
