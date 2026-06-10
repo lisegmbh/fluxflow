@@ -2,9 +2,9 @@ package de.lise.fluxflow.mongo
 
 import de.lise.fluxflow.mongo.bootstrapping.BootstrapMongoConfiguration
 import de.lise.fluxflow.mongo.continuation.history.ContinuationMongoConfiguration
+import de.fluxflow.flowquery.expression.compilation.ClasspathSubclassProvider
+import de.fluxflow.flowquery.expression.compilation.SubclassProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
-import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
-import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProviderImpl
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
 import de.lise.fluxflow.mongo.job.JobMongoConfiguration
 import de.lise.fluxflow.mongo.migration.MigrationMongoConfiguration
@@ -33,7 +33,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 open class MongoConfiguration {
     @Bean
     open fun subclassProvider(factory: BeanFactory): SubclassProvider {
-        return SubclassProviderImpl(AutoConfigurationPackages.get(factory).toSet())
+        return ClasspathSubclassProvider(AutoConfigurationPackages.get(factory).toSet())
     }
 
     @Bean

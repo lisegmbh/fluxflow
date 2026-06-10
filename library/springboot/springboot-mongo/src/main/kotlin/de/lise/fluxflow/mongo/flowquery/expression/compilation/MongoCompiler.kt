@@ -4,11 +4,13 @@ import de.fluxflow.flowquery.expression.*
 import de.fluxflow.flowquery.expression.compilation.CompilationException
 import de.fluxflow.flowquery.expression.compilation.CompilationResult
 import de.fluxflow.flowquery.expression.compilation.ExpressionCompiler
+import de.fluxflow.flowquery.expression.compilation.SubclassProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping.MongoCompilerMapper
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping.MongoCompilerMapperImpl
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.bson.Document
 import org.slf4j.LoggerFactory
+import kotlin.reflect.KProperty
 
 internal class MongoCompiler(
     private val subclassProvider: SubclassProvider,
@@ -33,6 +35,85 @@ internal class MongoCompiler(
             logger.error("Failed to compile expression: {}", mappedExpression, e)
             throw CompilationException(mappedExpression, mappedExpression, "Compilation failed: ${e.message}")
         }
+    }
+
+    fun <TRoot, TResult> compileForSort(
+        expression: Expression<TRoot, TResult>,
+        sortFieldIndex: Int,
+    ): CompilationResult<MongoSortToken> {
+        val mappedExpression = expressionMapper.map(expression)
+
+        return try {
+            val result = compileSortExpression(mappedExpression, mappedExpression, sortFieldIndex)
+            if (logger.isTraceEnabled) {
+                logger.trace("Successfully compiled sort expression {} to MongoDB sort token: {}", mappedExpression, result)
+            }
+
+            CompilationResult(result)
+        } catch (e: Exception) {
+            logger.error("Failed to compile sort expression: {}", mappedExpression, e)
+            throw CompilationException(mappedExpression, mappedExpression, "Sort compilation failed: ${e.message}")
+        }
+    }
+
+    private fun <TRoot, TResult> compileSortExpression(
+        root: Expression<TRoot, *>,
+        expression: Expression<TRoot, TResult>,
+        sortFieldIndex: Int,
+    ): MongoSortToken {
+        if (expression is PropertyExpression<TRoot, *, *> &&
+            expression.instance is CastExpression<TRoot, *, *>
+        ) {
+            @Suppress("UNCHECKED_CAST")
+            return typeGuardedPropertySort(
+                root,
+                expression.instance as CastExpression<TRoot, *, *>,
+                expression.property,
+                sortFieldIndex,
+            )
+        }
+
+        return PathSortToken(
+            doCompile(root, expression).asStatementToken(root, expression)
+        )
+    }
+
+    private fun <TRoot> typeGuardedPropertySort(
+        root: Expression<TRoot, *>,
+        cast: CastExpression<TRoot, *, *>,
+        property: KProperty<*>,
+        sortFieldIndex: Int,
+    ): ComputedSortToken {
+        val instanceToken = doCompile(root, cast.instance).asStatementToken(root, cast.instance)
+        val typeFieldPath = ConvertingStatementToken(instanceToken) { "${it}.${config.typeFieldName}" }
+        val allowedTypes = subclassProvider.findSubclasses(cast.requiredType).map { it.name }
+        val propertyPath = PropertyToken(instanceToken, property).toStatement()
+
+        val expression = Document(
+            "\$cond",
+            Document()
+                .append(
+                    "if",
+                    Document(
+                        "\$in",
+                        listOf(
+                            toFieldReference(typeFieldPath.toStatement()),
+                            allowedTypes,
+                        )
+                    )
+                )
+                .append("then", toFieldReference(propertyPath))
+                .append("else", null)
+        )
+
+        return ComputedSortToken(
+            fieldName = "__flowquery_sort_$sortFieldIndex",
+            expression = expression,
+        )
+    }
+
+    private fun toFieldReference(path: String): String {
+        return "$$path"
     }
 
     private fun <TRoot, TCurrent> doCompile(

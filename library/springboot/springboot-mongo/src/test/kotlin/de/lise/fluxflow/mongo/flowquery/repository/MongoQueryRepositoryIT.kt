@@ -378,6 +378,62 @@ class MongoQueryRepositoryIT {
     }
 
     @Test
+    fun `find should sort by casted property and keep non-matching documents`() {
+        // Arrange
+        template.insert(
+            TestDocument(
+                id = UUID.randomUUID().toString(),
+                someStringProp = "typed-low",
+                anotherStringProp = "typed-low",
+                longStringProperty = "typed-low",
+                aBooleanProperty = true,
+                anAnyProperty = NestedTestDocument(anIntProperty = 1),
+                nestedProperty = NestedTestDocument(anIntProperty = 0),
+            )
+        )
+        template.insert(
+            TestDocument(
+                id = UUID.randomUUID().toString(),
+                someStringProp = "typed-high",
+                anotherStringProp = "typed-high",
+                longStringProperty = "typed-high",
+                aBooleanProperty = true,
+                anAnyProperty = NestedTestDocument(anIntProperty = 9),
+                nestedProperty = NestedTestDocument(anIntProperty = 0),
+            )
+        )
+        template.insert(
+            TestDocument(
+                id = UUID.randomUUID().toString(),
+                someStringProp = "wrong-type",
+                anotherStringProp = "wrong-type",
+                longStringProperty = "wrong-type",
+                aBooleanProperty = true,
+                anAnyProperty = OtherPropertyHolder(anIntProperty = 100),
+                nestedProperty = NestedTestDocument(anIntProperty = 0),
+            )
+        )
+
+        // Act
+        val result = repo.find {
+            sort {
+                get(TestDocument::anAnyProperty)
+                    .asType(NestedTestDocument::class)
+                    .get(NestedTestDocument::anIntProperty)
+                    .asc()
+            }
+        }.items
+
+        // Assert
+        assertThat(result).hasSize(testDocuments.size + 3)
+        assertThat(
+            result.map { document ->
+                (document.anAnyProperty as? NestedTestDocument)?.anIntProperty
+            }
+        ).containsExactly(null, null, null, 1, 3, 9)
+    }
+
+    @Test
     fun `find should support casted property filters`() {
         val result = repo.findSingle {
             where {
@@ -535,6 +591,10 @@ class MongoQueryRepositoryIT {
         val someInstant: Instant? = null,
         val id: String? = null,
     ) : NestedDocument
+
+    data class OtherPropertyHolder(
+        val anIntProperty: Int,
+    )
 
     internal interface NestedDocument
 }

@@ -10,6 +10,7 @@ import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.ConstantToken
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.ExpressionToken
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.PathSortToken
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.StatementToken
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -115,7 +116,7 @@ class MongoQueryTranslatorTest {
         val statementToken = mock<StatementToken> {
             on { toStatement() }.thenReturn("user.age")
         }
-        whenever(compiler.compile(expression)).thenReturn(CompilationResult(statementToken))
+        whenever(compiler.compileForSort(expression, 0)).thenReturn(CompilationResult(PathSortToken(statementToken)))
 
         val query = mock<FlowQuery<Any, Any>>()
         whenever(query.operations).thenReturn(listOf(sortingOperation))
@@ -194,14 +195,16 @@ class MongoQueryTranslatorTest {
         val sort = Sort(expression, SortDirection.Ascending)
         val operation = SortingOperation(Sorting(listOf(sort)))
 
-        whenever(compiler.compile(expression)).thenReturn(CompilationResult(ConstantToken("oops")))
+        whenever(compiler.compileForSort(expression, 0)).thenThrow(
+            RuntimeException("Sort compilation failed")
+        )
 
         val query = mock<FlowQuery<Any, Any>>()
         whenever(query.operations).thenReturn(listOf(operation))
 
         // Act & Assert
         assertThatThrownBy { translator.translate(query) }
-            .isInstanceOf(QueryExecutionException::class.java)
-            .hasMessageContaining("Cannot sort by")
+            .isInstanceOf(RuntimeException::class.java)
+            .hasMessageContaining("Sort compilation failed")
     }
 }

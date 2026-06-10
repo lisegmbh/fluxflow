@@ -1,4 +1,4 @@
-package de.lise.fluxflow.mongo.flowquery.expression.compilation
+package de.fluxflow.flowquery.expression.compilation
 
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
 import org.springframework.core.type.filter.AssignableTypeFilter
@@ -6,8 +6,11 @@ import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
-class SubclassProviderImpl(
-    private val basePackages: Set<String>
+/**
+ * Discovers concrete subtypes of a [KClass] by scanning configured base packages.
+ */
+class ClasspathSubclassProvider(
+    private val basePackages: Set<String>,
 ) : SubclassProvider {
     private val cache = ConcurrentHashMap<KClass<*>, Set<Class<*>>>()
 
@@ -23,7 +26,7 @@ class SubclassProviderImpl(
             .filter { !it.isAbstract }
             .mapNotNull { it.beanClassName }
             .distinct()
-            .mapNotNull { Class.forName(it) }
+            .mapNotNull { runCatching { Class.forName(it) }.getOrNull() }
 
         val allClasses = (allFoundClasses + type.java).toSet()
         return allClasses.filter {

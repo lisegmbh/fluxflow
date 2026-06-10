@@ -102,28 +102,41 @@ internal class MongoQueryTranslator(private val compiler: MongoCompiler) {
      * Translates a [SortingOperation] into a Mongo `$sort` stage.
      */
     private fun toSorting(operation: SortingOperation): List<AggregationOperation> {
-        val sortSpec = operation.sorting.sorts.associate { sort ->
-            val token = compiler.compile(sort.expression).result
-            val sortKey = toSortKey(operation, token)
-            sortKey.toStatement() to when (sort.direction) {
-                SortDirection.Ascending -> 1
-                SortDirection.Descending -> -1
+        val addFields = Document()
+        val sortSpec = Document()
+
+        operation.sorting.sorts.forEachIndexed { index, sort ->
+            when (val token = compiler.compileForSort(sort.expression, index).result) {
+                is PathSortToken -> {
+                    sortSpec[token.path.toStatement()] = when (sort.direction) {
+                        SortDirection.Ascending -> 1
+                        SortDirection.Descending -> -1
+                    }
+                }
+
+                is ComputedSortToken -> {
+                    addFields[token.fieldName] = token.expression
+                    sortSpec[token.fieldName] = when (sort.direction) {
+                        SortDirection.Ascending -> 1
+                        SortDirection.Descending -> -1
+                    }
+                }
             }
         }
 
-        return listOf(
-            Aggregation.stage(
-                Document(mapOf("\$sort" to Document(sortSpec)))
-            )
-        )
-    }
-
-    private fun toSortKey(operation: SortingOperation, token: MongoToken): StatementToken {
-        return when (token) {
-            is StatementToken -> token
-            else -> throw QueryExecutionException(
-                "Cannot sort by '${operation.toText()}': expected statement, got ${token::class.simpleName}"
+        val stages = mutableListOf<AggregationOperation>()
+        if (!addFields.isEmpty()) {
+            stages.add(
+                Aggregation.stage(
+                    Document(mapOf("\$addFields" to addFields))
+                )
             )
         }
+        stages.add(
+            Aggregation.stage(
+                Document(mapOf("\$sort" to sortSpec))
+            )
+        )
+        return stages
     }
 }

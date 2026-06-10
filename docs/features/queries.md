@@ -102,6 +102,11 @@ val query = FlowQuery.of<WorkflowQueryable>()
     }
 ```
 
+When sorting on a property of a workflow model subtype, use `asType` to narrow the model first.
+Workflows whose model does not match the cast type (or a known subtype) keep their place in the
+result set and receive a `null` sort key. Null placement follows the backend defaults
+(nulls-first on ascending, nulls-last on descending). Filter semantics for `asType` are unchanged.
+
 ### Pagination
 
 To retrieve paginated results,

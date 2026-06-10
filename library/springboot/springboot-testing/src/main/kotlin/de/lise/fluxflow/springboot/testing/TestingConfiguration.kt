@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Import
 
 @Configuration
 @Import(
-    BasicConfiguration::class, 
-    InMemoryPersistenceConfiguration::class  
+    BasicConfiguration::class,
+    InMemoryPersistenceConfiguration::class
 )
 open class TestingConfiguration

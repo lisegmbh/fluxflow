@@ -7,6 +7,7 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.or
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.startsWith
 import de.fluxflow.flowquery.expression.compilation.CompilationException
+import de.fluxflow.flowquery.expression.compilation.SubclassProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping.MongoCompilerMapper
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.token.*
 import org.assertj.core.api.Assertions.assertThat
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
 import kotlin.reflect.KClass
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.contains as stringContains
 
 class MongoCompilerTest {
@@ -117,6 +119,27 @@ class MongoCompilerTest {
         // Assert
         assertThat(result.result).isInstanceOf(StatementOperationToken::class.java)
         verify(mockSubclassProvider).findSubclasses(mockClass)
+    }
+
+    @Test
+    fun `compileForSort should type-guard casted property access`() {
+        // Arrange
+        val root = Expression.root<TestUser>()
+        val sortExpression = root.get(TestUser::address)
+            .asType(ShippingAddress::class)
+            .get(ShippingAddress::city)
+
+        whenever(mockSubclassProvider.findSubclasses(ShippingAddress::class))
+            .thenReturn(setOf(ShippingAddress::class.java))
+
+        // Act
+        val result = compiler.compileForSort(sortExpression, 0)
+
+        // Assert
+        assertThat(result.result).isInstanceOf(ComputedSortToken::class.java)
+        val computed = result.result as ComputedSortToken
+        assertThat(computed.fieldName).isEqualTo("__flowquery_sort_0")
+        assertThat(computed.expression).containsKey("\$cond")
     }
 
     @Test
@@ -585,6 +608,11 @@ class MongoCompilerTest {
         val isActive: Boolean,
         val isAdmin: Boolean,
         val roles: List<String>,
-        val metadata: Map<String, String>
+        val metadata: Map<String, String>,
+        val address: Any = GenericAddress(),
     )
+
+    open class GenericAddress
+
+    class ShippingAddress(val city: String) : GenericAddress()
 }

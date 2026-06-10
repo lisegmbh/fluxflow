@@ -1,6 +1,11 @@
 package de.lise.fluxflow.springboot
 
+import de.fluxflow.flowquery.expression.compilation.ClasspathSubclassProvider
+import de.fluxflow.flowquery.expression.compilation.StaticSubclassProvider
+import de.fluxflow.flowquery.expression.compilation.SubclassProvider
 import de.fluxflow.flowquery.inmemory.expression.compilation.InMemoryCompiler
+import org.springframework.beans.factory.BeanFactory
+import org.springframework.boot.autoconfigure.AutoConfigurationPackages
 import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
@@ -27,8 +32,19 @@ open class InMemoryPersistenceConfiguration {
     }
 
     @Bean
-    open fun inMemoryCompiler(): InMemoryCompiler {
-        return InMemoryCompiler()
+    open fun subclassProvider(factory: BeanFactory): SubclassProvider {
+        val basePackages = runCatching { AutoConfigurationPackages.get(factory).toSet() }
+            .getOrElse { emptySet() }
+        return if (basePackages.isEmpty()) {
+            StaticSubclassProvider()
+        } else {
+            ClasspathSubclassProvider(basePackages)
+        }
+    }
+
+    @Bean
+    open fun inMemoryCompiler(subclassProvider: SubclassProvider): InMemoryCompiler {
+        return InMemoryCompiler(subclassProvider)
     }
 
     @Bean

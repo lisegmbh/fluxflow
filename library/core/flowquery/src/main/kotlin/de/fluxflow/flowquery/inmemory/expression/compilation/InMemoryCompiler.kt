@@ -4,11 +4,15 @@ import de.fluxflow.flowquery.expression.*
 import de.fluxflow.flowquery.expression.compilation.CompilationException
 import de.fluxflow.flowquery.expression.compilation.CompilationResult
 import de.fluxflow.flowquery.expression.compilation.ExpressionCompiler
+import de.fluxflow.flowquery.expression.compilation.StaticSubclassProvider
+import de.fluxflow.flowquery.expression.compilation.SubclassProvider
 import de.fluxflow.flowquery.inmemory.expression.compilation.ops.*
 import de.fluxflow.flowquery.inmemory.query.sorting.InMemoryComparator
 import kotlin.reflect.KProperty1
 
-class InMemoryCompiler : ExpressionCompiler<InMemoryOp<*, *>> {
+class InMemoryCompiler(
+    private val subclassProvider: SubclassProvider = StaticSubclassProvider(),
+) : ExpressionCompiler<InMemoryOp<*, *>> {
     override fun <TRoot, TResult> compile(
         expression: Expression<TRoot, TResult>
     ): CompilationResult<InMemoryOp<TRoot, TResult>> {
@@ -195,7 +199,8 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOp<*, *>> {
                     rootExpression,
                     exp.instance
                 ) as InMemoryOp<TRoot, Any?>,
-                exp.requiredType
+                exp.requiredType,
+                subclassProvider,
             )
 
             is MapAccessExpression<TRoot, *, *, *> -> InMemoryMapAccessOp(
