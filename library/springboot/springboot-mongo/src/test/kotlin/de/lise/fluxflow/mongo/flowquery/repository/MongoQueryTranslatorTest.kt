@@ -135,6 +135,36 @@ class MongoQueryTranslatorTest {
     }
 
     @Test
+    fun `sorting should append a unique _id tiebreaker to keep pagination stable`() {
+        // Arrange
+        val expression = Expression.root<Any>()
+        val sort = Sort(expression, SortDirection.Descending)
+        val sortingOperation = SortingOperation(Sorting(listOf(sort)))
+
+        val statementToken = mock<StatementToken> {
+            on { toStatement() }.thenReturn("model.metaInformationen.bearbeitet.actor.lastName")
+        }
+        whenever(compiler.compile(expression)).thenReturn(CompilationResult(statementToken))
+
+        val query = mock<FlowQuery<Any, Any>>()
+        whenever(query.operations).thenReturn(listOf(sortingOperation))
+
+        // Act
+        val aggregation = translator.translate(query)
+
+        // Assert
+        val sortSpec = stagesOf(aggregation).single()["\$sort"] as Document
+
+        // A non-unique sort key (e.g. lastName) must be disambiguated by a unique field so that
+        // $skip / $limit pagination produces a deterministic, gap-free ordering across pages.
+        assertThat(sortSpec.keys).containsExactly(
+            "model.metaInformationen.bearbeitet.actor.lastName",
+            "_id"
+        )
+        assertThat(sortSpec.getInteger("_id")).isEqualTo(1)
+    }
+
+    @Test
     fun `should translate LimitOperation into limit stage`() {
         // Arrange
         val limitOp = LimitOperation(10)

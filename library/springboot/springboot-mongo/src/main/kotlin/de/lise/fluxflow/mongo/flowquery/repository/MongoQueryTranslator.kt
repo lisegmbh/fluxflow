@@ -110,6 +110,8 @@ internal class MongoQueryTranslator(private val compiler: MongoCompiler) {
                 SortDirection.Descending -> -1
             }
         }
+            .toMutableMap()
+            .also { it.putIfAbsent("_id", 1) }
 
         return listOf(
             Aggregation.stage(
