@@ -12,8 +12,10 @@ class ExpressionWalkerTest {
         val originalExpression = Expression.root<NestedElement>()
             .get(NestedElement::value)
 
-        val result = walker.walk(originalExpression) {
-            when(it.expression) {
+        val result = walker.walk(
+            ExpressionNode.root(originalExpression)
+        ){
+            when(it.current.expression) {
                 is RootExpression<*> -> {
                     ExpressionWalkerResult.Replace(
                         Expression.root<TestRoot>()

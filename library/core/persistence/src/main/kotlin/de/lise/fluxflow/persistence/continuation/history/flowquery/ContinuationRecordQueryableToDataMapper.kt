@@ -2,6 +2,7 @@ package de.lise.fluxflow.persistence.continuation.history.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
+import de.fluxflow.flowquery.mapper.expression.ExpressionNode
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQueryable
@@ -39,7 +40,7 @@ class ContinuationRecordQueryableToDataMapper : ExpressionMapper {
         )
     ).toMapper()
 
-    override fun map(expression: Expression<*, *>): Expression<*, *> {
-        return mapper.map(expression)
+    override fun map(node: ExpressionNode): Expression<*, *> {
+        return mapper.map(node)
     }
 }

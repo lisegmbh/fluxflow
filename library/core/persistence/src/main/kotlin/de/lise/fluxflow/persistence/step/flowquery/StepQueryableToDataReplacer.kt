@@ -1,44 +1,37 @@
 package de.lise.fluxflow.persistence.step.flowquery
 
-import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer
 import de.fluxflow.flowquery.mapper.expression.PriorityExpressionReplacer
 import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.persistence.CommonToDataReplacer
 import de.lise.fluxflow.persistence.step.StepData
 
-class StepQueryableToDataReplacer : ExpressionReplacer {
-    private val replacer = PriorityExpressionReplacer(
-        listOf(
-            CommonToDataReplacer(),
-            ExpressionReplacer.property(
-                StepQueryable::identifier,
-                StepData::id
-            ),
-            ExpressionReplacer.property(
-                StepQueryable::workflowIdentifier,
-                StepData::workflowId    
-            ),
-            ExpressionReplacer.property(
-                StepQueryable::kind,
-                StepData::kind
-            ),
-            ExpressionReplacer.property(
-                StepQueryable::status,
-                StepData::status
-            ),
-            ExpressionReplacer.property(
-                StepQueryable::data,
-                StepData::data
-            ),
-            ExpressionReplacer.property(
-                StepQueryable::metadata,
-                StepData::metadata
-            ) 
+class StepQueryableToDataReplacer : PriorityExpressionReplacer(
+    listOf(
+        CommonToDataReplacer(),
+        ExpressionReplacer.property(
+            StepQueryable::identifier,
+            StepData::id
+        ),
+        ExpressionReplacer.property(
+            StepQueryable::workflowIdentifier,
+            StepData::workflowId
+        ),
+        ExpressionReplacer.property(
+            StepQueryable::kind,
+            StepData::kind
+        ),
+        ExpressionReplacer.property(
+            StepQueryable::status,
+            StepData::status
+        ),
+        ExpressionReplacer.property(
+            StepQueryable::data,
+            StepData::data
+        ),
+        ExpressionReplacer.property(
+            StepQueryable::metadata,
+            StepData::metadata
         )
     )
-
-    override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return replacer.replace(expression)
-    }
-}
+)

@@ -6,8 +6,8 @@ import de.fluxflow.flowquery.expression.PropertyExpression
 import kotlin.reflect.KProperty1
 
 fun interface ExpressionReplacer {
-    fun replace(expression: Expression<*, *>): Expression<*, *>?
-    
+    fun replace(node: ExpressionNode): Expression<*, *>?
+
     fun recursive(): ExpressionReplacer {
         return PriorityExpressionReplacer(
             listOf(
@@ -18,7 +18,7 @@ fun interface ExpressionReplacer {
     
     fun toMapper(): ExpressionMapper {
         return ExpressionMapper {
-            replace(it) ?: it
+            replace(it) ?: it.expression
         }
     }
     
@@ -27,8 +27,8 @@ fun interface ExpressionReplacer {
             crossinline replacement: (exp: T) -> Expression<*,*>
         ): ExpressionReplacer {
             return ExpressionReplacer {
-                when(it) {
-                    is ConstantExpression<*,*> if it.value is T -> replacement(it.value)
+                when(val exp = it.expression) {
+                    is ConstantExpression<*,*> if exp.value is T -> replacement(exp.value)
                     else -> null
                 }
             }
@@ -39,9 +39,9 @@ fun interface ExpressionReplacer {
             replacement: (exp: PropertyExpression<*,*,*>) -> Expression<*,*>?
         ): ExpressionReplacer {
             return ExpressionReplacer {
-                when(it) {
-                    is PropertyExpression<*,*,*> -> when(it.property) {
-                        prop -> replacement(it)
+                when(val exp = it.expression) {
+                    is PropertyExpression<*,*,*> -> when(exp.property) {
+                        prop -> replacement(exp)
                         else -> null
                     }
                     else -> null

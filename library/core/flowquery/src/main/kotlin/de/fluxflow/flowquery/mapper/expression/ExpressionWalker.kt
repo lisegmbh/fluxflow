@@ -6,13 +6,13 @@ import kotlin.reflect.KProperty1
 
 class ExpressionWalker {
     fun walk(
-        expression: Expression<*, *>,
+        node: ExpressionNode,
         callback: ExpressionWalkerCallback
     ): ExpressionWalkerResult {
         return walk(
             WalkingContext(
                 parent = null,
-                expression = expression,
+                current = node,
                 level = 0
             ),
             callback
@@ -28,7 +28,7 @@ class ExpressionWalker {
             return result
         }
 
-        return when (val expression = context.expression) {
+        return when (val expression = context.current.expression) {
             is CastExpression<*, *, *> -> {
                 val instanceReplacement = walk(
                     context.sub(expression.instance),
@@ -369,13 +369,13 @@ class ExpressionWalker {
             var result = false
             
             ExpressionWalker().walk(
-                this
+                ExpressionNode.root(this)
             ) { currentChildContext ->
                 
                 when(currentChildContext.level) {
                     0 -> ExpressionWalkerResult.Continue
                     1 -> {
-                        result = result || predicate(currentChildContext.expression)
+                        result = result || predicate(currentChildContext.current.expression)
                         ExpressionWalkerResult(
                             null,
                             false

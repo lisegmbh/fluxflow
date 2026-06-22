@@ -4,15 +4,21 @@ import de.fluxflow.flowquery.expression.Expression
 
 data class WalkingContext(
     val parent: WalkingContext?,
-    val expression: Expression<*, *>,
+    val current: ExpressionNode,
     val level: Int,
 ) {
 
-    fun sub(expression: Expression<*, *>): WalkingContext {
+    fun sub(node: ExpressionNode): WalkingContext {
         return WalkingContext(
             parent = this,
-            expression = expression,
+            current = node,
             level = level + 1
+        )
+    }
+
+    fun sub(expression: Expression<*,*>): WalkingContext {
+        return sub(
+            ExpressionNode.root(expression)
         )
     }
 }

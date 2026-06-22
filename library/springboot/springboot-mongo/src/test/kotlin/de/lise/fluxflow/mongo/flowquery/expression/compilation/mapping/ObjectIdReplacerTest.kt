@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping
 
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.mapper.expression.ExpressionNode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -16,7 +17,7 @@ class ObjectIdReplacerTest {
             .isEqual("507f1f77bcf86cd799439011")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNotNull
@@ -30,7 +31,7 @@ class ObjectIdReplacerTest {
             .isEqual("550e8400-e29b-41d4-a716-446655440000") // UUID, not ObjectId
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -44,7 +45,7 @@ class ObjectIdReplacerTest {
             .isEqual("507f1f77bcf86cd799439011")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNotNull
@@ -58,7 +59,7 @@ class ObjectIdReplacerTest {
             .isEqual("test")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -70,7 +71,7 @@ class ObjectIdReplacerTest {
         val expression = Expression.const<TestDocument, String>("507f1f77bcf86cd799439011")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -82,7 +83,7 @@ class ObjectIdReplacerTest {
         val expression = Expression.root<TestDocument>()
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -96,7 +97,7 @@ class ObjectIdReplacerTest {
             .isEqual("507f1f77bcf86cd799439011")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -110,7 +111,7 @@ class ObjectIdReplacerTest {
             .isEqual(null)
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -124,7 +125,7 @@ class ObjectIdReplacerTest {
             .isEqual("507f1f77bcf86cd799439011")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNotNull

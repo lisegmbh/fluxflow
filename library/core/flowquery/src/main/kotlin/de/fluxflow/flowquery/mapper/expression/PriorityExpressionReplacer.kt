@@ -2,23 +2,28 @@ package de.fluxflow.flowquery.mapper.expression
 
 import de.fluxflow.flowquery.expression.Expression
 
-class PriorityExpressionReplacer(
-    private val expressionReplacer: List<ExpressionReplacer>
+open class PriorityExpressionReplacer(
+    private val expressionReplacer: List<ExpressionReplacer>,
 ) : ExpressionReplacer {
-
-    override fun replace(expression: Expression<*, *>): Expression<*, *>? {
-        return ExpressionWalker().walk(expression) { context ->
-            doProcess(context.expression)
+    override fun replace(
+        node: ExpressionNode
+    ): Expression<*, *>? {
+        return ExpressionWalker().walk(node) { context ->
+            doProcess(context.current)
         }.replaceWith
     }
 
-    private fun doProcess(currentExp: Expression<*, *>): ExpressionWalkerResult {
+    private fun doProcess(node: ExpressionNode): ExpressionWalkerResult {
         val firstResult = expressionReplacer.firstNotNullOfOrNull { replacer ->
-            replacer.replace(currentExp)
+            replacer.replace(node)
         } ?: return ExpressionWalkerResult.Continue
 
         // Recurse
-        val recursionResult = replace(firstResult)
+        val recursionResult = replace(
+            ExpressionNode.root(
+                firstResult
+            )
+        )
         return when(recursionResult) {
             null -> ExpressionWalkerResult.Replace(firstResult)
             else -> ExpressionWalkerResult.Replace(recursionResult)

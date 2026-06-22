@@ -1,6 +1,7 @@
 package de.lise.fluxflow.persistence.workflow.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.mapper.expression.ExpressionNode
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.persistence.workflow.WorkflowData
@@ -36,7 +37,11 @@ class WorkflowQueryableToDataMapperTest {
 
         // Act
         val results = testExpressions.mapValues {
-            mapper.map(it.key)
+            mapper.map(
+                ExpressionNode.root(
+                    it.key
+                )
+            )
         }
 
         // Assert

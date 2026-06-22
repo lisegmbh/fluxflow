@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping
 
 import de.fluxflow.flowquery.expression.ConstantExpression
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.mapper.expression.ExpressionNode
 import org.assertj.core.api.Assertions.assertThat
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
@@ -17,7 +18,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, String>("507f1f77bcf86cd799439011")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNotNull
@@ -33,7 +34,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, String>("550e8400-e29b-41d4-a716-446655440000")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -46,7 +47,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, UUID>(uuid)
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -58,7 +59,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, String?>(null)
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -70,7 +71,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, Int>(42)
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -83,7 +84,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, ObjectId>(objectId)
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -95,7 +96,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.root<TestDocument>()
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -107,7 +108,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, String>("")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
@@ -119,7 +120,7 @@ class ObjectIdValueReplacerTest {
         val expression = Expression.const<Any, String>("not-an-objectid")
 
         // Act
-        val result = replacer.replace(expression)
+        val result = replacer.replace(ExpressionNode.root(expression))
 
         // Assert
         assertThat(result).isNull()
