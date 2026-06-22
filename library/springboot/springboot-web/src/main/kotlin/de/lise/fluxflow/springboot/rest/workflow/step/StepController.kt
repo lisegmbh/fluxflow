@@ -1,18 +1,22 @@
 package de.lise.fluxflow.springboot.rest.workflow.step
 
+import de.fluxflow.flowquery.expression.PredicateExpression
+import de.fluxflow.flowquery.mapper.expression.ExpressionMapper
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.ExperimentalApi
 import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.StepService
+import de.lise.fluxflow.api.step.query.StepQueryable
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowService
 import de.lise.fluxflow.rest.mapping.Mapping
 import de.lise.fluxflow.rest.mapping.Mapping.Companion.mapWith
+import de.lise.fluxflow.rest.workflow.step.StatefulStepSpecDto
 import de.lise.fluxflow.rest.workflow.step.StepDto
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import de.lise.fluxflow.springboot.rest.filter.FilterParser
+import de.lise.fluxflow.springboot.rest.filter.ODataTreeBuilder
+import org.springframework.web.bind.annotation.*
 
 @ExperimentalApi
 @RestController
@@ -25,14 +29,51 @@ class StepController(
     @GetMapping
     fun getAll(
       @PathVariable workflowId: String,
-      filter: StepFilter
+      @RequestParam(
+          $$"$filter",
+          required = false
+      )
+      filter: String?
     ): List<StepDto> {
         val workflow = workflowService.get<Any?>(
-            WorkflowIdentifier(workflowId)
+            WorkflowIdentifier(workflowId),
         )
 
-        return stepService.findSteps(workflow)
-            .mapWith(stepMapping)
+        val filterParser = FilterParser(
+            StepDto::class,
+            ODataTreeBuilder(
+                StepDto::class,
+                setOf(StatefulStepSpecDto::class),
+            )
+        )
+
+        val parsedFilter = filter?.let {
+            filterParser.parse(it)
+        }
+
+        val replacer: ExpressionMapper = StepDtoToStepQueryableReplacer().toMapper()
+
+        val replacedFilter = parsedFilter?.let {
+            replacer.map(it) as PredicateExpression<StepQueryable>
+        }
+
+        val query: FlowQuery<StepQueryable, StepQueryable>? = replacedFilter?.let {
+            FlowQuery.of<StepQueryable>().where(
+                replacedFilter
+            )
+        }
+
+        val results = query?.let {
+            stepService.findAll(workflow, query).items
+        } ?: stepService.findSteps(workflow)
+
+
+
+//        stepService.findAll(
+//            workflow,
+//            query
+//        ).mapWith(stepMapping)
+        return results.mapWith(stepMapping)
     }
 
     @GetMapping("/{stepId}")

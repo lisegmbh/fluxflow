@@ -34,3 +34,7 @@ tasks.generateGrammarSource {
 
     outputDirectory = layout.buildDirectory.dir("generated-src/antlr/main/$antlrPackagePath").get().asFile
 }
+
+tasks.compileKotlin {
+    dependsOn(tasks.generateGrammarSource)
+}

@@ -5,6 +5,7 @@ import de.lise.fluxflow.stereotyped.step.action.Action
 import de.lise.fluxflow.stereotyped.step.data.Data
 
 @Step
+@StarterStep
 class SubmitIdeaStep {
     @Data
     var summary: String = ""
@@ -12,7 +13,7 @@ class SubmitIdeaStep {
     var author: String = ""
     @Data
     var description: String = ""
-    
+
     @Action
     fun submit(): IdeaReviewStep {
         return IdeaReviewStep(

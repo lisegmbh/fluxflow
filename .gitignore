@@ -13,6 +13,8 @@ out/
 HELP.md
 .gradle
 build/
+**/src/main/gen/
+
 !/build
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/

@@ -7,9 +7,11 @@ GET {{api}}/workflow
 ### Get single workflow
 GET {{api}}/workflow/0
 
-
 ### Get workflow steps
 GET {{api}}/workflow/0/step
+
+### Get workflow steps with filter
+GET {{api}}/workflow/0/step?$filter=contains(metadata/kind, 'SubmitIdeaStep') and metadata/annotations/starter eq true and spec/data/non-existing eq null and status/status eq 'Active'
 
 ### Get single workflow step
 GET {{api}}/workflow/0/step/1

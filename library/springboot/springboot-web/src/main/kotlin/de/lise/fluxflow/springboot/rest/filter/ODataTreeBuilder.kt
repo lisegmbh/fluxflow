@@ -216,10 +216,12 @@ class ODataTreeBuilder<TElement : Any>(
             return expression
         }
         val currentPath = remaining.poll()
-        val foundProperty = findPropertyOnType(currentType, currentPath)
+        val foundProperty: KProperty1<out TCurrent, *>? = findPropertyOnType(currentType, currentPath)
 
         if (foundProperty != null) {
-            val nextExpression: PropertyExpression<TElement, TCurrent, Any> = expression.get(foundProperty)
+            val nextExpression: PropertyExpression<TElement, TCurrent, Any> = expression.get(
+                foundProperty as KProperty1<TCurrent, Any>
+            )
             val nextType: KClass<Any> = foundProperty.returnType.classifier as KClass<Any>
             return doBuildPath(
                 nextExpression,
@@ -231,7 +233,7 @@ class ODataTreeBuilder<TElement : Any>(
         if (currentType.isSubclassOf(Map::class)) {
             val nextExpression = MapAccessExpression(
                 expression as Expression<TElement, Map<String, Any>>,
-                Expression.const(currentPath.text)
+                Expression.const(currentPath.text),
             )
             return doBuildPath(
                 nextExpression,
