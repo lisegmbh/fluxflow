@@ -15,8 +15,6 @@ internal class MongoCompiler(
     private val expressionMapper: MongoCompilerMapper = MongoCompilerMapperImpl(),
     private val config: MongoCompilerConfig = MongoCompilerConfig()
 ) : ExpressionCompiler<MongoToken> {
-
-    
     private val logger = LoggerFactory.getLogger(MongoCompiler::class.java)
 
     override fun <TRoot, TResult> compile(
@@ -46,7 +44,7 @@ internal class MongoCompiler(
         return when (current) {
             is CastExpression<TRoot, *, *> -> doCompile(root, current.instance)
             is IsTypeExpression<TRoot, *, *> -> handleIsTypeExpression(root, current)
-            is BinaryOperationExpression<TRoot, *, *, *> -> handleBinaryOperation(root, current)
+            is BinaryOperationExpression<TRoot, *, *> -> handleBinaryOperation(root, current)
             is StartsWithExpression<TRoot> -> handleStartsWithExpression(root, current)
             is EndsWithExpression<TRoot> -> handleEndsWithExpression(root, current)
             is ContainsExpression<TRoot> -> handleContainsExpression(root, current)
@@ -80,7 +78,7 @@ internal class MongoCompiler(
 
     private fun <TRoot> handleBinaryOperation(
         root: Expression<TRoot, *>,
-        current: BinaryOperationExpression<TRoot, *, *, *>
+        current: BinaryOperationExpression<TRoot, *, *>
     ): MongoToken {
         val leftToken = doCompile(root, current.leftOperand).asStatementToken(root, current.leftOperand)
         val rightToken = doCompile(root, current.rightOperand).asValueToken(root, current.rightOperand)
@@ -132,8 +130,13 @@ internal class MongoCompiler(
         current: ContainsElementThatExpression<TRoot, *, *>
     ): MongoToken {
         val collectionToken = doCompile(root, current.collection).asStatementToken(root, current.collection)
-        val predicateToken = doCompile(Expression.root(), current.elementPredicate)
-            .asExpressionToken(root, current.elementPredicate)
+        val predicateToken = doCompile(
+            RootExpression(root.resultType),
+            current.elementPredicate
+        ).asExpressionToken(
+            root,
+            current.elementPredicate
+        )
 
         return ExpressionTokenImpl(
             Document(
@@ -148,8 +151,10 @@ internal class MongoCompiler(
         current: ContainsElementExpression<TRoot, *, *>
     ): MongoToken {
         val collectionToken = doCompile(root, current.collection).asStatementToken(root, current.collection)
-        val elementToken = doCompile(Expression.root(), current.element)
-            .asValueToken(root, current.element)
+        val elementToken = doCompile(
+            RootExpression(root.resultType),
+            current.element
+        ).asValueToken(root, current.element)
 
         return ExpressionTokenImpl(
             Document(

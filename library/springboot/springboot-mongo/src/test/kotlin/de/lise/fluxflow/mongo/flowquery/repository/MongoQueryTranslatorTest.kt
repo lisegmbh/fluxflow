@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
 import de.fluxflow.flowquery.expression.PredicateExpression
 import de.fluxflow.flowquery.expression.compilation.CompilationResult
 import de.fluxflow.flowquery.query.*

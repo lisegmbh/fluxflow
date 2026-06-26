@@ -1,5 +1,7 @@
 package de.fluxflow.flowquery.query
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isAnyOf
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

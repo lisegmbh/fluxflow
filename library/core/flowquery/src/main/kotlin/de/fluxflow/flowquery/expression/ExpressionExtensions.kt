@@ -1,5 +1,6 @@
 package de.fluxflow.flowquery.expression
 
+import de.fluxflow.flowquery.expression.Expression.Companion.const
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.hasKey
 import kotlin.reflect.KClass
@@ -12,6 +13,146 @@ import kotlin.reflect.KClass
  */
 object ExpressionExtensions {
 
+
+    object Comparisons {
+        /**
+         * Creates an equality comparison between this expression and a constant value.
+         *
+         * Example:
+         * ```
+         * val expr = user.get(User::age).isEqual(30)
+         * ```
+         *
+         * @param value the constant value to compare with
+         * @return a [PredicateExpression] representing the equality comparison
+         */
+        inline fun <TRoot, TCurrent, reified TOther> Expression<TRoot, TCurrent>.isEqual(
+            value: TOther
+        ): PredicateExpression<TRoot> {
+            return isEqual(
+                const(value)
+            )
+        }
+
+        /**
+         * Creates an inequality comparison between this expression and a constant value.
+         *
+         * Example:
+         * ```
+         * val expr = user.get(User::role).isNotEqual("guest")
+         * ```
+         *
+         * @param value the constant value to compare with
+         * @return a [PredicateExpression] representing the inequality comparison
+         */
+        inline fun <TRoot, TCurrent, reified TOther> Expression<TRoot, TCurrent>.isNotEqual(
+            value: TOther
+        ): PredicateExpression<TRoot> {
+            return isNotEqual(
+                const(value)
+            )
+        }
+
+        /**
+         * Creates a predicate that tests whether this expression's value is contained in a given collection.
+         *
+         * Example:
+         * ```
+         * val expr = user.get(User::status).isAnyOf(listOf("ACTIVE", "PENDING"))
+         * ```
+         *
+         * @param others the collection of possible values
+         * @return an [IsAnyOfOperator] that checks whether this expression matches any of the given values
+         */
+        inline fun <TRoot, reified TCurrent> Expression<TRoot, TCurrent>.isAnyOf(
+            others: Collection<TCurrent>
+        ): IsAnyOfOperator<TRoot, TCurrent> {
+            return IsAnyOfOperator(
+                this,
+                others.map {
+                    const<TRoot, TCurrent>(it)
+                }.toSet()
+            )
+        }
+
+        /**
+         * Creates a predicate that tests whether this expression's value is contained in one of the given values.
+         *
+         * Example:
+         * ```
+         * val expr = user.get(User::status).isAnyOf("ACTIVE", "PENDING")
+         * ```
+         *
+         * @param others one or more constant values to compare with
+         * @return an [IsAnyOfOperator] that checks whether this expression matches any of the given values
+         */
+        inline fun <TRoot, reified TCurrent> Expression<TRoot, TCurrent>.isAnyOf(
+            vararg others: TCurrent
+        ): IsAnyOfOperator<TRoot, TCurrent> {
+            return isAnyOf(others.toSet())
+        }
+
+        /**
+         * Creates a "less than or equal" comparison between this expression and a constant value.
+         *
+         * @param other the constant value to compare with
+         * @return a [PredicateExpression] representing the "less than or equal" comparison
+         */
+        inline fun <TRoot, TCurrent, reified TOther : Comparable<TCurrent>> Expression<TRoot, TCurrent>.isLessThanOrEqual(
+            other: TOther
+        ): PredicateExpression<TRoot> {
+            return this.isLessThanOrEqual(const(other))
+        }
+
+        /**
+         * Creates a "greater than" comparison between this expression and a constant value.
+         *
+         * Example:
+         * ```
+         * val expr = user.get(User::age).isGreaterThan(18)
+         * ```
+         *
+         * @param other the constant value to compare with
+         * @return a [PredicateExpression] representing the "greater than" comparison
+         */
+        inline fun <TRoot, TCurrent, reified TOther : Comparable<TCurrent>> Expression<TRoot, TCurrent>.isGreaterThan(
+            other: TOther
+        ): PredicateExpression<TRoot> {
+            return isGreaterThan(const(other))
+        }
+
+        /**
+         * Creates a "greater than or equal" comparison between this expression and a constant value.
+         *
+         * @param other the constant value to compare with
+         * @return a [PredicateExpression] representing the "greater than or equal" comparison
+         */
+        inline fun <TRoot, TCurrent, reified TOther : Comparable<TCurrent>> Expression<TRoot, TCurrent>.isGreaterThanOrEqual(
+            other: TOther
+        ): PredicateExpression<TRoot> {
+            return isGreaterThanOrEqual(const(other))
+        }
+
+        /**
+         * Creates a "less than" comparison between this expression and a constant value.
+         *
+         * Example:
+         * ```
+         * val expr = user.get(User::age).isLessThan(18)
+         * ```
+         *
+         * @param other the constant value to compare with
+         * @return a [PredicateExpression] representing the "less than" comparison
+         */
+        inline fun <TRoot, TCurrent, reified TOther : Comparable<TCurrent>> Expression<TRoot, TCurrent>.isLessThan(
+            other: TOther
+        ): PredicateExpression<TRoot> {
+            return isLessThan(
+                const(other)
+            )
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Logical Operations
     // --------------------------------------------------------------------------------------------
@@ -20,7 +161,6 @@ object ExpressionExtensions {
      * Provides logical combination and negation operations for predicate expressions.
      */
     object Logical {
-
         /**
          * Combines two predicate expressions using a logical AND.
          *
@@ -59,10 +199,17 @@ object ExpressionExtensions {
          * @param builder a builder function creating another predicate expression from the root
          * @return an [AndExpression] representing the conjunction of both predicates
          */
-        fun <TRoot> PredicateExpression<TRoot>.and(
+        inline fun <reified TRoot> PredicateExpression<TRoot>.and(
             builder: ExpressionBuilder<TRoot, TRoot, Boolean>,
         ): AndExpression<TRoot> {
-            return AndExpression(listOf(this, builder(Expression.root())))
+            return AndExpression(
+                listOf(
+                    this,
+                    builder(
+                        Expression.root()
+                    )
+                )
+            )
         }
 
         /**
@@ -103,7 +250,7 @@ object ExpressionExtensions {
          * @param builder a builder function creating another predicate expression from the root
          * @return an [OrExpression] representing the disjunction of both predicates
          */
-        fun <TRoot> PredicateExpression<TRoot>.or(
+        inline fun <reified TRoot> PredicateExpression<TRoot>.or(
             builder: ExpressionBuilder<TRoot, TRoot, Boolean>,
         ): PredicateExpression<TRoot> {
             return OrExpression(listOf(this, builder(Expression.root())))
@@ -123,7 +270,6 @@ object ExpressionExtensions {
             return NotExpression(this)
         }
     }
-
 
     // --------------------------------------------------------------------------------------------
     // String Operations
@@ -291,7 +437,7 @@ object ExpressionExtensions {
          * @param builder a builder function for creating the element predicate
          * @return a [PredicateExpression] representing the containment check
          */
-        fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.containsElementThat(
+        inline fun <TRoot, TCollection : Collection<TElement>, reified TElement> Expression<TRoot, TCollection>.containsElementThat(
             builder: RootExpression<TElement>.() -> PredicateExpression<TElement>,
         ): PredicateExpression<TRoot> {
             return this.containsElementThat(builder(Expression.root()))
@@ -328,7 +474,12 @@ object ExpressionExtensions {
         fun <TRoot, TCollection : Collection<TElement>, TElement> Expression<TRoot, TCollection>.contains(
             element: TElement,
         ): ContainsElementExpression<TRoot, TCollection, TElement> {
-            return contains(Expression.const(element))
+            return contains(
+                ConstantExpression(
+                    resultType,
+                    element
+                )
+            )
         }
     }
 
@@ -424,10 +575,12 @@ object ExpressionExtensions {
          * @see get for the overload accepting key expressions
          * @return an [Expression] representing the map value at the specified key
          */
-        operator fun <TRoot, TCurrent : Map<TKey, TValue>, TKey, TValue> Expression<TRoot, TCurrent>.get(
+        inline operator fun <TRoot, TCurrent : Map<TKey, TValue>, reified TKey, TValue> Expression<TRoot, TCurrent>.get(
             key: TKey
         ): Expression<TRoot, TValue> {
-            return this.get(Expression.const(key))
+            return this.get(
+                const<TRoot, TKey>(key)
+            )
         }
         
         /**
@@ -464,10 +617,10 @@ object ExpressionExtensions {
          * @param key the constant key to check for
          * @return an [Expression] of type [Boolean] representing whether the key exists
          */
-        fun <TRoot, TCurrent : Map<TKey, *>, TKey> Expression<TRoot, TCurrent>.hasKey(
+        inline fun <TRoot, TCurrent : Map<TKey, *>, reified TKey> Expression<TRoot, TCurrent>.hasKey(
             key: TKey
         ): Expression<TRoot, Boolean> {
-            return this.hasKey(Expression.const(key))
+            return this.hasKey(const(key))
         }
     }
 }

@@ -1,6 +1,8 @@
 package de.fluxflow.flowquery.expression
 
 import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 /**
  * Represents a node within a type-safe query expression tree.
@@ -15,6 +17,7 @@ import kotlin.reflect.KProperty1
  * @param TCurrent the value type represented by this expression node
  */
 sealed interface Expression<TRoot, TCurrent> {
+    val resultType: KType
 
     /**
      * Returns a textual representation of this expression, such as `"user.age > 18"`.
@@ -117,21 +120,6 @@ sealed interface Expression<TRoot, TCurrent> {
     }
 
     /**
-     * Creates an equality comparison between this expression and a constant value.
-     *
-     * Example:
-     * ```
-     * val expr = user.get(User::age).isEqual(30)
-     * ```
-     *
-     * @param value the constant value to compare with
-     * @return a [PredicateExpression] representing the equality comparison
-     */
-    fun isEqual(value: TCurrent?): PredicateExpression<TRoot> {
-        return isEqual(const(value))
-    }
-
-    /**
      * Creates an inequality comparison between this expression and another.
      *
      * Example:
@@ -146,50 +134,7 @@ sealed interface Expression<TRoot, TCurrent> {
         return BinaryOperationExpression(this, BinaryOperation.NotEqual, exp)
     }
 
-    /**
-     * Creates an inequality comparison between this expression and a constant value.
-     *
-     * Example:
-     * ```
-     * val expr = user.get(User::role).isNotEqual("guest")
-     * ```
-     *
-     * @param value the constant value to compare with
-     * @return a [PredicateExpression] representing the inequality comparison
-     */
-    fun isNotEqual(value: TCurrent): PredicateExpression<TRoot> {
-        return isNotEqual(const(value))
-    }
 
-    /**
-     * Creates a predicate that tests whether this expression's value is contained in a given collection.
-     *
-     * Example:
-     * ```
-     * val expr = user.get(User::status).isAnyOf(listOf("ACTIVE", "PENDING"))
-     * ```
-     *
-     * @param others the collection of possible values
-     * @return an [IsAnyOfOperator] that checks whether this expression matches any of the given values
-     */
-    fun isAnyOf(others: Collection<TCurrent>): IsAnyOfOperator<TRoot, TCurrent> {
-        return IsAnyOfOperator(this, others.map { ConstantExpression<TRoot, TCurrent>(it) }.toSet())
-    }
-
-    /**
-     * Creates a predicate that tests whether this expression's value is contained in one of the given values.
-     *
-     * Example:
-     * ```
-     * val expr = user.get(User::status).isAnyOf("ACTIVE", "PENDING")
-     * ```
-     *
-     * @param others one or more constant values to compare with
-     * @return an [IsAnyOfOperator] that checks whether this expression matches any of the given values
-     */
-    fun isAnyOf(vararg others: TCurrent): IsAnyOfOperator<TRoot, TCurrent> {
-        return isAnyOf(others.toSet())
-    }
 
     /**
      * Creates a "less than" comparison between this expression and another.
@@ -207,21 +152,6 @@ sealed interface Expression<TRoot, TCurrent> {
     }
 
     /**
-     * Creates a "less than" comparison between this expression and a constant value.
-     *
-     * Example:
-     * ```
-     * val expr = user.get(User::age).isLessThan(18)
-     * ```
-     *
-     * @param other the constant value to compare with
-     * @return a [PredicateExpression] representing the "less than" comparison
-     */
-    fun <TOther : Comparable<TCurrent>> isLessThan(other: TOther): PredicateExpression<TRoot> {
-        return isLessThan(const(other))
-    }
-
-    /**
      * Creates a "less than or equal" comparison between this expression and another.
      *
      * @param exp the expression to compare with
@@ -229,16 +159,6 @@ sealed interface Expression<TRoot, TCurrent> {
      */
     fun <TOther : Comparable<TCurrent>> isLessThanOrEqual(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(this, BinaryOperation.LessThanOrEqual, exp)
-    }
-
-    /**
-     * Creates a "less than or equal" comparison between this expression and a constant value.
-     *
-     * @param other the constant value to compare with
-     * @return a [PredicateExpression] representing the "less than or equal" comparison
-     */
-    fun <TOther : Comparable<TCurrent>> isLessThanOrEqual(other: TOther): PredicateExpression<TRoot> {
-        return isLessThanOrEqual(const(other))
     }
 
     /**
@@ -257,21 +177,6 @@ sealed interface Expression<TRoot, TCurrent> {
     }
 
     /**
-     * Creates a "greater than" comparison between this expression and a constant value.
-     *
-     * Example:
-     * ```
-     * val expr = user.get(User::age).isGreaterThan(18)
-     * ```
-     *
-     * @param other the constant value to compare with
-     * @return a [PredicateExpression] representing the "greater than" comparison
-     */
-    fun <TOther : Comparable<TCurrent>> isGreaterThan(other: TOther): PredicateExpression<TRoot> {
-        return isGreaterThan(const(other))
-    }
-
-    /**
      * Creates a "greater than or equal" comparison between this expression and another.
      *
      * @param exp the expression to compare with
@@ -279,16 +184,6 @@ sealed interface Expression<TRoot, TCurrent> {
      */
     fun <TOther : Comparable<TCurrent>> isGreaterThanOrEqual(exp: Expression<TRoot, TOther>): PredicateExpression<TRoot> {
         return BinaryOperationExpression(this, BinaryOperation.GreaterThanOrEqual, exp)
-    }
-
-    /**
-     * Creates a "greater than or equal" comparison between this expression and a constant value.
-     *
-     * @param other the constant value to compare with
-     * @return a [PredicateExpression] representing the "greater than or equal" comparison
-     */
-    fun <TOther : Comparable<TCurrent>> isGreaterThanOrEqual(other: TOther): PredicateExpression<TRoot> {
-        return isGreaterThanOrEqual(const(other))
     }
 
 
@@ -324,8 +219,11 @@ sealed interface Expression<TRoot, TCurrent> {
          * @param value the constant value to wrap
          * @return a [ConstantExpression] representing the given value
          */
-        fun <TRoot, T> const(value: T): ConstantExpression<TRoot, T> {
-            return ConstantExpression(value)
+        inline fun <TRoot, reified T> const(value: T): ConstantExpression<TRoot, T> {
+            return ConstantExpression(
+                typeOf<T>(),
+                value
+            )
         }
 
         /**
@@ -338,8 +236,8 @@ sealed interface Expression<TRoot, TCurrent> {
          *
          * @return a [RootExpression] representing the root of a new expression tree
          */
-        fun <T> root(): RootExpression<T> {
-            return RootExpression()
+        inline fun <reified T> root(): RootExpression<T> {
+            return RootExpression(typeOf<T>())
         }
     }
 }

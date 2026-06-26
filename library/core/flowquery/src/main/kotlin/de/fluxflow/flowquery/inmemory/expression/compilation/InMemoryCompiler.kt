@@ -47,7 +47,7 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOp<*, *>> {
                 )
             }
 
-            is BinaryOperationExpression<TRoot, *, *, *> -> {
+            is BinaryOperationExpression<TRoot, *, *> -> {
                 when (exp.operation) {
                     else -> BinaryOperatorOp(
                         when (exp.operation) {

@@ -1,7 +1,10 @@
 package de.lise.fluxflow.engine.step
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isAnyOf
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.service.ResourceQueryService.Companion.findAll
 import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.state.ChangeDetector

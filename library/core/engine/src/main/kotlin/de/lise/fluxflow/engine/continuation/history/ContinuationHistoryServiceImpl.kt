@@ -1,8 +1,10 @@
 package de.lise.fluxflow.engine.continuation.history
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.and
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.service.ResourceQueryService.Companion.findAll
 import de.lise.fluxflow.api.WorkflowObjectKind
 import de.lise.fluxflow.api.WorkflowObjectReference
 import de.lise.fluxflow.api.continuation.Continuation

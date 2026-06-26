@@ -71,12 +71,12 @@ data class Sorting(
         return thenByAsc(listOf(*expressions))
     }
     
-    fun <TRoot> thenByAsc(
+    inline fun <reified TRoot> thenByAsc(
         vararg builder: (Expression<TRoot, *>).() -> Expression<TRoot, *>
     ): Sorting {
         return thenByAll(
             builder.map { 
-                it(Expression.Companion.root()).asc()
+                it(Expression.root()).asc()
             }
         )
     }

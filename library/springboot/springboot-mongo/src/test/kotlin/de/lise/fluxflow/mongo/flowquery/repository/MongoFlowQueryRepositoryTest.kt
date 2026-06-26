@@ -1,18 +1,14 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
+import de.fluxflow.flowquery.repository.NonProjectingRepository.Companion.find
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.eq
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
+import org.mockito.kotlin.*
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.aggregation.Aggregation

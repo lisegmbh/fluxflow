@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.flowquery.expression.compilation.mapping
 
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
 import de.fluxflow.flowquery.mapper.expression.ExpressionNode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

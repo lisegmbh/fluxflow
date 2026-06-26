@@ -1,8 +1,11 @@
 package de.fluxflow.flowquery.inmemory.query
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isLessThan
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.inmemory.expression.compilation.InMemoryCompiler
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.desc
+import de.fluxflow.flowquery.repository.NonProjectingRepository.Companion.find
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

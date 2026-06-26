@@ -1,8 +1,13 @@
 package de.fluxflow.flowquery.expression
 
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
+
 class OrExpression<TRoot>(
     predicates: List<PredicateExpression<TRoot>>
 ): PredicateExpression<TRoot> {
+    override val resultType: KType = typeOf<Boolean>()
+
     val predicates = predicates.simplify()
 
     private companion object {

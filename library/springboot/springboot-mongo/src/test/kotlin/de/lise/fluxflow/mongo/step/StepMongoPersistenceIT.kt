@@ -1,6 +1,8 @@
 package de.lise.fluxflow.mongo.step
 
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isGreaterThan
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.query.FlowQuery

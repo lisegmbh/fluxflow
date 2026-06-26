@@ -3,9 +3,13 @@ package de.fluxflow.flowquery.mapper.expression
 import de.fluxflow.flowquery.expression.ConstantExpression
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.PropertyExpression
+import de.fluxflow.flowquery.expression.RootExpression
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer.Companion.constantOfType
 import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer.Companion.property
+import de.fluxflow.flowquery.mapper.expression.ExpressionReplacer.Companion.root
 import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 /**
  * A *partial* transformation of a single [ExpressionNode].
@@ -115,6 +119,61 @@ fun interface ExpressionReplacer {
         }
 
         /**
+         * Creates a replacer that re-types the root of an expression to [newType].
+         *
+         * Only [RootExpression]s are considered. A root whose [RootExpression.resultType]
+         * already equals [newType] is left untouched. Otherwise [predicate] is consulted with
+         * the root's current type: when it returns `true` the root is replaced with a fresh
+         * [RootExpression] typed as [newType]; when it returns `false` the root is left
+         * untouched. All non-root expressions are left untouched.
+         *
+         * This is typically used to retarget a query from a domain root type onto its
+         * persisted representation before further property rewrites are applied.
+         *
+         * @param newType the type the replaced root should resolve to
+         * @param predicate decides, given a root's current type, whether that root should be
+         * re-typed to [newType]
+         * @return a replacer that re-types matching roots to [newType]
+         */
+        fun root(
+            newType: KType,
+            predicate: (currentType: KType) -> Boolean
+        ): ExpressionReplacer {
+            return ExpressionReplacer {
+                when(val exp = it.expression) {
+                    is RootExpression<*> -> when(exp.resultType) {
+                        newType -> null
+                        else -> when(predicate(exp.resultType)) {
+                            true -> RootExpression<Any?>(
+                                newType
+                            )
+                            else -> null
+                        }
+                    }
+                    else -> null
+                }
+            }
+        }
+
+        /**
+         * Creates a replacer that re-types the root of an expression to [TNewRoot].
+         *
+         * Convenience overload of [root] that targets every root regardless of its current
+         * type: any [RootExpression] not already typed as [TNewRoot] is replaced with a fresh
+         * root typed as [TNewRoot]. All non-root expressions are left untouched.
+         *
+         * @param TNewRoot the type the replaced root should resolve to
+         * @return a replacer that re-types every non-matching root to [TNewRoot]
+         */
+        inline fun <reified TNewRoot> root(): ExpressionReplacer {
+            return root(
+                typeOf<TNewRoot>()
+            ) {
+                true
+            }
+        }
+
+        /**
          * Creates a replacer that re-targets a property access from a source type to an
          * equivalent property on a target type.
          *
@@ -167,6 +226,7 @@ fun interface ExpressionReplacer {
                 listOf(
                     constantOfType<TDomainValue> {
                         ConstantExpression<Any, TProperty>(
+                            valueProperty.returnType,
                             valueProperty.get(it)
                         )
                     },

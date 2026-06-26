@@ -2,6 +2,10 @@ package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.contains
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.containsElementThat
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isAnyOf
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isGreaterThan
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isLessThan
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.and
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.not
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Maps.get
@@ -13,6 +17,10 @@ import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
 import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
+import de.fluxflow.flowquery.repository.NonProjectingRepository.Companion.find
+import de.fluxflow.flowquery.repository.NonProjectingRepository.Companion.findSingle
+import de.fluxflow.flowquery.repository.ProjectingRepository.Companion.find
+import de.fluxflow.flowquery.repository.ProjectingRepository.Companion.findSingle
 import de.lise.fluxflow.mongo.MongoIntegrationTest
 import org.assertj.core.api.Assertions.assertThat
 import org.bson.types.ObjectId

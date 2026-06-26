@@ -1,6 +1,7 @@
 package de.fluxflow.flowquery.query
 
 import de.fluxflow.flowquery.expression.*
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
@@ -33,7 +34,7 @@ data class FlowQueryImpl<TRoot, TResult>(
 
     override fun <TNewResult> project(projection: Expression<TResult, TNewResult>): FlowQuery<TRoot, TNewResult> {
         return FlowQueryImpl(
-            cursor = ConjunctionExpression(),
+            cursor = ConjunctionExpression(projection.resultType),
             operations = operations + ProjectionOperation(projection),
             pagination = pagination
         )

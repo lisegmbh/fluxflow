@@ -1,6 +1,10 @@
 package de.fluxflow.flowquery.expression
 
-class ConjunctionExpression<TRoot, TCurrent> : Expression<TRoot, TCurrent> {
+import kotlin.reflect.KType
+
+class ConjunctionExpression<TRoot, TCurrent>(
+    override val resultType: KType,
+) : Expression<TRoot, TCurrent> {
     override fun toText(): String {
         return "$"
     }

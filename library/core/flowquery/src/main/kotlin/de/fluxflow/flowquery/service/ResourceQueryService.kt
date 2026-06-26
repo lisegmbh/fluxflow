@@ -46,27 +46,31 @@ interface ResourceQueryService<TResource, TQueryable> {
         query: FlowQuery<TQueryable, TQueryable>
     ): Page<TResource>
 
-    /**
-     * Builds and executes a [FlowQuery] using a [de.fluxflow.flowquery.query.FlowQueryBuilder].
-     *
-     * This convenience overload lets you use a lambda-style query builder:
-     * ```kotlin
-     * service.findAll {
-     *     where { get(User::name).startsWith("A") }
-     *         .sort { get(User::age).asc() }
-     * }
-     * ```
-     *
-     * @param queryBuilder A lambda that builds a [FlowQuery] from an empty base query.
-     * @return A [Page] of [TResource]s matching the built query.
-     */
-    fun findAll(
-        queryBuilder: FlowQueryBuilder<TQueryable, TQueryable>
-    ): Page<TResource> {
-        return findAll(
-            queryBuilder(
-                FlowQuery.Companion.of()
+
+
+    companion object {
+        /**
+         * Builds and executes a [FlowQuery] using a [de.fluxflow.flowquery.query.FlowQueryBuilder].
+         *
+         * This convenience overload lets you use a lambda-style query builder:
+         * ```kotlin
+         * service.findAll {
+         *     where { get(User::name).startsWith("A") }
+         *         .sort { get(User::age).asc() }
+         * }
+         * ```
+         *
+         * @param queryBuilder A lambda that builds a [FlowQuery] from an empty base query.
+         * @return A [Page] of [TResource]s matching the built query.
+         */
+        inline fun <TResource, reified TQueryable> ResourceQueryService<TResource, TQueryable>.findAll(
+            queryBuilder: FlowQueryBuilder<TQueryable, TQueryable>
+        ): Page<TResource> {
+            return findAll(
+                queryBuilder(
+                    FlowQuery.of()
+                )
             )
-        )
+        }
     }
 }

@@ -1,6 +1,7 @@
 package de.lise.fluxflow.persistence.workflow.flowquery
 
 import de.fluxflow.flowquery.expression.Expression
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
 import de.fluxflow.flowquery.mapper.expression.ExpressionNode
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable

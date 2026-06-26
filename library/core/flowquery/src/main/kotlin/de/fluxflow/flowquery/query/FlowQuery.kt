@@ -3,6 +3,7 @@ package de.fluxflow.flowquery.query
 import de.fluxflow.flowquery.expression.Expression
 import de.fluxflow.flowquery.expression.ExpressionBuilder
 import de.fluxflow.flowquery.expression.PredicateExpression
+import de.fluxflow.flowquery.expression.RootExpression
 import de.fluxflow.flowquery.query.sorting.Sorting
 import de.lise.fluxflow.query.pagination.PaginationRequest
 
@@ -300,9 +301,31 @@ interface FlowQuery<TRoot, TResult> {
          * @param TRoot the root entity or type of the query
          * @return a new [FlowQuery] instance initialized with an empty operation list
          */
-        fun <TRoot> of(): FlowQuery<TRoot, TRoot> {
+        inline fun <reified TRoot> of(): FlowQuery<TRoot, TRoot> {
             return FlowQueryImpl(
                 Expression.root(),
+                operations = emptyList(),
+                pagination = null
+            )
+        }
+
+        /**
+         * Creates a new [FlowQuery] whose root and result type are the same.
+         *
+         * Example:
+         * ```
+         * val query = FlowQuery.of<User>()
+         * ```
+         *
+         * @param TRoot the root entity or type of the query
+         * @param rootExpression the root expression.
+         * @return a new [FlowQuery] instance initialized with an empty operation list
+         */
+        fun <TRoot> of(
+            rootExpression: RootExpression<TRoot>
+        ): FlowQuery<TRoot, TRoot> {
+            return FlowQueryImpl(
+                rootExpression,
                 operations = emptyList(),
                 pagination = null
             )
@@ -322,7 +345,7 @@ interface FlowQuery<TRoot, TResult> {
          * @param builder a builder function that configures and returns a [FlowQuery]
          * @return a new [FlowQuery] instance created by applying the builder
          */
-        fun <TRoot, TResult> of(
+        inline fun <reified TRoot, TResult> of(
             builder: FlowQueryBuilder<TRoot, TResult>
         ): FlowQuery<TRoot, TResult> {
             return builder(of())

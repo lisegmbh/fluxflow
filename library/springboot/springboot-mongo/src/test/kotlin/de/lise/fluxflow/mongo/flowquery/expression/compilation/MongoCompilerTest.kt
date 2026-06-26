@@ -2,6 +2,12 @@ package de.lise.fluxflow.mongo.flowquery.expression.compilation
 
 import de.fluxflow.flowquery.expression.*
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Collections.contains
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isEqual
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isGreaterThan
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isGreaterThanOrEqual
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isLessThan
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isLessThanOrEqual
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isNotEqual
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.and
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Logical.or
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Strings.endsWith

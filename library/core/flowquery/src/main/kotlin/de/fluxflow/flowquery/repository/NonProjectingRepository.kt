@@ -35,23 +35,79 @@ interface NonProjectingRepository<TRoot> {
      */
     fun find(query: FlowQuery<TRoot, TRoot>): Page<TRoot>
 
-    /**
-     * Executes a query built via a builder function and returns a paged list of matching root entities.
-     *
-     * Example:
-     * ```
-     * val page = repository.find {
-     *     it.where { get(User::isActive).isEqual(true) }.paged(pageIndex = 0, pageSize = 20)
-     * }
-     * ```
-     *
-     * @param builder a function that builds the [FlowQuery] to execute
-     * @return a [Page] containing the matching root entities
-     */
-    fun find(
-        builder: FlowQueryBuilder<TRoot, TRoot>
-    ): Page<TRoot> {
-        return find(builder(FlowQuery.Companion.of()))
+    companion object {
+        /**
+         * Executes a query built via a builder function and returns a paged list of matching root entities.
+         *
+         * Example:
+         * ```
+         * val page = repository.find {
+         *     it.where { get(User::isActive).isEqual(true) }.paged(pageIndex = 0, pageSize = 20)
+         * }
+         * ```
+         *
+         * @param builder a function that builds the [FlowQuery] to execute
+         * @return a [Page] containing the matching root entities
+         */
+        inline fun <reified TRoot> NonProjectingRepository<TRoot>.find(
+            builder: FlowQueryBuilder<TRoot, TRoot>
+        ): Page<TRoot> {
+            return find(builder(FlowQuery.of()))
+        }
+
+        /**
+         * Executes a query built via a builder function and returns the first matching root entity.
+         *
+         * @param builder a function that builds the [FlowQuery] to execute
+         * @return the first matching root entity
+         * @throws NoSuchElementException if no entity matches the query
+         */
+        inline fun <reified TRoot> NonProjectingRepository<TRoot>.findFirst(
+            builder: FlowQueryBuilder<TRoot, TRoot>,
+        ): TRoot {
+            return findFirst(builder(FlowQuery.of()))
+        }
+
+        /**
+         * Executes a query built via a builder function and returns the first matching root entity,
+         * or `null` if none is found.
+         *
+         * @param builder a function that builds the [FlowQuery] to execute
+         * @return the first matching root entity, or `null` if none found
+         */
+        inline fun <reified TRoot> NonProjectingRepository<TRoot>.findFirstOrNull(
+            builder: FlowQueryBuilder<TRoot, TRoot>
+        ): TRoot? {
+            return findFirstOrNull(builder(FlowQuery.of()))
+        }
+
+        /**
+         * Executes a query built via a builder function and returns exactly one matching root entity.
+         *
+         * @param builder a function that builds the [FlowQuery] to execute
+         * @return the single matching root entity
+         * @throws NoSuchElementException if no entity matches the query
+         * @throws IllegalStateException if more than one entity matches the query
+         */
+        inline fun <reified TRoot> NonProjectingRepository<TRoot>.findSingle(
+            builder: FlowQueryBuilder<TRoot, TRoot>
+        ): TRoot {
+            return findSingle(builder(FlowQuery.of()))
+        }
+
+        /**
+         * Executes a query built via a builder function and returns a single matching root entity,
+         * or `null` if none is found.
+         *
+         * @param builder a function that builds the [FlowQuery] to execute
+         * @return the single matching root entity, or `null` if none found
+         * @throws IllegalStateException if more than one entity matches the query
+         */
+        inline fun <reified TRoot> NonProjectingRepository<TRoot>.findSingleOrNull(
+            builder: FlowQueryBuilder<TRoot, TRoot>
+        ): TRoot? {
+            return findSingleOrNull(builder(FlowQuery.of()))
+        }
     }
 
 
@@ -75,20 +131,6 @@ interface NonProjectingRepository<TRoot> {
      */
     fun findFirst(query: FlowQuery<TRoot, TRoot>): TRoot
 
-    /**
-     * Executes a query built via a builder function and returns the first matching root entity.
-     *
-     * @param builder a function that builds the [FlowQuery] to execute
-     * @return the first matching root entity
-     * @throws NoSuchElementException if no entity matches the query
-     */
-    fun findFirst(
-        builder: FlowQueryBuilder<TRoot, TRoot>,
-    ): TRoot {
-        return findFirst(builder(FlowQuery.Companion.of()))
-    }
-
-
     // --------------------------------------------------------------------------------------------
     // findFirstOrNull
     // --------------------------------------------------------------------------------------------
@@ -108,20 +150,6 @@ interface NonProjectingRepository<TRoot> {
      * @return the first matching root entity, or `null` if none found
      */
     fun findFirstOrNull(query: FlowQuery<TRoot, TRoot>): TRoot?
-
-    /**
-     * Executes a query built via a builder function and returns the first matching root entity,
-     * or `null` if none is found.
-     *
-     * @param builder a function that builds the [FlowQuery] to execute
-     * @return the first matching root entity, or `null` if none found
-     */
-    fun findFirstOrNull(
-        builder: FlowQueryBuilder<TRoot, TRoot>
-    ): TRoot? {
-        return findFirstOrNull(builder(FlowQuery.Companion.of()))
-    }
-
 
     // --------------------------------------------------------------------------------------------
     // findSingle
@@ -144,21 +172,6 @@ interface NonProjectingRepository<TRoot> {
      */
     fun findSingle(query: FlowQuery<TRoot, TRoot>): TRoot
 
-    /**
-     * Executes a query built via a builder function and returns exactly one matching root entity.
-     *
-     * @param builder a function that builds the [FlowQuery] to execute
-     * @return the single matching root entity
-     * @throws NoSuchElementException if no entity matches the query
-     * @throws IllegalStateException if more than one entity matches the query
-     */
-    fun findSingle(
-        builder: FlowQueryBuilder<TRoot, TRoot>
-    ): TRoot {
-        return findSingle(builder(FlowQuery.Companion.of()))
-    }
-
-
     // --------------------------------------------------------------------------------------------
     // findSingleOrNull
     // --------------------------------------------------------------------------------------------
@@ -180,17 +193,4 @@ interface NonProjectingRepository<TRoot> {
      */
     fun findSingleOrNull(query: FlowQuery<TRoot, TRoot>): TRoot?
 
-    /**
-     * Executes a query built via a builder function and returns a single matching root entity,
-     * or `null` if none is found.
-     *
-     * @param builder a function that builds the [FlowQuery] to execute
-     * @return the single matching root entity, or `null` if none found
-     * @throws IllegalStateException if more than one entity matches the query
-     */
-    fun findSingleOrNull(
-        builder: FlowQueryBuilder<TRoot, TRoot>
-    ): TRoot? {
-        return findSingleOrNull(builder(FlowQuery.Companion.of()))
-    }
 }

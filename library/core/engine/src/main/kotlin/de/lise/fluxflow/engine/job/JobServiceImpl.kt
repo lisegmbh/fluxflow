@@ -1,7 +1,9 @@
 package de.lise.fluxflow.engine.job
 
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Comparisons.isAnyOf
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.service.ResourceQueryService.Companion.findAll
 import de.lise.fluxflow.api.job.*
 import de.lise.fluxflow.api.job.continuation.JobContinuation
 import de.lise.fluxflow.api.job.query.JobQuery
