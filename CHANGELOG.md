@@ -29,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
 
 ### Changed
+1. **Spring Boot 4 variants now use Jackson 3**<br/>
+   The `-spring4` variant of `springboot-web` now consumes Spring Boot 4's auto-configured
+   Jackson 3 `ObjectMapper` (`tools.jackson.databind.ObjectMapper`) instead of requiring a
+   Jackson 2 `com.fasterxml.jackson.databind.ObjectMapper` bean, which Spring Boot 4 no longer auto-configures.
+   This fixes context startup failures (`NoSuchBeanDefinitionException: com.fasterxml.jackson.databind.ObjectMapper`)
+   and removes the need for the deprecated `spring-boot-jackson2` workaround in consuming
+   applications. 
+   `tools.jackson.module:jackson-module-kotlin` is now a runtime dependency of
+   `springboot-web-spring4`, so request bodies deserialize into Kotlin data classes out of the box.
+   The `-spring3` variants are unaffected and remain on Jackson 2.
+
 ### Deprecated
 1. **Legacy Query/Filter API**<br/>
    The legacy query and filter APIs are now deprecated in favor of the new FlowQuery API.   
