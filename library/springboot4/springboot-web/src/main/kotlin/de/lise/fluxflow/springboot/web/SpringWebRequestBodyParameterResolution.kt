@@ -1,12 +1,13 @@
 package de.lise.fluxflow.springboot.web
 
-import com.fasterxml.jackson.core.JacksonException
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.exc.MismatchedInputException
 import de.lise.fluxflow.reflection.activation.parameter.FunctionParameter
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
+import tools.jackson.core.JacksonException
+import tools.jackson.core.exc.JacksonIOException
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.exc.MismatchedInputException
 
 class SpringWebRequestBodyParameterResolution(
     functionParam: FunctionParameter<*>,
@@ -17,6 +18,9 @@ class SpringWebRequestBodyParameterResolution(
     override fun get(request: HttpServletRequest): Any? {
         return try {
             objectMapper.readValue(request.inputStream, targetType)
+        } catch (e: JacksonIOException) {
+            // Underlying I/O failures are not client errors and must not become a 400.
+            throw e
         } catch (e: JacksonException) {
             if(optional && e is MismatchedInputException) {
                 return null

@@ -21,7 +21,7 @@ val projVersion = project.findProperty("projVersion")
 
 val springBoot3Version = "3.5.7"
 val springBoot4Version = "4.0.6"
-val defaultProjectVersion = "0.3.0-SNAPSHOT-7"
+val defaultProjectVersion = "0.3.0-SNAPSHOT-8"
 val resolvedProjectVersion = projVersion ?: defaultProjectVersion
 
 val intermediateProjectPaths = setOf(":core", ":springboot", ":springboot4")
