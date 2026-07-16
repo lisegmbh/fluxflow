@@ -21,7 +21,9 @@ pipeline {
             steps {
                 container('gradle') {
                     dir('library') {
-                        sh 'gradle build'
+                        // buildSrc:test must be requested explicitly - Gradle no longer
+                        // runs buildSrc tests as part of the main build.
+                        sh 'gradle build buildSrc:test'
                     }
                 }
             }

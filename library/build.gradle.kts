@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.dokka") version "2.2.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.vanniktech.maven.publish") version "0.37.0"
+    id("fluxflow.publication-verification")
 }
 
 repositories {
@@ -173,4 +174,11 @@ subprojects {
             }
         }
     }
+}
+
+// The publishing plugin is only applied to the root project to make its typed
+// accessors available within the subprojects block. The root project itself
+// must never publish (it would surface as an empty "de.lise.fluxflow:fluxflow").
+tasks.withType<AbstractPublishToMaven>().configureEach {
+    enabled = false
 }

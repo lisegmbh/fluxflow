@@ -29,7 +29,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
 
 ### Changed
-1. **Spring Boot 4 variants now use Jackson 3**<br/>
+1. **Spring integration artifacts are now published in two explicit lines**<br/>
+   All Spring Boot integration artifacts are now published under coordinates that carry the supported
+   Spring Boot major version: `*-spring3` for Spring Boot 3 (e.g. `de.lise.fluxflow:springboot-spring3`)
+   and `*-spring4` for Spring Boot 4 (e.g. `de.lise.fluxflow:springboot-spring4`).
+   The historical, unsuffixed coordinates (e.g. `de.lise.fluxflow:springboot`) are legacy Boot 3-only
+   releases and will not receive new versions - migrate to the `-spring3` coordinates when upgrading.
+   Core artifacts remain Spring-agnostic and keep their unsuffixed coordinates.
+   Both lines are released together, and the build now verifies the published coordinates
+   before anything is published.
+   [Issue #401](https://github.com/lisegmbh/fluxflow/issues/401),
+   [Issue #402](https://github.com/lisegmbh/fluxflow/issues/402),
+   [Issue #405](https://github.com/lisegmbh/fluxflow/issues/405)
+2. **Spring Boot 4 variants now use Jackson 3**<br/>
    The `-spring4` variant of `springboot-web` now consumes Spring Boot 4's auto-configured
    Jackson 3 `ObjectMapper` (`tools.jackson.databind.ObjectMapper`) instead of requiring a
    Jackson 2 `com.fasterxml.jackson.databind.ObjectMapper` bean, which Spring Boot 4 no longer auto-configures.
