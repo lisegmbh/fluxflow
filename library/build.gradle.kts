@@ -83,7 +83,7 @@ subprojects {
         testImplementation("org.assertj:assertj-core:3.27.7")
         testImplementation("org.mockito:mockito-inline:5.2.0")
 
-        testImplementation(platform("org.junit:junit-bom:6.1.2"))
+        testImplementation(platform("org.junit:junit-bom:6.1.3"))
         testImplementation("org.junit.jupiter:junit-jupiter")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
