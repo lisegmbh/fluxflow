@@ -98,6 +98,31 @@ class TypeRegistryTest {
     }
 
     @Test
+    fun `M05 should reject undeclared key variations without consulting the classloader`() {
+        val classRequests = mutableListOf<String>()
+        val classLoader = object : ClassLoader(javaClass.classLoader) {
+            override fun loadClass(name: String, resolve: Boolean): Class<*> {
+                classRequests += name
+                return super.loadClass(name, resolve)
+            }
+        }
+        val registry = TypeRegistry.create(
+            classLoader,
+            listOf(TypeManifestEntry(TypeRole.STEP, "review", String::class.java.name, "test")),
+        )
+        val requestsAfterBuild = classRequests.toList()
+
+        listOf("Review", " review", "review ", "example.review").forEach { variation ->
+            assertThatThrownBy { registry.resolve(TypeRole.STEP, variation) }
+                .isInstanceOf(UnknownTypeException::class.java)
+        }
+        assertThatThrownBy { registry.resolve(TypeRole.JOB, "review") }
+            .isInstanceOf(UnknownTypeException::class.java)
+
+        assertThat(classRequests).containsExactlyElementsOf(requestsAfterBuild)
+    }
+
+    @Test
     fun `M04 should resolve manifest classes without initializing them`() {
         val property = ManifestInitializationWitness::class.java.name + ".initialized"
         System.clearProperty(property)
