@@ -5,6 +5,8 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
 
 class SecurityTestsTest {
@@ -49,7 +51,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest", "--tests", "MissingTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline must execute at least one test")
+        assertThat(result.output).contains("Security baseline does not allow test filters")
     }
 
     @Test
@@ -136,7 +138,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest", "--tests", "*BaselineTest.baseline").buildAndFail()
 
-        assertThat(result.output).contains("Required security baseline classes did not execute", "MongoBaselineTest")
+        assertThat(result.output).contains("Security baseline does not allow test filters")
     }
 
     @Test
@@ -181,6 +183,25 @@ class SecurityTestsTest {
         baseline("@Test void first() {} @Test void second() {}")
 
         val result = runner("securityTest", "--tests", "*BaselineTest.first").buildAndFail()
+
+        assertThat(result.output).contains("Security baseline does not allow test filters")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "filter { includeTestsMatching '*BaselineTest.first' }",
+        "filter { excludeTestsMatching '*BaselineTest.second' }",
+        "useJUnitPlatform { includeTags 'fast' }",
+        "useJUnitPlatform { excludeTags 'slow' }",
+    ])
+    fun `security gate should reject configured method and tag filters`(selection: String) {
+        fixture("""
+            securityTests.requiredClasses = ['de.lise.fluxflow.mongo.security.baseline.BaselineTest']
+            securityTest { $selection }
+        """.trimIndent())
+        baseline("@Test @Tag(\"fast\") void first() {} @Test @Tag(\"slow\") void second() {}")
+
+        val result = runner("securityTest").buildAndFail()
 
         assertThat(result.output).contains("Security baseline does not allow test filters")
     }

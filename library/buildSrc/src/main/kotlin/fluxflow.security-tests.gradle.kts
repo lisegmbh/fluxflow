@@ -1,9 +1,11 @@
 import de.lise.fluxflow.gradle.SecurityTestRequirements
+import de.lise.fluxflow.gradle.MandatorySecurityTest
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.TestDescriptor
 import org.gradle.api.tasks.testing.TestListener
 import org.gradle.api.tasks.testing.TestResult
+import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions
 
 plugins {
     java
@@ -19,7 +21,14 @@ securityRequirements.requiredClasses.convention(emptyList())
 val verifySecurityTestClasses = tasks.register("verifySecurityTestClasses") {
     dependsOn(tasks.named("testClasses"))
     doLast {
-        val classes = tasks.named<Test>("securityTest").get().candidateClassFiles
+        val securityTask = tasks.named<Test>("securityTest").get()
+        val platformOptions = securityTask.options as? JUnitPlatformOptions
+        if (securityTask.filter.includePatterns.isNotEmpty() || securityTask.filter.excludePatterns.isNotEmpty() ||
+            platformOptions?.includeTags?.isNotEmpty() == true || platformOptions?.excludeTags?.isNotEmpty() == true
+        ) {
+            throw GradleException("Security baseline does not allow test filters; run the regular test task for diagnostics.")
+        }
+        val classes = securityTask.candidateClassFiles
         if (classes.isEmpty) {
             throw GradleException("Security baseline classes are missing.")
         }
@@ -32,7 +41,7 @@ val verifySecurityTestClasses = tasks.register("verifySecurityTestClasses") {
     }
 }
 
-val securityTest = tasks.register<Test>("securityTest") {
+val securityTest = tasks.register<MandatorySecurityTest>("securityTest") {
     description = "Runs the mandatory security baseline tests."
     group = "verification"
     dependsOn(verifySecurityTestClasses)
