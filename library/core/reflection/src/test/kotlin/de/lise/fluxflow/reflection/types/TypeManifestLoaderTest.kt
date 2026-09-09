@@ -1,11 +1,15 @@
 package de.lise.fluxflow.reflection.types
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.net.URLClassLoader
+import java.net.URL
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Enumeration
 
 class TypeManifestLoaderTest {
     @TempDir
@@ -39,6 +43,23 @@ class TypeManifestLoaderTest {
         assertThat(forward.entries.single { it.role == TypeRole.STEP }.origins)
             .hasSize(2)
             .allMatch { it.endsWith("${TypeManifest.RESOURCE_PATH} at line 2") }
+    }
+
+    @Test
+    fun `M08 should wrap failures while enumerating manifest resources`() {
+        val classLoader = object : ClassLoader(javaClass.classLoader) {
+            override fun getResources(name: String): Enumeration<URL> {
+                if (name == TypeManifest.RESOURCE_PATH) {
+                    throw IOException("resource lookup failed")
+                }
+                return super.getResources(name)
+            }
+        }
+
+        assertThatThrownBy { TypeManifestLoader(classLoader).load() }
+            .isInstanceOf(TypeManifestException::class.java)
+            .hasMessageContaining(TypeManifest.RESOURCE_PATH)
+            .hasCauseInstanceOf(IOException::class.java)
     }
 
     private fun manifestDirectory(name: String, content: String): Path {
