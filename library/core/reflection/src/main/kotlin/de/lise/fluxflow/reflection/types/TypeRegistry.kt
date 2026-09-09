@@ -26,7 +26,16 @@ class TypeRegistry private constructor(
             classLoader: ClassLoader,
             entries: Iterable<TypeManifestEntry>,
         ): TypeRegistry {
-            val resolved = entries.map { entry ->
+            val inputSnapshot = entries.toList()
+            inputSnapshot.forEach { entry ->
+                TypeManifest.validateEntry(
+                    entry.role,
+                    entry.key,
+                    entry.binaryClassName,
+                    entry.origin,
+                )
+            }
+            val resolved = inputSnapshot.map { entry ->
                 val type = try {
                     Class.forName(entry.binaryClassName, false, classLoader).kotlin
                 } catch (exception: ClassNotFoundException) {
