@@ -62,3 +62,19 @@ failures are expected by their parent tests, so the parent suite remains green.
 Do not weaken the gate or skip container tests to accommodate an unavailable CI
 runtime. The Jenkins agent needs a working runtime before the mandatory check can
 succeed.
+
+## Resolved dependency baseline
+
+The PR01 verification resolved the following `testRuntimeClasspath` versions.
+These versions document the framework boundary exercised by the shared tests:
+
+| Dependency | Spring Boot 3 module | Spring Boot 4 module |
+|---|---:|---:|
+| Spring Data MongoDB | 4.5.5 | 5.0.5 |
+| MongoDB synchronous driver | 5.5.2 | 5.6.5 |
+| JUnit Jupiter engine | 5.12.2 | 6.0.3 |
+| Testcontainers | 1.21.4 | 2.0.5 |
+
+Both lines run against the pinned `mongo:8.0.12` image. Testcontainers 1.21.4 is
+required on the Boot 3 line for compatibility with current Docker Engine API
+versions; the previously resolved 1.21.3 client failed before container startup.
