@@ -5,20 +5,6 @@ Every entry has a role, an exact persisted key, and a JVM binary class name. The
 are `step`, `job`, `model`, and `value`; registering a class for one role does not register it for
 another.
 
-The plugin marker is published to the same Maven repositories as the FluxFlow libraries. Add the
-repository to plugin resolution in `settings.gradle.kts`; the snapshot repository is only needed
-for snapshot versions:
-
-```kotlin
-pluginManagement {
-    repositories {
-        mavenCentral()
-        maven("https://nexus.cloud.lise.de/repository/maven-public/")
-        gradlePluginPortal()
-    }
-}
-```
-
 Apply the manifest plugin with the same version as the FluxFlow libraries:
 
 The plugin requires Java 17 or newer and Gradle 9.2.0 or newer. Its Kotlin DSL configuration
