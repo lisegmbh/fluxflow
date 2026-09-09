@@ -71,6 +71,28 @@ class FluxFlowTypeManifestPluginTest {
     }
 
     @Test
+    fun `O06 should generate and verify the manifest in an executable boot jar`() {
+        fakeSpringBootPlugin()
+        fixture(
+            declarations = "model 'external-model', 'example.ExternalModel'",
+            additionalPlugins = "id 'org.springframework.boot'",
+        )
+
+        val result = run("check").build()
+        val bootManifest = manifestFromJar(
+            "build/libs/manifest-fixture-boot.jar",
+            "BOOT-INF/classes/META-INF/fluxflow/type-manifest.properties",
+        )
+
+        assertThat(result.task(":bootJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.task(":verifyFluxflowTypeManifestBootJar")?.outcome)
+            .isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(bootManifest.toString(Charsets.UTF_8)).contains(
+            "model.external-model=example.ExternalModel"
+        )
+    }
+
+    @Test
     fun `M03 O06 should fail generation when an explicit class is missing`() {
         fixture(declarations = "model 'missing', 'missing.DoesNotExist'")
 
@@ -79,6 +101,32 @@ class FluxFlowTypeManifestPluginTest {
         assertThat(result.task(":generateFluxflowTypeManifest")?.outcome)
             .isEqualTo(TaskOutcome.FAILED)
         assertThat(result.output).contains("missing.DoesNotExist")
+    }
+
+    @Test
+    fun `M03 O06 should reject an explicit type absent from the runtime classpath`() {
+        fixture(declarations = "model 'external-model', 'external.ExternalModel'")
+        externalTypeProject("compileOnly")
+
+        val result = run("check").buildAndFail()
+
+        assertThat(result.task(":generateFluxflowTypeManifest")?.outcome)
+            .isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output).contains("external.ExternalModel")
+    }
+
+    @Test
+    fun `M03 O06 should accept an explicit type present on the runtime classpath`() {
+        fixture(declarations = "model 'external-model', 'external.ExternalModel'")
+        externalTypeProject("runtimeOnly")
+
+        val result = run("check").build()
+
+        assertThat(result.task(":verifyFluxflowTypeManifest")?.outcome)
+            .isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(manifestFromJar().toString(Charsets.UTF_8)).contains(
+            "model.external-model=external.ExternalModel"
+        )
     }
 
     @Test
@@ -96,6 +144,7 @@ class FluxFlowTypeManifestPluginTest {
     private fun fixture(
         declarations: String,
         jarConfiguration: String = "",
+        additionalPlugins: String = "",
     ) {
         File(projectDir, "settings.gradle").writeText("rootProject.name = 'manifest-fixture'")
         File(projectDir, "build.gradle").writeText(
@@ -103,6 +152,7 @@ class FluxFlowTypeManifestPluginTest {
             plugins {
                 id 'java'
                 id 'de.lise.fluxflow.type-manifest'
+                $additionalPlugins
             }
 
             repositories {
@@ -156,16 +206,97 @@ class FluxFlowTypeManifestPluginTest {
         )
     }
 
+    private fun externalTypeProject(configuration: String) {
+        File(projectDir, "settings.gradle").appendText("\ninclude 'external-types'\n")
+        File(projectDir, "build.gradle").appendText(
+            """
+
+            dependencies {
+                $configuration project(':external-types')
+            }
+            """.trimIndent()
+        )
+        File(projectDir, "external-types/build.gradle").apply {
+            parentFile.mkdirs()
+            writeText("plugins { id 'java' }")
+        }
+        File(projectDir, "external-types/src/main/java/external/ExternalModel.java").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                package external;
+
+                public class ExternalModel {
+                }
+                """.trimIndent()
+            )
+        }
+    }
+
+    private fun fakeSpringBootPlugin() {
+        File(projectDir, "buildSrc/build.gradle").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                plugins {
+                    id 'java-gradle-plugin'
+                }
+
+                gradlePlugin {
+                    plugins {
+                        fakeSpringBoot {
+                            id = 'org.springframework.boot'
+                            implementationClass = 'fixture.FakeSpringBootPlugin'
+                        }
+                    }
+                }
+                """.trimIndent()
+            )
+        }
+        File(projectDir, "buildSrc/src/main/java/fixture/FakeSpringBootPlugin.java").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                package fixture;
+
+                import org.gradle.api.Plugin;
+                import org.gradle.api.Project;
+                import org.gradle.api.tasks.SourceSet;
+                import org.gradle.api.tasks.SourceSetContainer;
+                import org.gradle.api.tasks.bundling.Jar;
+
+                public class FakeSpringBootPlugin implements Plugin<Project> {
+                    @Override
+                    public void apply(Project project) {
+                        SourceSetContainer sourceSets = project.getExtensions()
+                            .getByType(SourceSetContainer.class);
+                        project.getTasks().register("bootJar", Jar.class, task -> {
+                            task.getArchiveClassifier().set("boot");
+                            task.into("BOOT-INF/classes", copy -> copy.from(
+                                sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME)
+                                    .map(SourceSet::getOutput)
+                            ));
+                        });
+                    }
+                }
+                """.trimIndent()
+            )
+        }
+    }
+
     private fun run(vararg arguments: String): GradleRunner = GradleRunner.create()
         .withProjectDir(projectDir)
         .withPluginClasspath()
         .withArguments(*arguments, "--stacktrace")
 
-    private fun manifestFromJar(): ByteArray {
-        val jar = File(projectDir, "build/libs/manifest-fixture.jar")
+    private fun manifestFromJar(
+        archivePath: String = "build/libs/manifest-fixture.jar",
+        manifestPath: String = "META-INF/fluxflow/type-manifest.properties",
+    ): ByteArray {
+        val jar = File(projectDir, archivePath)
         return ZipFile(jar).use { archive ->
             archive.getInputStream(
-                archive.getEntry("META-INF/fluxflow/type-manifest.properties")
+                archive.getEntry(manifestPath)
             ).readAllBytes()
         }
     }

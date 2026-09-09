@@ -4,6 +4,8 @@ import de.lise.fluxflow.reflection.types.TypeManifest
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -21,28 +23,32 @@ abstract class VerifyFluxFlowTypeManifest : DefaultTask() {
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val archiveFile: RegularFileProperty
 
+    @get:Input
+    abstract val archiveEntryPath: Property<String>
+
     @TaskAction
     fun verify() {
         val expected = generatedManifest.get().asFile.readBytes()
         val archive = archiveFile.get().asFile
+        val expectedEntryPath = archiveEntryPath.get()
         ZipFile(archive).use { zip ->
             val entries = zip.entries().asSequence()
-                .filter { it.name == TypeManifest.RESOURCE_PATH }
+                .filter { it.name == expectedEntryPath }
                 .toList()
             if (entries.isEmpty()) {
                 throw GradleException(
-                    "Archive '${archive.name}' does not contain ${TypeManifest.RESOURCE_PATH}."
+                    "Archive '${archive.name}' does not contain $expectedEntryPath."
                 )
             }
             if (entries.size > 1) {
                 throw GradleException(
-                    "Archive '${archive.name}' contains ${TypeManifest.RESOURCE_PATH} more than once."
+                    "Archive '${archive.name}' contains $expectedEntryPath more than once."
                 )
             }
             val actual = zip.getInputStream(entries.single()).use { it.readAllBytes() }
             if (!actual.contentEquals(expected)) {
                 throw GradleException(
-                    "Archive '${archive.name}' contains a stale ${TypeManifest.RESOURCE_PATH}."
+                    "Archive '${archive.name}' contains a stale $expectedEntryPath."
                 )
             }
         }
