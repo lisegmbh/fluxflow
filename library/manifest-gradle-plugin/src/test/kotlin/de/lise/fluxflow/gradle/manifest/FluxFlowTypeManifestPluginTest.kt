@@ -82,7 +82,6 @@ class FluxFlowTypeManifestPluginTest {
         val result = run("check").build()
         val bootManifest = manifestFromJar(
             "build/libs/manifest-fixture-boot.jar",
-            "BOOT-INF/classes/META-INF/fluxflow/type-manifest.properties",
         )
 
         assertThat(result.task(":bootJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
@@ -91,6 +90,17 @@ class FluxFlowTypeManifestPluginTest {
         assertThat(bootManifest.toString(Charsets.UTF_8)).contains(
             "model.external-model=example.ExternalModel"
         )
+    }
+
+    @Test
+    fun `O06 should expose the generated manifest on the main runtime classpath`() {
+        fixture(declarations = "model 'external-model', 'example.ExternalModel'")
+        runtimeManifestProbe()
+
+        val result = run("verifyRuntimeManifest").build()
+
+        assertThat(result.task(":verifyRuntimeManifest")?.outcome)
+            .isEqualTo(TaskOutcome.SUCCESS)
     }
 
     @Test
@@ -245,6 +255,45 @@ class FluxFlowTypeManifestPluginTest {
         }
     }
 
+    private fun runtimeManifestProbe() {
+        File(projectDir, "build.gradle").appendText(
+            """
+
+            tasks.register('verifyRuntimeManifest', JavaExec) {
+                classpath = sourceSets.main.runtimeClasspath
+                mainClass = 'example.ManifestRuntimeProbe'
+            }
+            """.trimIndent()
+        )
+        File(projectDir, "src/main/java/example/ManifestRuntimeProbe.java").writeText(
+            """
+            package example;
+
+            import java.nio.charset.StandardCharsets;
+
+            public class ManifestRuntimeProbe {
+                public static void main(String[] args) throws Exception {
+                    try (var input = ManifestRuntimeProbe.class.getClassLoader().getResourceAsStream(
+                        "META-INF/fluxflow/type-manifest.properties"
+                    )) {
+                        if (input == null) {
+                            throw new IllegalStateException(
+                                "Manifest is missing from the main runtime classpath."
+                            );
+                        }
+                        var content = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+                        if (!content.contains("model.external-model=example.ExternalModel")) {
+                            throw new IllegalStateException(
+                                "Manifest does not contain the explicit model registration."
+                            );
+                        }
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
     private fun fakeSpringBootPlugin() {
         File(projectDir, "buildSrc/build.gradle").apply {
             parentFile.mkdirs()
@@ -284,10 +333,13 @@ class FluxFlowTypeManifestPluginTest {
                             .getByType(SourceSetContainer.class);
                         project.getTasks().register("bootJar", Jar.class, task -> {
                             task.getArchiveClassifier().set("boot");
-                            task.into("BOOT-INF/classes", copy -> copy.from(
-                                sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME)
-                                    .map(SourceSet::getOutput)
-                            ));
+                            var mainOutput = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME)
+                                .map(SourceSet::getOutput);
+                            task.into("BOOT-INF/classes", copy -> {
+                                copy.from(mainOutput);
+                                copy.exclude("META-INF/**");
+                            });
+                            task.from(mainOutput, copy -> copy.include("META-INF/**"));
                         });
                     }
                 }
