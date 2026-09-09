@@ -56,13 +56,29 @@ val securityTest = tasks.register<Test>("securityTest") {
         }
     }
     addTestListener(object : TestListener {
+        private val executedClasses = mutableSetOf<String>()
+
         override fun beforeSuite(suite: TestDescriptor) = Unit
         override fun beforeTest(test: TestDescriptor) = Unit
-        override fun afterTest(test: TestDescriptor, result: TestResult) = Unit
+        override fun afterTest(test: TestDescriptor, result: TestResult) {
+            test.className?.let { executedClasses.add(it) }
+        }
 
         override fun afterSuite(suite: TestDescriptor, result: TestResult) {
             if (suite.parent == null && result.skippedTestCount > 0) {
                 throw GradleException("Security baseline must execute without skipped tests.")
+            }
+            if (suite.parent == null) {
+                if (result.testCount == 0L) {
+                    throw GradleException("Security baseline must execute at least one test.")
+                }
+                if (result.failedTestCount > 0) {
+                    throw GradleException("Security baseline must execute without failed tests.")
+                }
+                val missingClasses = securityRequirements.requiredClasses.get() - executedClasses
+                if (missingClasses.isNotEmpty()) {
+                    throw GradleException("Required security baseline classes did not execute: ${missingClasses.joinToString()}.")
+                }
             }
         }
     })

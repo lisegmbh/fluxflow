@@ -49,7 +49,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest", "--tests", "MissingTest").buildAndFail()
 
-        assertThat(result.output).contains("No tests found for given includes")
+        assertThat(result.output).contains("Security baseline must execute at least one test")
     }
 
     @Test
@@ -70,7 +70,7 @@ class SecurityTestsTest {
         val result = runner("securityTest").buildAndFail()
 
         assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.FAILED)
-        assertThat(result.output).contains("There were failing tests")
+        assertThat(result.output).contains("Security baseline must execute without failed tests")
     }
 
     @Test
@@ -84,7 +84,7 @@ class SecurityTestsTest {
         val result = runner("securityTest").buildAndFail()
 
         assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.FAILED)
-        assertThat(result.output).contains("There were failing tests")
+        assertThat(result.output).contains("Security baseline must execute without failed tests")
     }
 
     @Test
@@ -123,6 +123,85 @@ class SecurityTestsTest {
         assertThat(result.output).contains("Required security baseline classes were not selected", "MongoBaselineTest")
     }
 
+    @Test
+    fun `security gate should reject a filter that omits a required suite`() {
+        fixture("""
+            securityTests.requiredClasses = [
+                'de.lise.fluxflow.mongo.security.baseline.BaselineTest',
+                'de.lise.fluxflow.mongo.security.baseline.MongoBaselineTest'
+            ]
+        """.trimIndent())
+        baseline("@Test void baseline() {}")
+        baseline("@Test void mongo() {}", "MongoBaselineTest")
+
+        val result = runner("securityTest", "--tests", "*BaselineTest.baseline").buildAndFail()
+
+        assertThat(result.output).contains("Required security baseline classes did not execute", "MongoBaselineTest")
+    }
+
+    @Test
+    fun `security gate should reject failures even when ignoreFailures is enabled`() {
+        fixture("securityTest { ignoreFailures = true }")
+        baseline("@Test void baseline() { Assertions.fail(\"regression detected\"); }")
+
+        val result = runner("securityTest").buildAndFail()
+
+        assertThat(result.output).contains("Security baseline must execute without failed tests")
+    }
+
+    @Test
+    fun `security gate should reject zero executed tests even when Gradle allows empty discovery`() {
+        fixture("securityTest { failOnNoDiscoveredTests = false }")
+        baseline("void notATest() {}")
+
+        val result = runner("securityTest").buildAndFail()
+
+        assertThat(result.output).contains("Security baseline must execute at least one test")
+    }
+
+    @Test
+    fun `security gate should accept all required suites executing`() {
+        fixture("""
+            securityTests.requiredClasses = [
+                'de.lise.fluxflow.mongo.security.baseline.BaselineTest',
+                'de.lise.fluxflow.mongo.security.baseline.MongoBaselineTest'
+            ]
+        """.trimIndent())
+        baseline("@Test void baseline() {}")
+        baseline("@Test void mongo() {}", "MongoBaselineTest")
+
+        val result = runner("securityTest").build()
+
+        assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    }
+
+    @Test
+    fun `security gate should reject method filters inside a required suite`() {
+        fixture("securityTests.requiredClasses = ['de.lise.fluxflow.mongo.security.baseline.BaselineTest']")
+        baseline("@Test void first() {} @Test void second() {}")
+
+        val result = runner("securityTest", "--tests", "*BaselineTest.first").buildAndFail()
+
+        assertThat(result.output).contains("Security baseline does not allow test filters")
+    }
+
+    @Test
+    fun `security gate should reject excluding one required class`() {
+        fixture("""
+            securityTests.requiredClasses = [
+                'de.lise.fluxflow.mongo.security.baseline.BaselineTest',
+                'de.lise.fluxflow.mongo.security.baseline.MongoBaselineTest'
+            ]
+            securityTest { exclude '**/MongoBaselineTest.class' }
+        """.trimIndent())
+        baseline("@Test void baseline() {}")
+        baseline("@Test void mongo() {}", "MongoBaselineTest")
+
+        val result = runner("securityTest").buildAndFail()
+
+        assertThat(result.output).contains("Required security baseline classes were not selected", "MongoBaselineTest")
+    }
+
     private fun fixture(extra: String = "") {
         File(projectDir, "settings.gradle").writeText("rootProject.name = 'security-fixture'")
         File(projectDir, "build.gradle").writeText(
@@ -140,14 +219,14 @@ class SecurityTestsTest {
         )
     }
 
-    private fun baseline(body: String) {
-        val source = File(projectDir, "src/test/java/de/lise/fluxflow/mongo/security/baseline/BaselineTest.java")
+    private fun baseline(body: String, className: String = "BaselineTest") {
+        val source = File(projectDir, "src/test/java/de/lise/fluxflow/mongo/security/baseline/$className.java")
         source.parentFile.mkdirs()
         source.writeText(
             """
             package de.lise.fluxflow.mongo.security.baseline;
             import org.junit.jupiter.api.*;
-            public class BaselineTest { $body }
+            public class $className { $body }
             """.trimIndent()
         )
     }
