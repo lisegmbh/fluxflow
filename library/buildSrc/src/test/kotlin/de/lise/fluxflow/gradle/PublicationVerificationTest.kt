@@ -97,9 +97,20 @@ class PublicationVerificationTest {
             )
         )
 
-        val result = verify().build()
+        val result = verify(
+            "verifyPublications",
+            ":manifest-gradle-plugin:generatePomFileForFixturePluginPluginMarkerMavenPublication",
+        ).build()
+        val markerPom = File(
+            projectDir,
+            "manifest-gradle-plugin/build/publications/fixturePluginPluginMarkerMaven/pom-default.xml",
+        ).readText()
 
         assertThat(result.output).contains("Verified 3 publications: 0x -spring3, 0x -spring4.")
+        assertThat(markerPom)
+            .contains("<groupId>de.lise.fluxflow.type-manifest</groupId>")
+            .contains("<artifactId>de.lise.fluxflow.type-manifest.gradle.plugin</artifactId>")
+            .contains("<artifactId>manifest-gradle-plugin</artifactId>")
     }
 
     private data class Module(
@@ -160,8 +171,8 @@ class PublicationVerificationTest {
         }
     }
 
-    private fun verify(): GradleRunner = GradleRunner.create()
+    private fun verify(vararg arguments: String): GradleRunner = GradleRunner.create()
         .withProjectDir(projectDir)
         .withPluginClasspath()
-        .withArguments("verifyPublications")
+        .withArguments(*(arguments.takeIf { it.isNotEmpty() } ?: arrayOf("verifyPublications")))
 }
