@@ -2,14 +2,11 @@ package de.lise.fluxflow.mongo.security
 
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.Boot4MongoIntegrationTest
-import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Import
+import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.data.mongodb.core.mapping.event.AbstractMongoEventListener
 import org.springframework.data.mongodb.core.mapping.event.AfterLoadEvent
 
@@ -20,33 +17,33 @@ import org.springframework.data.mongodb.core.mapping.event.AfterLoadEvent
  * version on this line.
  */
 @Boot4MongoIntegrationTest
-@Import(Boot4DocumentTypeGuardIT.ThrowingListenerConfig::class)
 class Boot4DocumentTypeGuardIT {
     @Autowired
     lateinit var workflowPersistence: WorkflowPersistence
+
+    @Autowired
+    lateinit var applicationContext: ConfigurableApplicationContext
 
     @Test
     fun `an exception thrown from onAfterLoad propagates out of a real workflow read`() {
         // Arrange
         val saved = workflowPersistence.create(TestModel("a"), null)
+        val listener = ThrowingDocumentListener()
+        applicationContext.addApplicationListener(listener)
 
         // Act & Assert
-        assertThatThrownBy {
-            workflowPersistence.find(WorkflowIdentifier(saved.id))
-        }.isInstanceOf(IllegalStateException::class.java)
-            .hasMessage("boom")
-    }
-
-    @TestConfiguration
-    class ThrowingListenerConfig {
-        @Bean
-        fun throwingWorkflowDocumentListener(): ThrowingWorkflowDocumentListener {
-            return ThrowingWorkflowDocumentListener()
+        try {
+            assertThatThrownBy {
+                workflowPersistence.find(WorkflowIdentifier(saved.id))
+            }.isInstanceOf(IllegalStateException::class.java)
+                .hasMessage("boom")
+        } finally {
+            applicationContext.removeApplicationListener(listener)
         }
     }
 
-    class ThrowingWorkflowDocumentListener : AbstractMongoEventListener<WorkflowDocument>() {
-        override fun onAfterLoad(event: AfterLoadEvent<WorkflowDocument>) {
+    class ThrowingDocumentListener : AbstractMongoEventListener<Any>() {
+        override fun onAfterLoad(event: AfterLoadEvent<Any>) {
             throw IllegalStateException("boom")
         }
     }
