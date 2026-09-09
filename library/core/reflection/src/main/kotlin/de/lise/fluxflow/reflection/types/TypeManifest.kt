@@ -112,7 +112,7 @@ object TypeManifest {
         }
     }
 
-    private fun validateEntry(
+    internal fun validateEntry(
         role: TypeRole,
         key: String,
         binaryClassName: String,

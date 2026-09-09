@@ -22,3 +22,17 @@ dependencies {
     testImplementation(project(":springboot:springboot-testing"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
+
+kotlin {
+    sourceSets {
+        test {
+            kotlin.srcDir("src/testShared/kotlin")
+        }
+    }
+}
+
+sourceSets {
+    test {
+        java.srcDir("src/testShared/java")
+    }
+}

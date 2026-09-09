@@ -4,6 +4,15 @@ kotlin {
             kotlin.srcDir("../../springboot/springboot/src/main/kotlin")
             resources.srcDir("../../springboot/springboot/src/main/resources")
         }
+        test {
+            kotlin.srcDir("../../springboot/springboot/src/testShared/kotlin")
+        }
+    }
+}
+
+sourceSets {
+    test {
+        java.srcDir("../../springboot/springboot/src/testShared/java")
     }
 }
 
