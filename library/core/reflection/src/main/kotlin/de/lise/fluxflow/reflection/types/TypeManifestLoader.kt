@@ -6,9 +6,16 @@ package de.lise.fluxflow.reflection.types
 class TypeManifestLoader(
     private val classLoader: ClassLoader,
 ) {
-    fun load(): List<TypeManifestEntry> = classLoader
-        .getResources(TypeManifest.RESOURCE_PATH)
-        .toList()
+    fun load(): List<TypeManifestEntry> {
+        val resources = try {
+            classLoader.getResources(TypeManifest.RESOURCE_PATH).toList()
+        } catch (exception: Exception) {
+            throw TypeManifestException(
+                "Could not enumerate FluxFlow type manifests at '${TypeManifest.RESOURCE_PATH}'.",
+                exception,
+            )
+        }
+        return resources
         .sortedBy { it.toExternalForm() }
         .flatMap { resource ->
             try {
@@ -24,4 +31,5 @@ class TypeManifestLoader(
                 )
             }
         }
+    }
 }
