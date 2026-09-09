@@ -23,3 +23,6 @@ doc/**/*.png
 doc/**/*.pdf
 doc/**/*.cache
 doc/doc.xml
+library/testcontainers-debug.txt
+
+library/testcontainers-debug2.txt
