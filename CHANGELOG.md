@@ -33,8 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 4. **Trusted type manifest and registry**<br/>
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
-   generates and verifies the manifest in consumer JARs. Activation and Mongo enforcement
-   remain separate follow-up changes.
+   generates and verifies the manifest in consumer JARs. Mongo enforcement remains a
+   separate follow-up change.
 
 6. **Docker runtime for Jenkins integration tests**<br/>
    Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
 
 ### Fixed
+1. **Fail-closed persisted step and job activation**<br/>
+   Persisted step and job kinds are now resolved only through exact, role-specific trusted
+   registrations. Unknown kinds fail before their classes can be initialized or constructed.
+   Existing fully qualified kinds remain supported when present in the generated manifest or an
+   explicit context-local registration.
+
 ### Removed
 
 ## [0.2.0] - 2025-10-02
