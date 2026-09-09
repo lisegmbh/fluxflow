@@ -72,6 +72,29 @@ class FluxFlowTypeManifestPluginTest {
     }
 
     @Test
+    fun `O06 should fail check when the jar contains the manifest more than once`() {
+        fixture(
+            declarations = "model 'external-model', 'example.ExternalModel'",
+            jarConfiguration = """
+                duplicatesStrategy = DuplicatesStrategy.INCLUDE
+                from(layout.buildDirectory.file(
+                    'generated/fluxflowTypeManifest/META-INF/fluxflow/type-manifest.properties'
+                )) {
+                    into 'META-INF/fluxflow'
+                }
+            """.trimIndent(),
+        )
+
+        val result = run("check").buildAndFail()
+
+        assertThat(result.task(":verifyFluxflowTypeManifest")?.outcome)
+            .isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output).contains(
+            "contains META-INF/fluxflow/type-manifest.properties more than once"
+        )
+    }
+
+    @Test
     fun `O06 should generate and verify the manifest in an executable boot jar`() {
         fakeSpringBootPlugin()
         fixture(
