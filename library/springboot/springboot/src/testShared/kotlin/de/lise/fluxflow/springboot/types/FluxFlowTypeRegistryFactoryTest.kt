@@ -13,6 +13,7 @@ import de.lise.fluxflow.springboot.types.fixtures.defaultapp.DefaultTypeApplicat
 import de.lise.fluxflow.springboot.types.fixtures.defaultapp.ExplicitUnannotatedModel
 import de.lise.fluxflow.springboot.types.fixtures.explicitapp.ExplicitTypeApplication
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -123,6 +124,32 @@ class FluxFlowTypeRegistryFactoryTest {
     }
 
     @Test
+    fun `M02 should identify contributor beans of the same implementation in conflicts`() {
+        val first = FixedContributor(
+            TypeRegistration(TypeRole.MODEL, "shared", String::class)
+        )
+        val second = FixedContributor(
+            TypeRegistration(TypeRole.MODEL, "shared", StringBuilder::class)
+        )
+
+        context(DefaultTypeApplication::class.java).use { context ->
+            assertThatThrownBy {
+                FluxFlowTypeRegistryFactory(
+                    context,
+                    javaClass.classLoader,
+                    linkedMapOf(
+                        "firstTypes" to first,
+                        "secondTypes" to second,
+                    ),
+                ).create()
+            }
+                .isInstanceOf(TypeManifestException::class.java)
+                .hasMessageContaining("firstTypes")
+                .hasMessageContaining("secondTypes")
+        }
+    }
+
+    @Test
     fun `O06 should publish a complete registry before its first consumer`() {
         context(
             DefaultTypeApplication::class.java,
@@ -169,6 +196,37 @@ class FluxFlowTypeRegistryFactoryTest {
         }
     }
 
+    @Test
+    fun `O06 should validate manifests when an application declares another registry bean`() {
+        val manifest = temporaryDirectory.resolve(TypeManifest.RESOURCE_PATH)
+        Files.createDirectories(manifest.parent)
+        Files.writeString(
+            manifest,
+            "manifest.version=1\nmodel.missing=missing.DoesNotExist\n",
+        )
+        val classLoader = URLClassLoader(
+            arrayOf(temporaryDirectory.toUri().toURL()),
+            javaClass.classLoader,
+        )
+        val context = AnnotationConfigApplicationContext()
+        context.classLoader = classLoader
+        context.register(
+            DefaultTypeApplication::class.java,
+            TypeRegistryConfiguration::class.java,
+            ForeignRegistryConfiguration::class.java,
+        )
+
+        try {
+            val failure = catchThrowable(context::refresh)
+
+            assertThat(generateSequence(failure) { it.cause }.toList())
+                .anyMatch { it is TypeManifestException }
+        } finally {
+            context.close()
+            classLoader.close()
+        }
+    }
+
     private fun context(vararg configurations: Class<*>): AnnotationConfigApplicationContext =
         AnnotationConfigApplicationContext(*configurations)
 
@@ -188,5 +246,20 @@ class FluxFlowTypeRegistryFactoryTest {
         companion object {
             var created = false
         }
+    }
+
+    private class FixedContributor(
+        private val registration: TypeRegistration,
+    ) : TypeRegistrationContributor {
+        override fun registrations(): Iterable<TypeRegistration> = listOf(registration)
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class ForeignRegistryConfiguration {
+        @Bean
+        fun foreignTypeRegistry(): TypeRegistry = TypeRegistry.create(
+            javaClass.classLoader,
+            emptyList(),
+        )
     }
 }

@@ -1,3 +1,5 @@
+val apiConsumer = sourceSets.create("apiConsumer")
+
 dependencies {
     api(project(":core:api"))
     api(project(":core:engine"))
@@ -9,7 +11,7 @@ dependencies {
     implementation("org.springframework:spring-context")
     implementation("org.springframework.boot:spring-boot-autoconfigure")
 
-    implementation(project(":core:reflection"))
+    api(project(":core:reflection"))
     implementation(project(":core:persistence"))
     implementation(project(":core:scheduling"))
     implementation(project(":core:validation"))
@@ -21,6 +23,8 @@ dependencies {
 
     testImplementation(project(":springboot:springboot-testing"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+
+    add(apiConsumer.implementationConfigurationName, project(":springboot:springboot"))
 }
 
 kotlin {
@@ -35,4 +39,8 @@ sourceSets {
     test {
         java.srcDir("src/testShared/java")
     }
+}
+
+tasks.named("check") {
+    dependsOn(apiConsumer.classesTaskName)
 }

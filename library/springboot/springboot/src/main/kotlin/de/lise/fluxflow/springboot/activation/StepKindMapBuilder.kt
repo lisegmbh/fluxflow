@@ -10,7 +10,7 @@ import kotlin.reflect.KClass
 /**
  * Builds the registered mapping from [StepKind] to step class.
  */
-class StepKindMapBuilder(
+class StepKindMapBuilder @JvmOverloads constructor(
     private val context: ApplicationContext,
     private val classLoader: ClassLoader,
     private val typeRegistry: TypeRegistry? = null,
