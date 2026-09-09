@@ -89,7 +89,7 @@ class TypeRegistry private constructor(
                 .toSortedMap()
                 .map { (className, registrationsForClass) ->
                     val origins = registrationsForClass.map { it.entry.origin }.distinct().sorted()
-                    "'$className' from ${origins.joinToString(prefix = "[", postfix = "]")}" 
+                    "'$className' from ${origins.joinToString(prefix = "[", postfix = "]")}"
                 }
                 .joinToString("; ")
             return TypeManifestException(
