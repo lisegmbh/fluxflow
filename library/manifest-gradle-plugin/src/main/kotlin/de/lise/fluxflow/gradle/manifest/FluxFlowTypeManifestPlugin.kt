@@ -17,6 +17,9 @@ class FluxFlowTypeManifestPlugin : Plugin<Project> {
         )
         val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
         val main = sourceSets.named("main")
+        val generatedResourcesDirectory = project.layout.buildDirectory.dir(
+            "generated/fluxflowTypeManifest"
+        )
         val generate = project.tasks.register(
             "generateFluxflowTypeManifest",
             GenerateFluxFlowTypeManifest::class.java,
@@ -31,16 +34,19 @@ class FluxFlowTypeManifestPlugin : Plugin<Project> {
                 main.map { it.output.classesDirs },
             )
             task.outputFile.convention(
-                project.layout.buildDirectory.file(
-                    "generated/fluxflowTypeManifest/type-manifest.properties"
-                )
+                generatedResourcesDirectory.map { directory ->
+                    directory.file(TypeManifest.RESOURCE_PATH)
+                }
+            )
+        }
+        main.configure { sourceSet ->
+            sourceSet.output.dir(
+                mapOf("builtBy" to generate),
+                generatedResourcesDirectory,
             )
         }
         val jar = project.tasks.named("jar", Jar::class.java) { task ->
             task.dependsOn(generate)
-            task.from(generate.flatMap { it.outputFile }) { copy ->
-                copy.into(TypeManifest.RESOURCE_PATH.substringBeforeLast('/'))
-            }
         }
         val verify = project.tasks.register(
             "verifyFluxflowTypeManifest",
@@ -56,15 +62,11 @@ class FluxFlowTypeManifestPlugin : Plugin<Project> {
         project.tasks.named("check") { it.dependsOn(verify) }
 
         project.pluginManager.withPlugin("org.springframework.boot") {
-            val bootManifestPath = "BOOT-INF/classes/${TypeManifest.RESOURCE_PATH}"
             val bootJar = project.tasks.named(
                 "bootJar",
                 AbstractArchiveTask::class.java,
             ) { task ->
                 task.dependsOn(generate)
-                task.from(generate.flatMap { it.outputFile }) { copy ->
-                    copy.into(bootManifestPath.substringBeforeLast('/'))
-                }
             }
             val verifyBootJar = project.tasks.register(
                 "verifyFluxflowTypeManifestBootJar",
@@ -75,7 +77,7 @@ class FluxFlowTypeManifestPlugin : Plugin<Project> {
                 task.dependsOn(bootJar)
                 task.generatedManifest.set(generate.flatMap { it.outputFile })
                 task.archiveFile.set(bootJar.flatMap { it.archiveFile })
-                task.archiveEntryPath.set(bootManifestPath)
+                task.archiveEntryPath.set(TypeManifest.RESOURCE_PATH)
             }
             project.tasks.named("check") { it.dependsOn(verifyBootJar) }
         }
