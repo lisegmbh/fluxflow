@@ -44,6 +44,7 @@ class FluxFlowTypeManifestPluginTest {
             """
             manifest.version=1
             step.review=example.ReviewStep
+            job.notification=example.NotificationJob
             model.external-model=example.ExternalModel
             value.currency=java.lang.String
             """.trimIndent() + "\n"
@@ -201,6 +202,17 @@ class FluxFlowTypeManifestPluginTest {
             package example;
 
             public class ExternalModel {
+            }
+            """.trimIndent()
+        )
+        File(sourceDir, "NotificationJob.java").writeText(
+            """
+            package example;
+
+            import de.lise.fluxflow.stereotyped.job.Job;
+
+            @Job(kind = "notification")
+            public class NotificationJob {
             }
             """.trimIndent()
         )
