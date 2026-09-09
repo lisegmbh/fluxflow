@@ -104,6 +104,9 @@ import java.time.Clock
 @ComponentScan(basePackages = ["de.lise.fluxflow.springboot.autoconfigure"])
 @Import(ChangeDetectionConfiguration::class, TypeRegistryConfiguration::class)
 open class BasicConfiguration {
+    @Autowired
+    private lateinit var typeRegistry: TypeRegistry
+
     @Lazy
     @Autowired
     // This needs to be done to avoid the circular dependency between StepServiceImpl and ContinuationService
@@ -422,7 +425,8 @@ open class BasicConfiguration {
         return JobActivationService(
             iocProvider,
             jobDefinitionBuilder,
-            classLoaderProvider
+            classLoaderProvider,
+            typeRegistry,
         )
     }
 
