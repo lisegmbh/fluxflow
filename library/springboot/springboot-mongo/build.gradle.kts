@@ -1,3 +1,18 @@
+plugins {
+    id("fluxflow.security-tests")
+}
+
+kotlin.sourceSets.named("test") {
+    kotlin.srcDir("../../security-tests/src/test/kotlin")
+}
+sourceSets.named("test") {
+    java.srcDir("../../security-tests/src/test/java")
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("fluxflow.security.expectRejection", providers.gradleProperty("securityExpectRejection").orElse("false").get())
+}
+
 dependencies {
     implementation(kotlin("reflect"))
 
@@ -19,4 +34,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mongodb")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation(project(":core:engine"))
+    testImplementation(project(":core:stereotyped"))
+    testImplementation(project(":core:validation"))
 }

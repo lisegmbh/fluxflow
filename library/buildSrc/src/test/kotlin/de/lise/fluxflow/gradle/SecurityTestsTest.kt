@@ -108,6 +108,21 @@ class SecurityTestsTest {
         assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     }
 
+    @Test
+    fun `security gate should reject one missing required class`() {
+        fixture("""
+            securityTests.requiredClasses = [
+                'de.lise.fluxflow.mongo.security.baseline.BaselineTest',
+                'de.lise.fluxflow.mongo.security.baseline.MongoBaselineTest'
+            ]
+        """.trimIndent())
+        baseline("@Test void baseline() {}")
+
+        val result = runner("securityTest").buildAndFail()
+
+        assertThat(result.output).contains("Required security baseline classes were not selected", "MongoBaselineTest")
+    }
+
     private fun fixture(extra: String = "") {
         File(projectDir, "settings.gradle").writeText("rootProject.name = 'security-fixture'")
         File(projectDir, "build.gradle").writeText(

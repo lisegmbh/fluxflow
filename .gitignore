@@ -12,6 +12,7 @@ out/
 # Gradle
 HELP.md
 .gradle
+.kotlin/
 build/
 !/build
 !gradle/wrapper/gradle-wrapper.jar

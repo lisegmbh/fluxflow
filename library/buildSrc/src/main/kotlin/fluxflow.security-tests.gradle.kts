@@ -1,3 +1,4 @@
+import de.lise.fluxflow.gradle.SecurityTestRequirements
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.TestDescriptor
@@ -10,6 +11,8 @@ plugins {
 
 val testSources = extensions.getByType<SourceSetContainer>().named("test")
 val baselinePattern = "de/lise/fluxflow/mongo/security/baseline/**"
+val securityRequirements = extensions.create<SecurityTestRequirements>("securityTests")
+securityRequirements.requiredClasses.convention(emptyList())
 
 // Test actions do not run for NO-SOURCE, so this prerequisite validates the
 // compiled baseline before Gradle can skip the Test task.
@@ -19,6 +22,12 @@ val verifySecurityTestClasses = tasks.register("verifySecurityTestClasses") {
         val classes = tasks.named<Test>("securityTest").get().candidateClassFiles
         if (classes.isEmpty) {
             throw GradleException("Security baseline classes are missing.")
+        }
+        val missingClasses = securityRequirements.requiredClasses.get().filter { className ->
+            classes.none { it.invariantSeparatorsPath.endsWith("/${className.replace('.', '/')}.class") }
+        }
+        if (missingClasses.isNotEmpty()) {
+            throw GradleException("Required security baseline classes were not selected: ${missingClasses.joinToString()}.")
         }
     }
 }

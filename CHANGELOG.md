@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    and merges data listeners from the imported and parent step, 
    reducing duplication and improving maintainability.
    [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
+3. **Shared security baseline tests**<br/>
+   Adds a mandatory test gate and shared characterization fixtures for both Spring
+   compatibility lines. This test infrastructure does not change production type resolution.
 
 ### Changed
 1. **Spring integration artifacts are now published in two explicit lines**<br/>
