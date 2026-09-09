@@ -10,18 +10,32 @@ import org.springframework.context.ApplicationContext
 class FluxFlowTypeRegistryFactory(
     private val context: ApplicationContext,
     private val classLoader: ClassLoader,
-    private val contributors: List<TypeRegistrationContributor> = emptyList(),
+    contributors: Map<String, TypeRegistrationContributor> = emptyMap(),
 ) {
+    private val contributors = contributors.toMap()
+
+    constructor(
+        context: ApplicationContext,
+        classLoader: ClassLoader,
+        contributors: List<TypeRegistrationContributor>,
+    ) : this(
+        context,
+        classLoader,
+        contributors.mapIndexed { index, contributor ->
+            "contributor[$index]" to contributor
+        }.toMap(),
+    )
+
     fun create(): TypeRegistry {
         val scanRoots = SpringScanRootResolver(context).resolve()
         val scannedEntries = AnnotatedTypeRegistrationScanner(classLoader).scan(scanRoots)
-        val explicitEntries = contributors.flatMap { contributor ->
+        val explicitEntries = contributors.toSortedMap().flatMap { (beanName, contributor) ->
             contributor.registrations().map { registration ->
                 TypeManifestEntry(
                     registration.role,
                     registration.key,
                     registration.type.java.name,
-                    "explicit contributor '${contributor.javaClass.name}'",
+                    "explicit contributor '$beanName' (${contributor.javaClass.name})",
                 )
             }
         }
