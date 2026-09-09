@@ -26,7 +26,12 @@ class TypeRegistry private constructor(
             classLoader: ClassLoader,
             entries: Iterable<TypeManifestEntry>,
         ): TypeRegistry {
-            val inputSnapshot = entries.toList()
+            val inputSnapshot = entries.toList().sortedWith(
+                compareBy<TypeManifestEntry> { it.role.ordinal }
+                    .thenBy { it.key }
+                    .thenBy { it.binaryClassName }
+                    .thenBy { it.origin }
+            )
             inputSnapshot.forEach { entry ->
                 TypeManifest.validateEntry(
                     entry.role,
@@ -35,6 +40,15 @@ class TypeRegistry private constructor(
                     entry.origin,
                 )
             }
+            inputSnapshot
+                .groupBy { TypeIdentity(it.role, it.key) }
+                .entries
+                .firstOrNull { (_, registrations) ->
+                    registrations.map { it.binaryClassName }.distinct().size > 1
+                }
+                ?.let { (identity, registrations) ->
+                    throw conflict(identity, registrations)
+                }
             val resolved = inputSnapshot.map { entry ->
                 val type = try {
                     Class.forName(entry.binaryClassName, false, classLoader).kotlin
@@ -49,10 +63,6 @@ class TypeRegistry private constructor(
             val registryEntries = resolved
                 .groupBy { TypeIdentity(it.entry.role, it.entry.key) }
                 .map { (identity, registrations) ->
-                    val byClass = registrations.groupBy { it.entry.binaryClassName }
-                    if (byClass.size > 1) {
-                        throw conflict(identity, registrations)
-                    }
                     val registration = registrations.first()
                     TypeRegistryEntry(
                         identity.role,
@@ -82,13 +92,13 @@ class TypeRegistry private constructor(
 
         private fun conflict(
             identity: TypeIdentity,
-            registrations: List<ResolvedRegistration>,
+            registrations: List<TypeManifestEntry>,
         ): TypeManifestException {
             val details = registrations
-                .groupBy { it.entry.binaryClassName }
+                .groupBy { it.binaryClassName }
                 .toSortedMap()
                 .map { (className, registrationsForClass) ->
-                    val origins = registrationsForClass.map { it.entry.origin }.distinct().sorted()
+                    val origins = registrationsForClass.map { it.origin }.distinct().sorted()
                     "'$className' from ${origins.joinToString(prefix = "[", postfix = "]")}"
                 }
                 .joinToString("; ")
