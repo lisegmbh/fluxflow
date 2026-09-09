@@ -2,7 +2,7 @@ package de.lise.fluxflow.springboot.types.fixtures.defaultapp;
 
 import de.lise.fluxflow.stereotyped.step.Step;
 
-@Step(kind = "scan-witness")
+@Step
 public final class ScanInitializationWitness {
     static {
         System.setProperty(
