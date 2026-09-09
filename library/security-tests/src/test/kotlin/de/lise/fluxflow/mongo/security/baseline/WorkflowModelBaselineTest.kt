@@ -30,6 +30,20 @@ class WorkflowModelBaselineTest {
             }
         }
     }
+
+    @Test
+    fun `R04 unrelated root type is ignored while the legitimate model survives`() {
+        MongoSecurityHarness().use { harness ->
+            val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+            val model = BaselineModel("root report control")
+            harness.workflows.create(model, identifier)
+            assertThat(harness.workflows.find(identifier)?.model).isEqualTo(model)
+            harness.tamper(WorkflowDocument::class.java, identifier.value, "_class", WITNESS_NAME)
+
+            assertThat(harness.workflows.find(identifier)?.model).isEqualTo(model)
+            assertThat(harness.loader.events).isEmpty()
+        }
+    }
 }
 
 data class BaselineModel(val value: String)
