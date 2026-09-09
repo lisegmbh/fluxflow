@@ -2,6 +2,7 @@ package de.lise.fluxflow.reflection.types
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -35,6 +36,35 @@ class TypeRegistryTest {
             .hasMessageContaining(OtherReviewStep::class.java.name)
             .hasMessageContaining("a.jar")
             .hasMessageContaining("z.jar")
+    }
+
+    @Test
+    fun `M02 should detect conflicts before class resolution independent of input order`() {
+        val missing = TypeManifestEntry(
+            TypeRole.STEP,
+            "missing",
+            "missing.DoesNotExist",
+            "missing.jar",
+        )
+        val conflict = listOf(
+            entry(TypeRole.JOB, "notification", NotificationJob::class, "first.jar"),
+            entry(TypeRole.JOB, "notification", OtherNotificationJob::class, "second.jar"),
+        )
+
+        val forward = catchThrowable {
+            TypeRegistry.create(javaClass.classLoader, listOf(missing) + conflict)
+        }
+        val reverse = catchThrowable {
+            TypeRegistry.create(javaClass.classLoader, (listOf(missing) + conflict).reversed())
+        }
+
+        assertThat(forward).isInstanceOf(TypeManifestException::class.java)
+        assertThat(reverse).isInstanceOf(TypeManifestException::class.java)
+        assertThat(forward.message).isEqualTo(reverse.message)
+        assertThat(forward.message)
+            .contains("Conflicting job type registrations")
+            .contains("first.jar")
+            .contains("second.jar")
     }
 
     @Test
@@ -142,6 +172,24 @@ class TypeRegistryTest {
     }
 
     @Test
+    fun `M08 should report the same first missing class independent of input order`() {
+        val first = TypeManifestEntry(TypeRole.MODEL, "a-model", "missing.First", "first.jar")
+        val second = TypeManifestEntry(TypeRole.MODEL, "z-model", "missing.Second", "second.jar")
+
+        val forward = catchThrowable {
+            TypeRegistry.create(javaClass.classLoader, listOf(second, first))
+        }
+        val reverse = catchThrowable {
+            TypeRegistry.create(javaClass.classLoader, listOf(first, second))
+        }
+
+        assertThat(forward).isInstanceOf(TypeManifestException::class.java)
+        assertThat(reverse).isInstanceOf(TypeManifestException::class.java)
+        assertThat(forward.message).isEqualTo(reverse.message)
+        assertThat(forward.message).contains("missing.First")
+    }
+
+    @Test
     fun `M08 should wrap linkage errors without publishing a registry`() {
         val loader = object : ClassLoader(javaClass.classLoader) {
             override fun loadClass(name: String, resolve: Boolean): Class<*> {
@@ -173,6 +221,7 @@ class TypeRegistryTest {
     private class ReviewStep
     private class OtherReviewStep
     private class NotificationJob
+    private class OtherNotificationJob
     private class OrderModel
     private class OtherOrderModel
     private class Currency
