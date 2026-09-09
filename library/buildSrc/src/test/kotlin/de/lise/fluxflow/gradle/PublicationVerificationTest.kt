@@ -87,11 +87,27 @@ class PublicationVerificationTest {
         )
     }
 
+    @Test
+    fun `verifyPublications should accept a declared Gradle plugin marker`() {
+        fixture(
+            Module(
+                "manifest-gradle-plugin",
+                "manifest-gradle-plugin",
+                pluginId = "de.lise.fluxflow.type-manifest",
+            )
+        )
+
+        val result = verify().build()
+
+        assertThat(result.output).contains("Verified 3 publications: 0x -spring3, 0x -spring4.")
+    }
+
     private data class Module(
         val path: String,
         val artifactId: String,
         val dependencies: List<String> = emptyList(),
         val testDependencies: List<String> = emptyList(),
+        val pluginId: String? = null,
     )
 
     private fun fixture(vararg modules: Module) {
@@ -112,6 +128,7 @@ class PublicationVerificationTest {
                 plugins {
                     id 'java-library'
                     id 'maven-publish'
+                    ${if (module.pluginId != null) "id 'java-gradle-plugin'" else ""}
                 }
                 group = 'de.lise.fluxflow'
                 version = '1.0.0'
@@ -123,6 +140,18 @@ class PublicationVerificationTest {
                         }
                     }
                 }
+                ${module.pluginId?.let { pluginId ->
+                    """
+                    gradlePlugin {
+                        plugins {
+                            fixturePlugin {
+                                id = '$pluginId'
+                                implementationClass = 'example.FixturePlugin'
+                            }
+                        }
+                    }
+                    """.trimIndent()
+                }.orEmpty()}
                 dependencies {
                     ${dependencies.joinToString("\n                    ")}
                 }
