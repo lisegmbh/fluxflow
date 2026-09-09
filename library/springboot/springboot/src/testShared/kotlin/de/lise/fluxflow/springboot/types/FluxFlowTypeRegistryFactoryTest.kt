@@ -86,7 +86,7 @@ class FluxFlowTypeRegistryFactoryTest {
         context(DefaultTypeApplication::class.java).use { context ->
             val registry = FluxFlowTypeRegistryFactory(context, javaClass.classLoader).create()
 
-            assertThat(registry.resolve(TypeRole.STEP, "scan-witness").java.name)
+            assertThat(registry.resolve(TypeRole.STEP, witnessName).java.name)
                 .isEqualTo(witnessName)
             assertThat(System.getProperty(property)).isNull()
         }
@@ -119,6 +119,28 @@ class FluxFlowTypeRegistryFactoryTest {
 
                 assertThat(first.resolve(TypeRole.VALUE, "context-value")).isEqualTo(String::class)
                 assertThat(second.resolve(TypeRole.VALUE, "context-value")).isEqualTo(StringBuilder::class)
+            }
+        }
+    }
+
+    @Test
+    fun `M07 should scan with the application context class loader`() {
+        context(DefaultTypeApplication::class.java).use { context ->
+            URLClassLoader(emptyArray(), null).use { unrelatedClassLoader ->
+                val thread = Thread.currentThread()
+                val originalClassLoader = thread.contextClassLoader
+                thread.contextClassLoader = unrelatedClassLoader
+                try {
+                    val registry = FluxFlowTypeRegistryFactory(
+                        context,
+                        javaClass.classLoader,
+                    ).create()
+
+                    assertThat(registry.resolve(TypeRole.STEP, "scanned-step"))
+                        .isEqualTo(DefaultScannedStep::class)
+                } finally {
+                    thread.contextClassLoader = originalClassLoader
+                }
             }
         }
     }

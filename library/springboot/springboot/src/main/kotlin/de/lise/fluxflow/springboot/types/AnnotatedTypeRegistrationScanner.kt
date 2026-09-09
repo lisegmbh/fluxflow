@@ -7,6 +7,7 @@ import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.step.Step
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.core.type.AnnotationMetadata
 import org.springframework.core.type.filter.AnnotationTypeFilter
 
@@ -18,6 +19,7 @@ class AnnotatedTypeRegistrationScanner(
 ) {
     fun scan(basePackages: Iterable<String>): List<TypeManifestEntry> {
         val scanner = ClassPathScanningCandidateComponentProvider(false)
+        scanner.setResourceLoader(PathMatchingResourcePatternResolver(classLoader))
         scanner.addIncludeFilter(AnnotationTypeFilter(Step::class.java, false))
         scanner.addIncludeFilter(AnnotationTypeFilter(Job::class.java, false))
 
