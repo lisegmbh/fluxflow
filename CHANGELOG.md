@@ -58,6 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    KEY names. `isType` finds registered MODEL and VALUE aliases,
    including subtype filters and custom type keys. Dual-role projections accept their declared
    root aliases while nested values and complete workflow models retain strict role checks.
+4. **Fail-closed Mongo value reconstruction**<br/>
+   Legacy value type maps and current typed records now resolve custom value types through the
+   context-local trusted registry. Persisted type names no longer reach a class loader, malformed
+   type graphs fail with defined errors, and unknown values are rejected before create, save, or
+   legacy migration writes data. Fixed built-in scalar and collection conversions remain supported.
 
 ### Removed
 

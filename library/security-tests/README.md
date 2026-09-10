@@ -32,6 +32,11 @@ propagation probes do not establish that untrusted types cannot be instantiated.
 | R04 | Raw Mongo change only to the root type key, then the same read | Reject an incompatible root before materialization |
 | R05 | Fixture in a fresh class loader | Distinguish class initialization from constructor invocation |
 | R06 | Gradle task boundary | Missing, filtered, skipped or failing required tests fail the gate |
+| V01 | Legacy step/job value type maps and migration | Reject an unregistered enum name before initialization and before migration writes |
+| V02 | Current typed records in steps, jobs and definitions | Reject an unregistered JVM type reference before enum initialization |
+| V03 | Registered values and fixed built-ins | Preserve enums, aliases, collections, dates, instants and nulls without TCCL lookup |
+| V04 | Malformed value metadata and writes | Fail with defined errors and reject unregistered values before create/save writes |
+| V05 | Multiple application contexts | Keep immutable value registries isolated under parallel conversion |
 
 Marker fixtures record local test events only. A fresh loader is needed to repeat
 static initialization: resetting a counter cannot reset a JVM class initializer.
@@ -48,6 +53,12 @@ resolved runtime dependencies, test counts, failures and skips with the review.
 The complete report set must contain the required suites in both compatibility
 lines. Green R01/R02 reports prove that activation rejects the report witnesses. Green
 R03 reports prove the same at the production Mongo conversion boundary.
+
+V01 and V02 use a separate enum witness because enum constant access initializes its class even
+when Mongo stores the value itself as a string. The production contract mutates only the legacy
+`typeName` or the matching typed-record JVM entry, then reads through the real persistence bean.
+The companion converter contract covers structural corruption and bounded graph traversal without
+requiring Mongo. Both contracts are mandatory in each Spring compatibility line.
 
 ## Production Mongo conversion boundary
 
@@ -100,6 +111,13 @@ type metadata, and copies the host read preference through Spring Data's public 
 `MappingMongoConverter.with` does not expose every mutable setting, including map-key
 handling, callbacks, projections, and environment wiring. The production customization
 contract provides explicit configuration for these settings with behavioral regression tests.
+
+Value reconstruction runs after the guarded Mongo conversion boundary and uses a
+`ValueTypeConverter` built from the same context-local `TypeRegistry`. Its fixed built-in table and
+exact `VALUE` registrations replace the former context-class-loader lookup in `SimpleType`.
+Step, job, step-definition, and type-record migration paths share this converter. Invalid record
+references, key sets, collection metadata, cycles, and excessive graphs fail before raw values can
+escape or persistence writes can occur.
 
 ## Build gate tests
 
