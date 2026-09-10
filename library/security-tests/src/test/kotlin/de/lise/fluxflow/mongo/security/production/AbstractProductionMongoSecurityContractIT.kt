@@ -82,8 +82,9 @@ import org.springframework.data.mongodb.MongoTransactionManager
 import org.springframework.data.mongodb.core.mapping.event.AfterLoadEvent
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.transaction.support.TransactionTemplate
-import java.util.UUID
 import java.time.Instant
+import java.util.Collections
+import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CopyOnWriteArrayList
@@ -843,6 +844,65 @@ abstract class AbstractProductionMongoSecurityContractIT {
             )
             assertThat(legacy.data["state"]).isEqualTo(SecurityTestWorkflowEnum.Done)
         }
+    }
+
+    @Test
+    fun `V03 fixed values and nested registered enums round-trip through production persistence`() {
+        val workflowId = UUID.randomUUID().toString()
+        val instant = Instant.parse("2026-09-10T08:15:30Z")
+        val stepId = ObjectId()
+        val step = steps.create(
+            StepData(
+                stepId.toHexString(), workflowId, "fixed-values-step", "1",
+                linkedMapOf(
+                    "string" to "safe",
+                    "number" to 42,
+                    "instant" to instant,
+                    "list" to listOf("one", 2, null),
+                    "set" to linkedSetOf("one", "two"),
+                    "singleton" to Collections.singletonList("one"),
+                    "empty" to emptyList<Any?>(),
+                    "enums" to listOf(
+                        SecurityTestWorkflowEnum.Ready,
+                        SecurityTestWorkflowEnum.Done,
+                    ),
+                    "null" to null,
+                ),
+                Status.Active,
+                mapOf("state" to SecurityTestWorkflowEnum.Ready),
+            )
+        )
+
+        assertThat(step.data["string"]).isEqualTo("safe")
+        assertThat(step.data["number"]).isEqualTo(42)
+        assertThat(step.data["instant"]).isEqualTo(instant)
+        assertThat(step.data["list"]).isEqualTo(listOf("one", 2, null))
+        assertThat(step.data["set"]).isEqualTo(linkedSetOf("one", "two"))
+        assertThat(step.data["singleton"]).isEqualTo(listOf("one"))
+        assertThat(step.data["empty"]).isEqualTo(emptyList<Any?>())
+        assertThat(step.data["enums"]).isEqualTo(
+            listOf(SecurityTestWorkflowEnum.Ready, SecurityTestWorkflowEnum.Done)
+        )
+        assertThat(step.data["null"]).isNull()
+        assertThat(step.metadata["state"]).isEqualTo(SecurityTestWorkflowEnum.Ready)
+
+        val jobId = ObjectId()
+        val job = jobs.create(
+            JobData(
+                jobId.toHexString(), workflowId, "fixed-values-job",
+                mapOf(
+                    "instant" to instant,
+                    "set" to linkedSetOf("one", "two"),
+                    "state" to SecurityTestWorkflowEnum.Done,
+                    "null" to null,
+                ),
+                instant, null, JobStatus.Scheduled,
+            )
+        )
+        assertThat(job.parameters["instant"]).isEqualTo(instant)
+        assertThat(job.parameters["set"]).isEqualTo(linkedSetOf("one", "two"))
+        assertThat(job.parameters["state"]).isEqualTo(SecurityTestWorkflowEnum.Done)
+        assertThat(job.parameters["null"]).isNull()
     }
 
     @Test

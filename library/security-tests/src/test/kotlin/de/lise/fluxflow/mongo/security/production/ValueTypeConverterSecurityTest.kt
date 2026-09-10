@@ -235,6 +235,29 @@ class ValueTypeConverterSecurityTest {
     }
 
     @Test
+    fun `V04 incompatible values and unsupported records never pass through raw`() {
+        assertThatThrownBy { SimpleType(Int::class).assertType("not-an-int") }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("not compatible")
+        assertThatThrownBy { NullType().assertType("not-null") }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("Expected null")
+
+        val unsupported = object : TypeRecord {
+            override fun toTypeSpec(context: de.lise.fluxflow.mongo.generic.record.RecordContext) =
+                throw AssertionError("Untrusted record implementation must not control decoding")
+        }
+        val records = TypedRecords(
+            JvmTypeMapping(),
+            mapOf("payload" to "safe"),
+            mapOf("payload" to unsupported),
+        )
+        assertThatThrownBy { records.toTypeSafeData() }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("Unsupported type record")
+    }
+
+    @Test
     fun `V04 value aliases conflicting with built ins fail during construction`() {
         val registry = registry(
             TypeManifestEntry(
