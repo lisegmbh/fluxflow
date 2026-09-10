@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
    generates the manifest in consumer JARs.
+2. **Read-only Mongo type inventory audit**<br/>
+   Adds an explicit raw-BSON audit API that compares persisted FluxFlow type metadata with
+   the candidate application's trusted registry without hydrating application objects or
+   changing the database. Structured reports distinguish findings, collection failures, and
+   incomplete scans. The manifest guide now documents the consumer inventory check and the
+   required Expand -> Deploy -> Migrate -> Contract sequence for type changes.
 
 ### Changed
 1. **Trusted type inventory is validated during application startup**<br/>
