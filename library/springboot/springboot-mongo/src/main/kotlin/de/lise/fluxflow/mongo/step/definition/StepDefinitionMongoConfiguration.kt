@@ -14,6 +14,10 @@ open class StepDefinitionMongoConfiguration {
         stepDefinitionRepository: StepDefinitionRepository,
         access: FluxFlowMongoAccess,
     ): StepDefinitionPersistence {
-        return StepDefinitionMongoPersistence(stepDefinitionRepository, access.template)
+        return StepDefinitionMongoPersistence(
+            stepDefinitionRepository,
+            access.template,
+            access.valueTypes,
+        )
     }
 }

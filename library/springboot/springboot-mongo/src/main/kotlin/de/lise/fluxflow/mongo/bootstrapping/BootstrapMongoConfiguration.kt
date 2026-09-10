@@ -65,6 +65,7 @@ open class BootstrapMongoConfiguration {
             jobRepository,
             access.converter,
             access.template,
+            access.valueTypes,
         )
     }
 }
