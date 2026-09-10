@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    generates and verifies the manifest in consumer JARs. Activation and Mongo enforcement
    remain separate follow-up changes.
 
+6. **Docker runtime for Jenkins integration tests**<br/>
+   Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
+   the Gradle container, and retains test reports on build failures. Security-test exceptions
+   include their full causes in the build log. The Kubernetes cluster must permit the
+   privileged Docker sidecar.
+
 ### Changed
 1. **Spring integration artifacts are now published in two explicit lines**<br/>
    All Spring Boot integration artifacts are now published under coordinates that carry the supported
