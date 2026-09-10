@@ -15,6 +15,7 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoCustomTypeKeyIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoReconciliationIT",
+        "de.lise.fluxflow.mongo.security.production.ValueTypeConverterSecurityTest",
     ))
 }
 
