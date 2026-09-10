@@ -5,6 +5,7 @@ pipeline {
             defaultContainer 'jnlp'
             inheritFrom 'plain'
             yamlFile './build/agent.yml'
+            showRawYaml true
         }
     }
 
@@ -20,11 +21,23 @@ pipeline {
             }
             steps {
                 container('gradle') {
+                    sh 'sh build/tests/wait-for-docker-test.sh'
+                    sh 'sh build/wait-for-docker.sh'
                     dir('library') {
                         // buildSrc:test must be requested explicitly - Gradle no longer
                         // runs buildSrc tests as part of the main build.
                         sh 'gradle build buildSrc:test'
                     }
+                }
+            }
+            post {
+                always {
+                    // Preflight can fail before XML exists. The mandatory Gradle
+                    // security gate still rejects absent or skipped security tests.
+                    junit testResults: 'library/**/build/test-results/**/*.xml',
+                            allowEmptyResults: true
+                    archiveArtifacts artifacts: 'library/**/build/reports/tests/**,library/**/build/test-results/**/*.xml',
+                            allowEmptyArchive: true
                 }
             }
         }
