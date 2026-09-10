@@ -99,10 +99,9 @@ step require that same entry before anything is written. An unknown job kind fai
 `JobActivationException` and the message `Unable to schedule job with kind '<kind>'`, without
 cancelling, persisting, or scheduling. An unknown step kind fails with `StepActivationException`
 before the step document or its definition snapshot is written. Reading jobs stays
-fail-closed: one job that cannot be activated fails the whole `findAllJobs` call. Mongo model and value type
-metadata use the same inventory in a separate hardening step.
-This startup validation takes effect immediately when upgrading, including for `model` and
-`value` registrations before their persistence consumers use the registry exclusively.
+fail-closed: one job that cannot be activated fails the whole `findAllJobs` call. Mongo model and value
+metadata use the same inventory and reject unregistered types before materialization.
+This startup validation takes effect immediately when upgrading for every registered role.
 For example, two discovered `@Job("notify")` classes now prevent startup, as does
 a dependency manifest referencing a class absent at runtime. Audit duplicate kinds and dependency
 manifests before upgrading; invalid registrations are not ignored.
@@ -112,12 +111,37 @@ resolution. Contributors retain the exact `KClass` they supply. Registrations fo
 role/key and binary name from different class loaders conflict if they identify different JVM
 classes. Contributor classes must also be compatible with the application's shared APIs.
 
-Before upgrading a running system, compare the distinct persisted step and job kinds with the
-generated inventory. Every historical kind that can still be activated needs an exact `step` or
-`job` declaration. Compare model/value type metadata as preparation for Mongo hardening as well.
-Database contents may identify missing declarations, but must never add registrations
-automatically. Applications with dynamic or erased model types need explicit entries. A repository
-fixture cannot replace an inventory check against the actual application's data.
+Step data, step metadata, job parameters, and step-definition metadata also use the registry when
+reconstructing values from legacy type maps or current typed records. Common JVM scalar, date/time,
+Mongo scalar, map, list, and set representations use a fixed internal allowlist. Every other type,
+including application enums, needs a `value` registration. FluxFlow resolves only the registered
+key, binary class name, or the canonical name derived from that already registered class; it never
+passes a persisted value type name to a class loader. The canonical form keeps records written by
+older FluxFlow versions readable for registered nested classes.
+
+Malformed records fail with `ValueTypeConversionException`. This includes missing or duplicate JVM
+type references, different value and metadata key sets, incompatible values, inconsistent
+collection lengths, cycles, and type graphs beyond the traversal limits. Unknown names continue to
+fail with `UnknownTypeException` and role `VALUE`. Create and save operations validate these types
+before writing, and the legacy-to-typed-record migration applies the same rules per document.
+
+The parameterless `SimpleType`, `CollectionType`, and `TypedRecords` conversion methods remain
+available for compatibility and accept only fixed built-ins. Code that reconstructs registered
+application values directly can bind the registry explicitly:
+
+```kotlin
+val valueTypes = ValueTypeConverter(typeRegistry)
+val restored = typedRecords.toTypeSafeData(valueTypes)
+```
+
+Before upgrading a running system, compare the distinct persisted step and job kinds, Mongo
+model/value discriminators, legacy `typeName` fields, and typed-record JVM type entries with the
+generated inventory. Every historical custom key that can still be read needs an exact declaration
+for its matching role; entries from legacy value maps and typed records use the `value` role.
+Database contents may identify missing declarations,
+but must never add registrations automatically. Applications with dynamic or erased model types
+need explicit entries. A repository fixture cannot replace an inventory check against the actual
+application's data.
 
 Mongo reads, type-record bootstrap migration and scheduled-job reference queries use the host
 converter's mapping context, including custom field names and status converters. Mapped PATH fields
