@@ -14,6 +14,7 @@ plugins {
 val testSources = extensions.getByType<SourceSetContainer>().named("test")
 val securityTestPatterns = listOf(
     "de/lise/fluxflow/mongo/security/baseline/**",
+    "de/lise/fluxflow/mongo/security/production/**",
     "de/lise/fluxflow/mongo/security/prototype/**",
 )
 val securityRequirements = extensions.create<SecurityTestRequirements>("securityTests")
