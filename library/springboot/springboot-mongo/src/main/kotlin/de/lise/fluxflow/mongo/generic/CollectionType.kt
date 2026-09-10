@@ -9,11 +9,11 @@ class CollectionType(
     val componentTypes: List<TypeSpec>
 ) : TypeSpec {
     override fun assertType(value: Any?): Any? {
-        val elements = (value as Collection<*>).mapIndexed { index, element ->
-            componentTypes[index].assertType(element)
-        }
-        return collectionType.assertType(elements)
+        return ValueTypeConverter.BuiltInsOnly.assertType(this, value)
     }
+
+    fun assertType(value: Any?, converter: ValueTypeConverter): Any? =
+        converter.assertType(this, value)
 
     override fun toRecord(context: RecordContext): TypeRecord {
         return CollectionTypeRecord(
