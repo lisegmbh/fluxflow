@@ -84,6 +84,9 @@ class ValueTypeConverter private constructor(
     internal fun isRegistered(typeName: Any?): Boolean =
         typeName is String && typeName.isNotEmpty() && aliases.containsKey(typeName)
 
+    /** Checks only the fixed, role-independent aliases supported without an application registry. */
+    internal fun isBuiltIn(typeName: Any?): Boolean = BuiltInsOnly.isRegistered(typeName)
+
     private fun resolve(typeName: String): KClass<*> =
         aliases[typeName] ?: throw UnknownTypeException(TypeRole.VALUE, typeName)
 

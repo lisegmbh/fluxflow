@@ -155,12 +155,13 @@ class TypeInventoryCheck(
 
 The audit checks persisted step and job kinds, workflow model names and discriminators, nested
 Mongo discriminators, legacy `typeName` fields, and current typed-record JVM type entries against
-the immutable registry of the running application. Findings contain the collection, document ID,
-JSON-pointer-style field path, expected role when one applies, persisted name when it is a string,
-and one of these issues:
+the immutable registry of the running application. Fixed scalar and container workflow models that
+the guarded converter already supports are accepted without application registrations. Findings
+contain the collection, document ID, JSON-pointer-style field path, expected role when one applies,
+persisted name when it is a string, and one of these issues:
 
 - `UNREGISTERED`: the exact persisted name is absent from the expected registry role.
-- `MALFORMED`: type metadata is empty or is not a string.
+- `MALFORMED`: required type metadata is missing, empty, or is not a string.
 - `DISALLOWED`: a name is known in another role or is not permitted at that document location.
 - `INCONSISTENT`: two registered fields in one document identify different model classes.
 

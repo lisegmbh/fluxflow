@@ -25,6 +25,9 @@ propagation probes do not establish that untrusted types cannot be instantiated.
 The plan identifiers are mapped to executable tests below. Methods declared by an abstract Mongo
 contract run through the corresponding `Boot3...IT` and `Boot4...IT` wrappers. Tests under
 `springboot/src/testShared` likewise run in both Spring compatibility modules.
+The matrix spans the mandatory Mongo `securityTest` tasks and the regular unit, integration,
+plugin TestKit, and buildSrc TestKit suites. Run the complete library build and the separate
+buildSrc tests in addition to `securityTest` to execute all 40 IDs.
 
 | ID | Boundary | Executable evidence |
 |---|---|---|
@@ -64,7 +67,7 @@ contract run through the corresponding `Boot3...IT` and `Boot4...IT` wrappers. T
 | V05 | Context isolation | `ValueTypeConverterSecurityTest.V05 concurrent application contexts keep their value registries isolated` |
 | O01 | Reconciliation isolation | `ReconcileScheduledJobsBootstrapActionTest.O01 isolates rejected and missing jobs between healthy scheduled jobs` and `AbstractProductionMongoReconciliationIT.O01 production startup isolates an unknown payload between healthy scheduled jobs` |
 | O02 | Normal queries fail visibly | `AbstractProductionMongoSecurityContractIT.O02 D01 findAll pagination and FlowQuery reject an unregistered model` |
-| O03 | Read-only raw BSON audit | `AbstractProductionMongoTypeAuditIT.O03 audit reports persisted type deviations without hydration or writes`, `O03 audit accepts registered Mongo aliases and built-in value types`, and `O03 audit marks capped results incomplete and reports malformed metadata`, executed by `Boot3ProductionMongoTypeAuditIT` and `Boot4ProductionMongoTypeAuditIT` |
+| O03 | Read-only raw BSON audit | `AbstractProductionMongoTypeAuditIT.O03 audit reports persisted type deviations without hydration or writes`, `O03 audit accepts registered Mongo aliases and built-in value types`, `O03 audit accepts the qualified name written for a nested model`, `O03 audit accepts fixed scalar and container workflow models`, `O03 audit classifies malformed and disallowed metadata`, `O03 audit rejects missing required kinds and typed record type`, and `O03 audit marks capped results incomplete`, executed by `Boot3ProductionMongoTypeAuditIT` and `Boot4ProductionMongoTypeAuditIT` |
 | O04 | WFMS-like consumer behavior | `AbstractMongoConsumerContractIT.O04 resumes an external model through a custom step query and custom job execution` and `O04 restores a persisted incompatible custom step without actions`, executed by `Boot3MongoConsumerContractIT` and `Boot4MongoConsumerContractIT` |
 | O05 | Inventory and rolling-deployment boundary | `AbstractProductionMongoSecurityContractIT.O05 expand readers accept old and future models before future writes begin` and `AbstractProductionMongoTypeAuditIT.O05 audit reports inconsistent registered model metadata` |
 | O06 | Complete artifact and initialized registry | `FluxFlowTypeManifestPluginTest.O06 should fail check when the jar omits the generated manifest`, `O06 should generate and verify the manifest in an executable boot jar`, `M03 O06 should reject an explicit type absent from the runtime classpath`, `FluxFlowTypeRegistryFactoryTest.O06 should publish a complete registry before its first consumer`, `O06 should fail context refresh before a consumer sees an invalid manifest`, `BasicConfigurationActivationTest.O06 should pass the context registry to job activation`, and `AbstractProductionMongoSecurityContractIT.O06 create rejects an unregistered external model before writing` |
@@ -102,7 +105,10 @@ the release evidence.
 O05 records the reason for the staged rollout: an expanded reader accepts old and future types,
 while a pre-expand reader rejects a future runtime class name once it is written. The public
 manifest documentation defines the corresponding Expand -> Deploy -> Migrate -> Contract sequence
-and rollback boundary.
+and rollback boundary. The executable test uses two immutable registry snapshots in one test
+artifact to prove that ordering boundary. Deploying separate application versions, performing a
+rename migration, and contracting the inventory remain release steps to execute in the consumer
+environment.
 
 ## Production Mongo conversion boundary
 
