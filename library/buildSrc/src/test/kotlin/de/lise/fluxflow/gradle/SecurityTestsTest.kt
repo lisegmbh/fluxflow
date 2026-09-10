@@ -26,25 +26,6 @@ class SecurityTestsTest {
     }
 
     @Test
-    fun `security gate should include prototype security tests`() {
-        fixture(
-            "securityTests.requiredClasses = ['de.lise.fluxflow.mongo.security.prototype.PrototypeTest']"
-        )
-        securitySource("prototype", "PrototypeTest", "@Test void prototype() {}")
-
-        val result = runner("securityTest").build()
-
-        assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-        assertThat(
-            File(
-                projectDir,
-                "build/test-results/securityTest/" +
-                    "TEST-de.lise.fluxflow.mongo.security.prototype.PrototypeTest.xml"
-            )
-        ).exists()
-    }
-
-    @Test
     fun `security gate should include production security tests`() {
         fixture(
             "securityTests.requiredClasses = ['de.lise.fluxflow.mongo.security.production.ProductionTest']"

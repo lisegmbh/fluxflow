@@ -6,11 +6,17 @@ import de.lise.fluxflow.mongo.generic.NullType
 import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
+import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
+import de.lise.fluxflow.mongo.generic.record.TypeName
+import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
+import de.lise.fluxflow.mongo.generic.record.TypeReference
+import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.generic.record.NullTypeRecord
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.migration.MigrationDocument
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
+import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import org.springframework.beans.factory.BeanFactory
@@ -40,6 +46,7 @@ class FluxFlowMongoAccess internal constructor(
 ) {
     internal val converter: MongoConverter
     internal val template: MongoTemplate
+    internal val typeKey: String
 
     private val repositoryFactory: MongoRepositoryFactory
 
@@ -63,15 +70,22 @@ class FluxFlowMongoAccess internal constructor(
             JvmTypeRecord::class.java,
             CollectionTypeRecord::class.java,
             NullTypeRecord::class.java,
+            TypedRecords::class.java,
+            JvmTypeMapping::class.java,
+            TypeRecordEntry::class.java,
+            TypeReference::class.java,
+            TypeName::class.java,
+            DataDefinitionDocument::class.java,
         )
+        typeKey = MongoTypeKeyResolver.resolve(hostConverter.typeMapper)
         val aliases = FluxFlowMongoTypeAliases(registry, rootTypes, infrastructureTypes)
         val databaseFactory = hostTemplate.mongoDatabaseFactory
         val isolatedConverter = hostConverter.with(databaseFactory).apply {
-            setTypeMapper(typeMapperFactory.create(aliases, TYPE_KEY))
+            setTypeMapper(typeMapperFactory.create(aliases, typeKey))
         }
         converter = GuardedMongoConverter(
             isolatedConverter,
-            MongoDocumentTypePolicy(aliases, TYPE_KEY),
+            MongoDocumentTypePolicy(aliases, typeKey),
         )
         template = MongoTemplate(databaseFactory, converter).apply {
             setApplicationContext(applicationContext)
@@ -91,8 +105,4 @@ class FluxFlowMongoAccess internal constructor(
 
     internal fun <T : Any> repository(type: Class<T>, fragment: Any): T =
         repositoryFactory.getRepository(type, RepositoryFragments.just(fragment))
-
-    private companion object {
-        const val TYPE_KEY = "_class"
-    }
 }

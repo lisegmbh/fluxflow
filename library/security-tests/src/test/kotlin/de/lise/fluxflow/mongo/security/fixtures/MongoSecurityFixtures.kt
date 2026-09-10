@@ -1,4 +1,4 @@
-package de.lise.fluxflow.mongo.security.prototype
+package de.lise.fluxflow.mongo.security.fixtures
 
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.reflection.types.TypeManifestEntry
@@ -17,7 +17,7 @@ import org.springframework.data.mongodb.repository.MongoRepository
 import java.time.Instant
 import java.util.Date
 
-internal const val PROTOTYPE_WITNESS_NAME =
+internal const val SECURITY_WITNESS_NAME =
     "de.lise.fluxflow.mongo.security.baseline.fixture.ActivationWitness"
 
 internal const val MODEL_TYPE_ALIAS = "workflow-model"
@@ -26,115 +26,115 @@ internal const val VALUE_TYPE_ALIAS = "workflow-value"
 
 internal const val SUBTYPE_ALIAS = "workflow-subtype"
 
-internal sealed interface PrototypeWorkflowModelType {
+internal sealed interface SecurityTestWorkflowModelType {
     val name: String
 }
 
-internal data class PrototypeWorkflowModel(
+internal data class SecurityTestWorkflowModel(
     @field:Field("mapped_name")
     override val name: String,
     val nullable: String?,
     val scalar: Int,
     val date: Date,
     val instant: Instant,
-    val converted: PrototypeConvertedValue,
+    val converted: SecurityConvertedValue,
     val nested: List<Map<String, Any?>>,
-) : PrototypeWorkflowModelType
+) : SecurityTestWorkflowModelType
 
-internal data class PrototypeWorkflowSubtype(
+internal data class SecurityTestWorkflowSubtype(
     override val name: String,
     val subtypeValue: String,
-) : PrototypeWorkflowModelType
+) : SecurityTestWorkflowModelType
 
 internal data class HostOnlyWorkflowModel(
     val value: String,
 )
 
-@MongoDocument("prototype_host_documents")
-internal data class PrototypeHostDocument(
+@MongoDocument("security_host_documents")
+internal data class SecurityHostDocument(
     @Id val id: String,
     val model: Any?,
 )
 
-internal interface PrototypeHostRepository : MongoRepository<PrototypeHostDocument, String>
+internal interface SecurityHostRepository : MongoRepository<SecurityHostDocument, String>
 
-internal data class PrototypeWorkflowValue(
+internal data class SecurityTestWorkflowValue(
     val value: String,
 )
 
-internal data class PrototypeConvertedValue(
+internal data class SecurityConvertedValue(
     val value: String,
 )
 
 @WritingConverter
-internal object PrototypeConvertedValueWriter : Converter<PrototypeConvertedValue, String> {
-    override fun convert(source: PrototypeConvertedValue): String = "converted:${source.value}"
+internal object SecurityConvertedValueWriter : Converter<SecurityConvertedValue, String> {
+    override fun convert(source: SecurityConvertedValue): String = "converted:${source.value}"
 }
 
 @ReadingConverter
-internal object PrototypeConvertedValueReader : Converter<String, PrototypeConvertedValue> {
-    override fun convert(source: String): PrototypeConvertedValue {
+internal object SecurityConvertedValueReader : Converter<String, SecurityConvertedValue> {
+    override fun convert(source: String): SecurityConvertedValue {
         require(source.startsWith("converted:"))
-        return PrototypeConvertedValue(source.removePrefix("converted:"))
+        return SecurityConvertedValue(source.removePrefix("converted:"))
     }
 }
 
-internal fun prototypeRegistry(
+internal fun securityTestRegistry(
     loader: WitnessClassLoader,
     vararg entries: TypeManifestEntry,
 ): TypeRegistry = TypeRegistry.create(loader, entries.toList())
 
-internal fun prototypeEntry(
+internal fun securityTestEntry(
     role: TypeRole,
     key: String,
     binaryClassName: String,
-): TypeManifestEntry = TypeManifestEntry(role, key, binaryClassName, "PR04 contract fixture")
+): TypeManifestEntry = TypeManifestEntry(role, key, binaryClassName, "Mongo security contract fixture")
 
-internal fun allowedPrototypeEntries(): Array<TypeManifestEntry> = arrayOf(
-    prototypeEntry(
+internal fun allowedSecurityTestEntries(): Array<TypeManifestEntry> = arrayOf(
+    securityTestEntry(
         TypeRole.MODEL,
-        PrototypeWorkflowModel::class.java.name,
-        PrototypeWorkflowModel::class.java.name,
+        SecurityTestWorkflowModel::class.java.name,
+        SecurityTestWorkflowModel::class.java.name,
     ),
-    prototypeEntry(
+    securityTestEntry(
         TypeRole.MODEL,
         MODEL_TYPE_ALIAS,
-        PrototypeWorkflowModel::class.java.name,
+        SecurityTestWorkflowModel::class.java.name,
     ),
-    prototypeEntry(
+    securityTestEntry(
         TypeRole.VALUE,
-        PrototypeWorkflowValue::class.java.name,
-        PrototypeWorkflowValue::class.java.name,
+        SecurityTestWorkflowValue::class.java.name,
+        SecurityTestWorkflowValue::class.java.name,
     ),
-    prototypeEntry(
+    securityTestEntry(
         TypeRole.VALUE,
         VALUE_TYPE_ALIAS,
-        PrototypeWorkflowValue::class.java.name,
+        SecurityTestWorkflowValue::class.java.name,
     ),
-    prototypeEntry(
+    securityTestEntry(
         TypeRole.MODEL,
-        PrototypeWorkflowSubtype::class.java.name,
-        PrototypeWorkflowSubtype::class.java.name,
+        SecurityTestWorkflowSubtype::class.java.name,
+        SecurityTestWorkflowSubtype::class.java.name,
     ),
-    prototypeEntry(
+    securityTestEntry(
         TypeRole.MODEL,
         SUBTYPE_ALIAS,
-        PrototypeWorkflowSubtype::class.java.name,
+        SecurityTestWorkflowSubtype::class.java.name,
     ),
 )
 
-internal fun prototypeModel(): PrototypeWorkflowModel = PrototypeWorkflowModel(
+internal fun securityTestModel(): SecurityTestWorkflowModel = SecurityTestWorkflowModel(
     name = "contract-model",
     nullable = null,
     scalar = 42,
     date = Date.from(Instant.parse("2026-09-10T08:15:30Z")),
     instant = Instant.parse("2026-09-10T08:15:30Z"),
-    converted = PrototypeConvertedValue("custom-conversion"),
+    converted = SecurityConvertedValue("custom-conversion"),
     nested = listOf(
         linkedMapOf(
             "null" to null,
-            "fqcn" to PrototypeWorkflowValue("legacy-fqcn"),
-            "alias" to PrototypeWorkflowValue("logical-alias"),
+            "fqcn" to SecurityTestWorkflowValue("legacy-fqcn"),
+            "alias" to SecurityTestWorkflowValue("logical-alias"),
         )
     ),
 )
