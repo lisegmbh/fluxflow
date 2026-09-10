@@ -34,3 +34,5 @@ include("springboot4:springboot-testing")
 include("core:query")
 include("core:flowquery")
 include("core:validation")
+
+include("manifest-gradle-plugin")
