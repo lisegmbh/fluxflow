@@ -17,9 +17,17 @@ internal class RawBsonFluxFlowMongoTypeAudit(
     private val roleNames = access.typeRegistry.entries
         .groupBy { it.role }
         .mapValues { (_, entries) -> entries.mapTo(mutableSetOf()) { it.key } }
-    private val modelNames = access.typeRegistry.entries
+    private val modelTypesByName = access.typeRegistry.entries
         .filter { it.role == TypeRole.MODEL }
-        .flatMapTo(mutableSetOf()) { listOf(it.key, it.binaryClassName) }
+        .flatMap { entry ->
+            buildSet {
+                add(entry.key)
+                add(entry.binaryClassName)
+                entry.type.qualifiedName?.let(::add)
+            }.map { name -> name to entry.type.java }
+        }
+        .groupBy({ it.first }, { it.second })
+        .mapValues { (_, types) -> types.toSet() }
 
     override fun audit(options: MongoTypeAuditOptions): MongoTypeAuditReport {
         val targets = targets().sortedBy { it.collection }
@@ -77,19 +85,19 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             auditWorkflowModelConsistency(document, add)
         },
         target(StepDocument::class.java) { document, add ->
-            auditRoleName(document, "kind", TypeRole.STEP, add)
+            auditRoleName(document, "kind", TypeRole.STEP, add, required = true)
             auditLegacyTypeNames(document["dataTypeMap"], "/dataTypeMap", add)
             auditLegacyTypeNames(document["metadataTypeMap"], "/metadataTypeMap", add)
             auditTypedRecords(document["dataEntries"], "/dataEntries", add)
             auditTypedRecords(document["metadataEntries"], "/metadataEntries", add)
         },
         target(JobDocument::class.java) { document, add ->
-            auditRoleName(document, "kind", TypeRole.JOB, add)
+            auditRoleName(document, "kind", TypeRole.JOB, add, required = true)
             auditLegacyTypeNames(document["parameterTypeMap"], "/parameterTypeMap", add)
             auditTypedRecords(document["parameterEntries"], "/parameterEntries", add)
         },
         target(StepDefinitionDocument::class.java) { document, add ->
-            auditRoleName(document, "kind", TypeRole.STEP, add)
+            auditRoleName(document, "kind", TypeRole.STEP, add, required = true)
             auditTypedRecords(document["metadata"], "/metadata", add)
             (document["data"] as? Iterable<*>)?.forEachIndexed { index, entry ->
                 val definition = entry as? Map<*, *> ?: return@forEachIndexed
@@ -149,13 +157,24 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         field: String,
         role: TypeRole,
         add: (PendingFinding) -> Unit,
+        required: Boolean = false,
     ) {
         if (!document.containsKey(field)) {
+            if (required) {
+                add(
+                    PendingFinding(
+                        "/$field",
+                        role,
+                        MongoTypeAuditIssue.MALFORMED,
+                        null,
+                    )
+                )
+            }
             return
         }
         val value = document[field]
         val allowed = when (role) {
-            TypeRole.MODEL -> value is String && value in modelNames
+            TypeRole.MODEL -> identifyModelName(value) != null || access.valueTypes.isBuiltIn(value)
             else -> value is String && value in roleNames[role].orEmpty()
         }
         if (!allowed) {
@@ -167,7 +186,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         document: Map<*, *>,
         add: (PendingFinding) -> Unit,
     ) {
-        val modelType = access.typeAliases.identify(TypeRole.MODEL, document["modelType"])
+        val modelType = identifyModelName(document["modelType"])
             ?: return
         val model = document["model"] as? Map<*, *> ?: return
         val discriminator = model[access.typeKey]
@@ -217,16 +236,17 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         val jvmTypes = records["jvmTypes"] as? Map<*, *> ?: return
         val entries = jvmTypes["entries"] as? Iterable<*> ?: return
         entries.forEachIndexed { index, entry ->
-            val typeEntry = entry as? Map<*, *> ?: return@forEachIndexed
-            if (typeEntry.containsKey("type")) {
-                auditValueName(
-                    "$path/jvmTypes/entries/$index/type",
-                    typeEntry["type"],
-                    add,
-                )
-            }
+            val typeEntry = entry as? Map<*, *>
+            auditValueName(
+                "$path/jvmTypes/entries/$index/type",
+                typeEntry?.get("type"),
+                add,
+            )
         }
     }
+
+    private fun identifyModelName(value: Any?): Class<*>? =
+        (value as? String)?.let { modelTypesByName[it]?.singleOrNull() }
 
     private fun auditValueName(path: String, value: Any?, add: (PendingFinding) -> Unit) {
         if (!access.valueTypes.isRegistered(value)) {
