@@ -2,17 +2,45 @@ package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.step.*
 import de.lise.fluxflow.api.step.stateful.StepActivationException
+import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.step.stateful.StatefulStepDefinition
+import de.lise.fluxflow.api.step.RestoredStep
+import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.engine.step.definition.InvokableRestoredStepDefinition
 import de.lise.fluxflow.engine.step.definition.RestoredStepDefinition
 import de.lise.fluxflow.engine.step.definition.StepDefinitionService
 import de.lise.fluxflow.persistence.step.StepData
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.*
 
 class RestoringStepActivationServiceTest {
+    @Test
+    fun `M09 restored unknown steps expose no executable actions and retain their marker`() {
+        val definition = RestoredStepDefinition(
+            StepDefinitionData("retired-step", "1", emptyMap(), emptyList()),
+            null,
+        )
+        val workflow = mock<Workflow<Any>>()
+
+        val restored = definition.toInvokableStepDefinition().activate(
+            StepActivationContext(
+                workflow,
+                StepIdentifier("restored-step"),
+                Version.parse("1"),
+                Status.Active,
+                emptyMap(),
+            )
+        )
+
+        assertThat(restored).isInstanceOf(RestoredStep::class.java)
+        assertThat((restored.definition as StatefulStepDefinition).actions).isEmpty()
+        assertThat((restored as StatefulStep).actions).isEmpty()
+    }
+
     @Test
     fun `toStepDefinition should redirect all invocations to the base activation service`() {
         // Arrange
