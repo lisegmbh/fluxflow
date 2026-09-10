@@ -20,6 +20,7 @@ internal class FluxFlowMongoTypeAliases(
     private val aliases: Map<String, Class<*>>
     private val roleAliases: Map<Pair<TypeRole, String>, Class<*>>
     private val writeTypes: Set<Class<*>>
+    private val rolesByType: Map<Class<*>, Set<TypeRole>>
     private val infrastructureAliases = infrastructureTypes.mapTo(mutableSetOf(), Class<*>::getName)
 
     init {
@@ -60,6 +61,9 @@ internal class FluxFlowMongoTypeAliases(
                 types.single()
             }
         writeTypes = registrations.map(Registration::type).toSet()
+        rolesByType = applicationRegistrations
+            .groupBy(Registration::type)
+            .mapValues { (_, registrations) -> registrations.mapNotNull(Registration::role).toSet() }
     }
 
     fun resolve(alias: Any?): Class<*> {
@@ -85,4 +89,9 @@ internal class FluxFlowMongoTypeAliases(
     }
 
     fun isInfrastructure(alias: Any?): Boolean = alias is String && alias in infrastructureAliases
+
+    fun isAliasFor(alias: Any?, type: Class<*>): Boolean =
+        alias is String && aliases[alias] == type
+
+    fun rolesOf(type: Class<*>): Set<TypeRole> = rolesByType[type].orEmpty()
 }
