@@ -12,7 +12,7 @@ plugins {
 }
 
 val testSources = extensions.getByType<SourceSetContainer>().named("test")
-val baselinePattern = "de/lise/fluxflow/mongo/security/baseline/**"
+val securityTestPattern = "de/lise/fluxflow/mongo/security/**"
 val securityRequirements = extensions.create<SecurityTestRequirements>("securityTests")
 securityRequirements.requiredClasses.convention(emptyList())
 
@@ -47,7 +47,7 @@ val securityTest = tasks.register<MandatorySecurityTest>("securityTest") {
     dependsOn(verifySecurityTestClasses)
     testClassesDirs = testSources.get().output.classesDirs
     classpath = testSources.get().runtimeClasspath
-    include(baselinePattern)
+    include(securityTestPattern)
     useJUnitPlatform()
     // Container availability is external state and is not represented by Gradle inputs.
     outputs.upToDateWhen { false }

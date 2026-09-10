@@ -26,6 +26,25 @@ class SecurityTestsTest {
     }
 
     @Test
+    fun `security gate should include prototype security tests`() {
+        fixture(
+            "securityTests.requiredClasses = ['de.lise.fluxflow.mongo.security.prototype.PrototypeTest']"
+        )
+        securitySource("prototype", "PrototypeTest", "@Test void prototype() {}")
+
+        val result = runner("securityTest").build()
+
+        assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(
+            File(
+                projectDir,
+                "build/test-results/securityTest/" +
+                    "TEST-de.lise.fluxflow.mongo.security.prototype.PrototypeTest.xml"
+            )
+        ).exists()
+    }
+
+    @Test
     fun `security gate should reject skipped tests`() {
         fixture()
         baseline("@Test @Disabled void skipped() {} @Test void passing() {}")
@@ -241,11 +260,18 @@ class SecurityTestsTest {
     }
 
     private fun baseline(body: String, className: String = "BaselineTest") {
-        val source = File(projectDir, "src/test/java/de/lise/fluxflow/mongo/security/baseline/$className.java")
+        securitySource("baseline", className, body)
+    }
+
+    private fun securitySource(packageName: String, className: String, body: String) {
+        val source = File(
+            projectDir,
+            "src/test/java/de/lise/fluxflow/mongo/security/$packageName/$className.java"
+        )
         source.parentFile.mkdirs()
         source.writeText(
             """
-            package de.lise.fluxflow.mongo.security.baseline;
+            package de.lise.fluxflow.mongo.security.$packageName;
             import org.junit.jupiter.api.*;
             public class $className { $body }
             """.trimIndent()
