@@ -70,6 +70,26 @@ class DefaultStepActivationServiceTest {
     }
 
     @Test
+    fun `M08 should wrap a registered step constructor failure`() {
+        val (service, data) = setup(
+            TestService(),
+            ThrowingStep::class,
+            emptyMap(),
+            emptyMap(),
+        )
+
+        val failure = runCatching {
+            service.activateFromPersistence(mock<Workflow<Any>>(), data)
+        }.exceptionOrNull()
+
+        assertThat(failure)
+            .isExactlyInstanceOf(StepActivationException::class.java)
+            .hasMessage("Unable to activate step #step-id with kind '${ThrowingStep::class.java.name}'")
+        assertThat(generateSequence(failure) { it.cause }.toList())
+            .anyMatch { it is IllegalStateException && it.message == "step constructor failed" }
+    }
+
+    @Test
     fun `activate should use the workflow's model as a constructor parameter, if the type matches`() {
         // Arrange
         val testParams = setup(
@@ -211,3 +231,8 @@ class TestStepWithServiceConstructor(
 class TestStepWithDataConstructor(
     val testValue: String
 )
+class ThrowingStep {
+    init {
+        throw IllegalStateException("step constructor failed")
+    }
+}

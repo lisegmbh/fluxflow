@@ -51,15 +51,22 @@ class DefaultStepActivationService(
             stepData
         )
         val invokableStepDefinition = when (stepDefinition) {
-            is ReflectedStatefulStepDefinition -> stepDefinition.toInvokableStepDefinition(
-                StepSpecificInstanceActivation(
-                    iocProvider,
-                    workflow,
-                    stepData
-                ).activateInstance(
-                    stepDefinition.backingType
-                )
-            )
+            is ReflectedStatefulStepDefinition -> {
+                val instance = try {
+                    StepSpecificInstanceActivation(
+                        iocProvider,
+                        workflow,
+                        stepData
+                    ).activateInstance(stepDefinition.backingType)
+                } catch (exception: StepActivationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    throw StepActivationException(stepData.id, stepData.kind, exception)
+                } catch (error: LinkageError) {
+                    throw StepActivationException(stepData.id, stepData.kind, error)
+                }
+                stepDefinition.toInvokableStepDefinition(instance)
+            }
 
             else -> throw StepActivationException(
                 "Could not activate step '${stepData.id}' of kind '${stepDefinition.kind}'," +
@@ -133,15 +140,23 @@ class DefaultStepActivationService(
             throw StepActivationException(stepData.id, stepData.kind, e)
         }
 
-        if (type.isSubclassOf(StepDefinition::class)) {
-            return StepSpecificInstanceActivation(
-                iocProvider,
-                workflow,
-                stepData
-            ).activateInstance(type) as StepDefinition
-        }
+        try {
+            if (type.isSubclassOf(StepDefinition::class)) {
+                return StepSpecificInstanceActivation(
+                    iocProvider,
+                    workflow,
+                    stepData
+                ).activateInstance(type) as StepDefinition
+            }
 
-        return stepDefinitionBuilder.build(type)
+            return stepDefinitionBuilder.build(type)
+        } catch (exception: StepActivationException) {
+            throw exception
+        } catch (exception: Exception) {
+            throw StepActivationException(stepData.id, stepData.kind, exception)
+        } catch (error: LinkageError) {
+            throw StepActivationException(stepData.id, stepData.kind, error)
+        }
     }
 
     override fun toInvokableStepDefinition(definitionObject: Any): InvokableStepDefinition {
