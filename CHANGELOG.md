@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
    generates and verifies the manifest in consumer JARs. Mongo enforcement remains a
    separate follow-up change.
+5. **Read-only Mongo type inventory audit**<br/>
+   Adds an explicit raw-BSON audit API that compares persisted FluxFlow type metadata with
+   the candidate application's trusted registry without hydrating application objects or
+   changing the database. Structured reports distinguish findings, collection failures, and
+   incomplete scans. The manifest guide now documents the consumer inventory check and the
+   required Expand -> Deploy -> Migrate -> Contract sequence for type changes.
 
 ### Changed
 1. **Spring integration artifacts are now published in two explicit lines**<br/>

@@ -22,19 +22,52 @@ propagation probes do not establish that untrusted types cannot be instantiated.
 
 ## Contract and evidence
 
-| Plan ID | Boundary | Current expectation |
+The plan identifiers are mapped to executable tests below. Methods declared by an abstract Mongo
+contract run through the corresponding `Boot3...IT` and `Boot4...IT` wrappers. Tests under
+`springboot/src/testShared` likewise run in both Spring compatibility modules.
+
+| ID | Boundary | Executable evidence |
 |---|---|---|
-| R01 | Persisted step kind through real step activation | Reject an unregistered kind before class initialization/construction |
-| R02 | Persisted job kind through real job activation | Reject an unregistered kind before class initialization/construction |
-| R03 | Raw Mongo change to `model._class`, then `WorkflowPersistence.find` | Reject the model before class initialization or construction |
-| R04 | Raw Mongo change only to the root type key, then the same read | Reject an incompatible root before materialization |
-| R05 | Fixture in a fresh class loader | Distinguish class initialization from constructor invocation |
-| R06 | Gradle task boundary | Missing, filtered, skipped or failing required tests fail the gate |
-| V01 | Legacy step/job value type maps and migration | Reject an unregistered enum name before initialization and before migration writes |
-| V02 | Current typed records in steps, jobs and definitions | Reject an unregistered JVM type reference before enum initialization |
-| V03 | Registered values and fixed built-ins | Preserve enums, aliases, collections, dates, instants and nulls without TCCL lookup |
-| V04 | Malformed value metadata and writes | Fail with defined errors and reject unregistered values before create/save writes |
-| V05 | Multiple application contexts | Keep immutable value registries isolated under parallel conversion |
+| R01 | Persisted step kind | `ActivationBaselineTest.R01 persisted unregistered step kind is rejected before initialization` |
+| R02 | Persisted job kind | `ActivationBaselineTest.R02 persisted unregistered job kind is rejected before initialization` |
+| R03 | Workflow model discriminator | `AbstractProductionMongoSecurityContractIT.R03 D02 production workflow reads reject an unregistered model before materialization` |
+| R04 | Root discriminator from the report scenario | `AbstractProductionMongoSecurityContractIT.R04 root discriminator tampering is rejected on production workflow read` |
+| R05 | Initializer/constructor witness | `SecurityWitnessTest.R05 witness records initialization and construction independently` |
+| R06 | Mandatory Gradle boundary | `SecurityTestsTest.security gate should reject skipped tests`, `security gate should reject missing sources instead of reporting NO-SOURCE`, `security gate should fail when container initialization fails`, and `security gate should require XML evidence` |
+| M01 | Annotation scan roots | `FluxFlowTypeRegistryFactoryTest.M01 should discover annotated types from a default application package` and `M01 should normalize explicit and overlapping scan roots` |
+| M02 | Deterministic merge and conflicts | `TypeRegistryTest.M02 should merge identical registrations independent of input order`, `M02 should reject conflicting registrations with stable diagnostics`, `TypeManifestLoaderTest.M02 should load and merge manifests from multiple artifacts deterministically`, and `FluxFlowTypeManifestPluginTest.M02 O06 should generate deterministic manifest bytes and include them in the jar` |
+| M03 | Explicit and malformed declarations | `TypeManifestTest.M03 should reject malformed manifests with origin and line`, `TypeManifestTest.M03 should reject unsupported manifest versions`, `FluxFlowTypeRegistryFactoryTest.M03 should merge an explicit unannotated type registration`, `FluxFlowTypeManifestPluginTest.M03 O06 should fail generation when an explicit class is missing`, and `FluxFlowTypeManifestPluginTest.M03 O06 should reject an explicit type absent from the runtime classpath` |
+| M04 | No initialization during discovery | `TypeRegistryTest.M04 should resolve manifest classes without initializing them`, `FluxFlowTypeRegistryFactoryTest.M04 should scan annotated types without initializing them`, and `FluxFlowTypeManifestPluginTest.M04 should inspect annotated classes without initialization` |
+| M05 | Exact aliases, FQCNs, and nested names | `TypeRegistryTest.M05 should resolve aliases and legacy keys only in their declared roles`, `M05 should reject undeclared key variations without consulting the classloader`, `StepTypeResolverImplTest.M05 should resolve only registered step FQCNs and aliases`, and `JobActivationServiceTest.M05 M10 should activate registered job FQCNs and aliases` |
+| M06 | Unknown and wrong-role activation | `StepTypeResolverImplTest.M06 should reject a step registered only for another role without initializing it`, `StepTypeResolverImplTest.M06 legacy constructor should reject an unregistered class without initializing it`, `JobActivationServiceTest.M06 should reject a job registered only for another role without initializing it`, and `JobActivationServiceTest.M06 legacy service constructor should reject an unregistered class without initializing it` |
+| M07 | Immutable, context-local registry | `TypeRegistryTest.M07 should isolate immutable registries and concurrent lookups`, `FluxFlowTypeRegistryFactoryTest.M07 should keep explicit registrations local to their application context`, `FluxFlowTypeRegistryFactoryTest.M07 should scan with the application context class loader`, and `StepTypeResolverImplTest.M07 should isolate resolver mappings from later mutations` |
+| M08 | Atomic load and activation errors | `TypeRegistryTest.M08 should fail atomically when a manifest class is missing`, `TypeRegistryTest.M08 should wrap linkage errors without publishing a registry`, `TypeManifestLoaderTest.M08 should wrap failures while enumerating manifest resources`, `DefaultStepActivationServiceTest.M08 should wrap a registered step constructor failure`, and `JobActivationServiceTest.M08 should wrap a registered job constructor failure` |
+| M09 | Safe restored step | `RestoringStepActivationServiceTest.M09 restored unknown steps expose no executable actions and retain their marker` |
+| M10 | Custom job alias lookup | `JobActivationServiceTest.M05 M10 should activate registered job FQCNs and aliases` |
+| D01 | Repository, pagination, and FlowQuery | `AbstractProductionMongoSecurityContractIT.O02 D01 findAll pagination and FlowQuery reject an unregistered model` |
+| D02 | Matching hostile model fields | `AbstractProductionMongoSecurityContractIT.R03 D02 production workflow reads reject an unregistered model before materialization` |
+| D03 | Nested application values | `AbstractProductionMongoSecurityContractIT.D03 production workflow reads reject nested unregistered and wrong-role types` and `MongoDocumentTypePolicyTest.D03 D08 validates model and nested value aliases with a custom type key` |
+| D04 | Step, job, and definition value fields | `AbstractProductionMongoSecurityContractIT.D04 production step reads reject types in legacy and current value fields`, `D04 production job reads reject types in legacy and current parameter fields`, `D04 production step definition reads reject nested metadata types`, and `MongoDocumentTypePolicyTest.D03 D04 infrastructure aliases are limited to framework metadata fields` |
+| D05 | Legacy bootstrap and migration | `AbstractProductionMongoSecurityContractIT.D05 legacy step bootstrap rejects a type before conversion and leaves BSON unchanged`, `D05 legacy job bootstrap rejects a type before conversion and leaves BSON unchanged`, `V01 D05 legacy type-name bootstrap rejects unregistered enum and preserves BSON`, and `V03 D05 registered legacy enum migration produces safe typed records` |
+| D06 | Aggregation and projection | `AbstractProductionMongoSecurityContractIT.D06 production aggregation projection rejects nested types before materialization` and `MongoDocumentTypePolicyTest.D06 projection DTOs keep VALUE role validation for nested aliases` |
+| D07 | Event-independent read guard | `AbstractProductionMongoSecurityContractIT.D07 production reads stay guarded without synchronous lifecycle events` |
+| D08 | Alias shape, roles, and configured key | `AbstractProductionMongoSecurityContractIT.D08 production converter rejects malformed unknown and wrong-role aliases`, `D08 aliases shared by different Mongo roles and classes fail during construction`, `AbstractProductionMongoCustomTypeKeyIT.D08 production wiring preserves and guards the configured Mongo type key`, `MongoDocumentTypePolicyTest.D08 rejects malformed and role-invalid aliases`, `MongoTypeKeyResolverTest.D08 resolves the type key actually configured on the host converter`, and `MongoTypeKeyResolverTest.D08 rejects a host converter with disabled type metadata` |
+| D09 | Compatible round trips | `AbstractProductionMongoSecurityContractIT.D08 D09 production persistence accepts registered FQCN and logical aliases` and `D09 null scalar collection and map workflow models round-trip in production` |
+| D10 | Type queries and rename migration | `AbstractProductionMongoSecurityContractIT.D10 type queries use only registered model subtypes`, `D10 type rename migrates the default Mongo type key before the next guarded read`, `AbstractProductionMongoCustomTypeKeyIT.D10 type queries use the configured Mongo type key`, `D10 type rename migrates the configured Mongo type key before the next guarded read`, and `RegistrySubclassProviderTest.D10 exposes only concrete registered types assignable to the query type` |
+| D11 | Host converter isolation | `AbstractProductionMongoSecurityContractIT.D11 production access keeps host template converter and repository isolated` |
+| D12 | Shared transaction rollback | `AbstractProductionMongoSecurityContractIT.D12 production persistence joins host transaction and rolls back` |
+| D13 | Parallel access and traversal bounds | `AbstractProductionMongoSecurityContractIT.D13 parallel production accesses keep registry contexts isolated and fail closed` and the two `D13` limit tests in `MongoDocumentTypePolicyTest` |
+| V01 | Legacy enum metadata | `SecurityWitnessTest.V01 enum witness stays dormant until constants are accessed`, `AbstractProductionMongoSecurityContractIT.V01 legacy value type maps reject an unregistered enum before initialization`, and `V01 D05 legacy type-name bootstrap rejects unregistered enum and preserves BSON` |
+| V02 | Current typed records | `AbstractProductionMongoSecurityContractIT.V02 typed records reject an unregistered enum before initialization` |
+| V03 | Registered values and fixed built-ins | `ValueTypeConverterSecurityTest.V03 registered enum accepts exact key binary and canonical registrations`, `V03 typed records restore registered enum collections date instant and null`, `V03 built in collection variants and null remain available without a registry`, `AbstractProductionMongoSecurityContractIT.V03 registered enum values round-trip through current and legacy records without TCCL lookup`, and `V03 fixed values and nested registered enums round-trip through production persistence` |
+| V04 | Malformed graphs and rejected writes | `ValueTypeConverterSecurityTest.V04 unknown value type fails with its exact role and key`, `V04 missing and duplicate JVM type references fail deterministically`, `V04 cyclic and deep record graphs fail before unbounded recursion`, `V04 incompatible values and unsupported records never pass through raw`, and `AbstractProductionMongoSecurityContractIT.V04 create and save reject unregistered value types before writing` |
+| V05 | Context isolation | `ValueTypeConverterSecurityTest.V05 concurrent application contexts keep their value registries isolated` |
+| O01 | Reconciliation isolation | `ReconcileScheduledJobsBootstrapActionTest.O01 isolates rejected and missing jobs between healthy scheduled jobs` and `AbstractProductionMongoReconciliationIT.O01 production startup isolates an unknown payload between healthy scheduled jobs` |
+| O02 | Normal queries fail visibly | `AbstractProductionMongoSecurityContractIT.O02 D01 findAll pagination and FlowQuery reject an unregistered model` |
+| O03 | Read-only raw BSON audit | `AbstractProductionMongoTypeAuditIT.O03 audit reports persisted type deviations without hydration or writes`, `O03 audit accepts registered Mongo aliases and built-in value types`, and `O03 audit marks capped results incomplete and reports malformed metadata`, executed by `Boot3ProductionMongoTypeAuditIT` and `Boot4ProductionMongoTypeAuditIT` |
+| O04 | WFMS-like consumer behavior | `AbstractMongoConsumerContractIT.O04 resumes an external model through a custom step query and custom job execution` and `O04 restores a persisted incompatible custom step without actions`, executed by `Boot3MongoConsumerContractIT` and `Boot4MongoConsumerContractIT` |
+| O05 | Inventory and rolling-deployment boundary | `AbstractProductionMongoSecurityContractIT.O05 expand readers accept old and future models before future writes begin` and `AbstractProductionMongoTypeAuditIT.O05 audit reports inconsistent registered model metadata` |
+| O06 | Complete artifact and initialized registry | `FluxFlowTypeManifestPluginTest.O06 should fail check when the jar omits the generated manifest`, `O06 should generate and verify the manifest in an executable boot jar`, `M03 O06 should reject an explicit type absent from the runtime classpath`, `FluxFlowTypeRegistryFactoryTest.O06 should publish a complete registry before its first consumer`, `O06 should fail context refresh before a consumer sees an invalid manifest`, `BasicConfigurationActivationTest.O06 should pass the context registry to job activation`, and `AbstractProductionMongoSecurityContractIT.O06 create rejects an unregistered external model before writing` |
 
 Marker fixtures record local test events only. A fresh loader is needed to repeat
 static initialization: resetting a counter cannot reset a JVM class initializer.
@@ -57,6 +90,19 @@ when Mongo stores the value itself as a string. The production contract mutates 
 `typeName` or the matching typed-record JVM entry, then reads through the real persistence bean.
 The companion converter contract covers structural corruption and bounded graph traversal without
 requiring Mongo. Both contracts are mandatory in each Spring compatibility line.
+
+O04 is an in-repository, WFMS-like compatibility fixture. It covers resume, restore, custom kinds,
+queries, job execution, and an explicitly registered external model through real Spring and Mongo
+wiring. It does not establish compatibility with the actual WFMS artifact, configuration, custom
+conversions, or persisted data. The WFMS repository test run and the read-only inventory comparison
+against an anonymized export or staging database remain required external acceptance steps.
+Their status is **open** until results for the actual WFMS artifact and data shape are attached to
+the release evidence.
+
+O05 records the reason for the staged rollout: an expanded reader accepts old and future types,
+while a pre-expand reader rejects a future runtime class name once it is written. The public
+manifest documentation defines the corresponding Expand -> Deploy -> Migrate -> Contract sequence
+and rollback boundary.
 
 ## Production Mongo conversion boundary
 
