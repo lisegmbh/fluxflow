@@ -248,7 +248,7 @@ object MappedJobStatusReader : Converter<String, JobStatus> {
 open class MappedMongoFieldsConfiguration {
     @Bean("mappedWarnMigration")
     open fun mappedWarnMigration(steps: StepRepository, jobs: JobRepository, access: FluxFlowMongoAccess): BootstrapAction =
-        MigrateToTypeRecordsBootstrapAction(PartialFailureAction.Warn, steps, jobs, access.converter, access.template)
+        MigrateToTypeRecordsBootstrapAction(PartialFailureAction.Warn, steps, jobs, access.converter, access.template, access.valueTypes)
 
     companion object {
         @Bean

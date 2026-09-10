@@ -43,6 +43,13 @@ open class StepMongoConfiguration {
         stepRepository: StepRepository,
         queryableRepository: MongoFlowQueryRepository<StepDocument>,
         queryMapper: QueryMapper<StepData, StepDocument>,
+        access: FluxFlowMongoAccess,
     ): StepPersistence =
-        StepMongoPersistence(stepRepository, queryableRepository, queryMapper)
+        StepMongoPersistence(stepRepository, queryableRepository, queryMapper, access.valueTypes)
+
+    open fun stepPersistence(
+        stepRepository: StepRepository,
+        queryableRepository: MongoFlowQueryRepository<StepDocument>,
+        queryMapper: QueryMapper<StepData, StepDocument>,
+    ): StepPersistence = StepMongoPersistence(stepRepository, queryableRepository, queryMapper)
 }

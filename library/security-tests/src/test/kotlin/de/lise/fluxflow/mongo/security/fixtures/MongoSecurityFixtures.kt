@@ -24,6 +24,8 @@ internal const val MODEL_TYPE_ALIAS = "workflow-model"
 
 internal const val VALUE_TYPE_ALIAS = "workflow-value"
 
+internal const val VALUE_ENUM_ALIAS = "workflow-enum"
+
 internal const val SUBTYPE_ALIAS = "workflow-subtype"
 internal const val DUAL_MODEL_ALIAS = "dual-model"
 internal const val DUAL_VALUE_ALIAS = "dual-value"
@@ -77,6 +79,15 @@ internal data class SecurityTestWorkflowValue(
     val value: String,
 )
 
+internal enum class SecurityTestWorkflowEnum {
+    Ready,
+    Done,
+}
+
+internal enum class UnregisteredSecurityTestEnum {
+    Poison,
+}
+
 internal data class SecurityConvertedValue(
     val value: String,
 )
@@ -129,6 +140,16 @@ internal fun allowedSecurityTestEntries(): Array<TypeManifestEntry> = arrayOf(
         TypeRole.VALUE,
         VALUE_TYPE_ALIAS,
         SecurityTestWorkflowValue::class.java.name,
+    ),
+    securityTestEntry(
+        TypeRole.VALUE,
+        SecurityTestWorkflowEnum::class.java.name,
+        SecurityTestWorkflowEnum::class.java.name,
+    ),
+    securityTestEntry(
+        TypeRole.VALUE,
+        VALUE_ENUM_ALIAS,
+        SecurityTestWorkflowEnum::class.java.name,
     ),
     securityTestEntry(
         TypeRole.MODEL,
