@@ -5,6 +5,7 @@ import com.mongodb.client.model.Filters.and
 import com.mongodb.client.model.Updates.combine
 import com.mongodb.client.model.Updates.set
 import com.mongodb.client.model.Updates.unset
+import com.mongodb.ReadPreference
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.asType
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
 import de.fluxflow.flowquery.query.FlowQuery
@@ -22,6 +23,8 @@ import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.migration.MigrationDocument
+import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
+import de.lise.fluxflow.migration.common.TypeRenameMigration
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.fixtures.HostOnlyWorkflowModel
@@ -108,6 +111,12 @@ abstract class AbstractProductionMongoSecurityContractIT {
 
     @Autowired
     private lateinit var jobs: JobPersistence
+
+    @Autowired
+    private lateinit var mongoMigrationProvider: MongoMigrationProvider
+
+    @Autowired
+    private lateinit var customizerInvocations: MongoCustomizerInvocations
 
     @Autowired
     private lateinit var stepDefinitions: StepDefinitionPersistence
@@ -375,6 +384,30 @@ abstract class AbstractProductionMongoSecurityContractIT {
     }
 
     @Test
+    fun `D10 type rename migrates the default Mongo type key before the next guarded read`() {
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        val oldAlias = "retired-workflow-model"
+        val newType = SecurityTestWorkflowModel::class.java.name
+        workflows.create(securityTestModel(), identifier)
+        workflowCollection().updateOne(
+            eq("_id", identifier.value),
+            combine(
+                set("modelType", oldAlias),
+                set("model._class", oldAlias),
+            ),
+        )
+
+        requireNotNull(
+            mongoMigrationProvider.provide(TypeRenameMigration(oldAlias, newType))
+        ).execute()
+
+        val migrated = requireNotNull(workflowCollection().find(eq("_id", identifier.value)).first())
+        assertThat(migrated.getString("modelType")).isEqualTo(newType)
+        assertThat(migrated.get("model", Document::class.java).getString("_class")).isEqualTo(newType)
+        assertThat(workflows.find(identifier)?.model).isEqualTo(securityTestModel())
+    }
+
+    @Test
     fun `D11 production access keeps host template converter and repository isolated`() {
         val hostConverter = hostTemplate.converter
 
@@ -386,7 +419,14 @@ abstract class AbstractProductionMongoSecurityContractIT {
             .isSameAs(hostConverter.mappingContext)
         assertThat(hostTemplate.hasReadPreference()).isTrue()
         assertThat(fluxFlowMongoAccess.template.readPreference)
-            .isEqualTo(hostTemplate.readPreference)
+            .isEqualTo(ReadPreference.nearest())
+        assertThat(
+            customizerInvocations.values
+                .filter { (template) -> template === fluxFlowMongoAccess.template }
+                .map { (_, name) -> name }
+        ).containsExactly("first", "second")
+        assertThat(hostTemplate.readPreference)
+            .isEqualTo(ReadPreference.secondaryPreferred())
 
         val hostDocument = SecurityHostDocument(
             UUID.randomUUID().toString(),
@@ -411,6 +451,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
             HostOnlyWorkflowModel::class.java.name,
         )
     }
+
 
     @Test
     fun `D12 production persistence joins host transaction and rolls back`() {

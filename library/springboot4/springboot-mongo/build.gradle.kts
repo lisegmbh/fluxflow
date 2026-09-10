@@ -9,7 +9,10 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoSecurityIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoCustomTypeKeyIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoReconciliationIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoSecurityIT",
+        "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoHostTemplateIT",
     ))
 }
 
@@ -57,6 +60,7 @@ dependencies {
     testImplementation(project(":springboot4:springboot"))
     testImplementation(project(":springboot4:springboot-testing"))
     testImplementation(project(":core:engine"))
+    testImplementation(project(":core:scheduling"))
     testImplementation(project(":core:stereotyped"))
     testImplementation(project(":core:validation"))
 }
