@@ -53,6 +53,11 @@ val securityTest = tasks.register<MandatorySecurityTest>("securityTest") {
     classpath = testSources.get().runtimeClasspath
     include(securityTestPatterns)
     useJUnitPlatform()
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = true
+    }
     // Container availability is external state and is not represented by Gradle inputs.
     outputs.upToDateWhen { false }
     outputs.cacheIf { false }
