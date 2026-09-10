@@ -7,9 +7,13 @@ import de.lise.fluxflow.reflection.types.TypeRole
 import de.lise.fluxflow.reflection.types.UnknownTypeException
 import org.assertj.core.api.Assertions.assertThat
 import org.bson.Document
+import org.springframework.data.annotation.Id
 import org.springframework.core.convert.converter.Converter
 import org.springframework.data.convert.ReadingConverter
 import org.springframework.data.convert.WritingConverter
+import org.springframework.data.mongodb.core.mapping.Document as MongoDocument
+import org.springframework.data.mongodb.core.mapping.Field
+import org.springframework.data.mongodb.repository.MongoRepository
 import java.time.Instant
 import java.util.Date
 
@@ -20,19 +24,39 @@ internal const val MODEL_TYPE_ALIAS = "workflow-model"
 
 internal const val VALUE_TYPE_ALIAS = "workflow-value"
 
+internal const val SUBTYPE_ALIAS = "workflow-subtype"
+
+internal sealed interface PrototypeWorkflowModelType {
+    val name: String
+}
+
 internal data class PrototypeWorkflowModel(
-    val name: String,
+    @field:Field("mapped_name")
+    override val name: String,
     val nullable: String?,
     val scalar: Int,
     val date: Date,
     val instant: Instant,
     val converted: PrototypeConvertedValue,
     val nested: List<Map<String, Any?>>,
-)
+) : PrototypeWorkflowModelType
+
+internal data class PrototypeWorkflowSubtype(
+    override val name: String,
+    val subtypeValue: String,
+) : PrototypeWorkflowModelType
 
 internal data class HostOnlyWorkflowModel(
     val value: String,
 )
+
+@MongoDocument("prototype_host_documents")
+internal data class PrototypeHostDocument(
+    @Id val id: String,
+    val model: Any?,
+)
+
+internal interface PrototypeHostRepository : MongoRepository<PrototypeHostDocument, String>
 
 internal data class PrototypeWorkflowValue(
     val value: String,
@@ -86,6 +110,16 @@ internal fun allowedPrototypeEntries(): Array<TypeManifestEntry> = arrayOf(
         TypeRole.VALUE,
         VALUE_TYPE_ALIAS,
         PrototypeWorkflowValue::class.java.name,
+    ),
+    prototypeEntry(
+        TypeRole.MODEL,
+        PrototypeWorkflowSubtype::class.java.name,
+        PrototypeWorkflowSubtype::class.java.name,
+    ),
+    prototypeEntry(
+        TypeRole.MODEL,
+        SUBTYPE_ALIAS,
+        PrototypeWorkflowSubtype::class.java.name,
     ),
 )
 

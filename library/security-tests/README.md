@@ -62,13 +62,16 @@ mapping converter through Spring Data's public `with(MongoDatabaseFactory)` API,
 only the type mapper, and keeps the same `MongoDatabaseFactory`. Fluxflow constructs its
 workflow repository and query fragment from this internal template. The template is held
 inside the access object instead of being exposed as an application `MongoTemplate` bean,
-so application repositories and Boot's conditional bean graph remain unchanged.
+so application repositories and Boot's conditional bean graph remain unchanged. The
+prototype access object itself is created during the real Boot AutoConfiguration context;
+an application-style repository remains bound to the host converter while the internal
+Fluxflow repository uses the restricted converter.
 
 This boundary was selected over lifecycle listeners because converter `read` and
 `project` are synchronous materialization points. Listeners can be disabled, can run
 asynchronously, and do not protect direct converter calls. The prototype proves rejection
-at the converter boundary with lifecycle events disabled and with an asynchronous event
-multicaster.
+through the isolated converter and its version adapter with lifecycle events disabled,
+with an asynchronous event multicaster, and when a listener swallows its own rejection.
 
 The Mongo type mapper is built only from `TypeRegistry` entries with role `MODEL` or
 `VALUE`, plus the trusted `WorkflowDocument` root. The guard assigns the top-level
@@ -90,7 +93,10 @@ runtime `TypeRegistry`, replace R03's characterization with a permanent rejectio
 regression, and verify the remaining D01-D13/R03 production cases. It must preserve the
 host converter's mapping context and custom conversions, keep Fluxflow's internal
 template out of the host bean graph, and construct the existing repository fragments
-with that template.
+with that template. The prototype copies the host read preference through Spring Data's
+public API. Other mutable `MongoTemplate` settings do not all have public getters, so PR05
+must define an explicit internal-template customization contract and add behavioral tests
+for every supported setting instead of attempting reflective state copying.
 
 ## Build gate tests
 
