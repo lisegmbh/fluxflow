@@ -1,8 +1,9 @@
 # Security baseline tests
 
 This source directory is shared by the Spring Boot 3 and Spring Boot 4 Mongo test
-modules. It is not a published module. PR01 adds reproducible characterization
-tests, not a security fix. No production resolver or converter is changed.
+modules. It is not a published module. PR01 added the reproducible characterization
+harness. PR03 converts the step and job scenarios into permanent rejection regressions;
+the Mongo model scenario remains a characterization until its dedicated fix.
 
 ## Run the mandatory baseline
 
@@ -22,10 +23,10 @@ propagation probes do not establish that untrusted types cannot be instantiated.
 
 ## Contract and evidence
 
-| Plan ID | Boundary | PR01 expectation |
+| Plan ID | Boundary | Current expectation |
 |---|---|---|
-| R01 | Persisted step kind through real step activation | Characterize initialization/construction of the harmless marker |
-| R02 | Persisted job kind through real job activation | Characterize initialization/construction of the harmless marker |
+| R01 | Persisted step kind through real step activation | Reject an unregistered kind before class initialization/construction |
+| R02 | Persisted job kind through real job activation | Reject an unregistered kind before class initialization/construction |
 | R03 | Raw Mongo change to `model._class`, then `WorkflowPersistence.find` | Characterize materialization of the harmless model |
 | R04 | Raw Mongo change only to root `_class`, then the same read | Observe the actual root-type behavior independently of R03 |
 | R05 | Fixture in a fresh class loader | Distinguish class initialization from constructor invocation |
@@ -37,19 +38,19 @@ Each Mongo scenario starts from a valid model and derives the collection name
 from the real Spring Data mapping. Tampering uses the raw driver; the observation
 uses the real Fluxflow persistence/activation boundary.
 
-For the separate before-fix safety demonstration, use the same scenarios with
-`-PsecurityExpectRejection=true`. That mode expects rejection and no marker event;
-it must fail on the vulnerable baseline for R01–R03. It is not the normal CI mode
-and must never be described as a successful security verification. The relevant
-fix PR replaces each temporary production characterization with a mandatory
-rejection regression; fixture positive controls remain.
+R01 and R02 always require rejection and no marker event. For the separate R03
+before-fix safety demonstration, use `-PsecurityExpectRejection=true`. That mode must
+still fail while Mongo model resolution is vulnerable. It is not the normal CI mode
+and must never be described as a successful security verification. The dedicated
+Mongo fix replaces that remaining characterization with a mandatory rejection
+regression; fixture positive controls remain.
 
 XML reports are written to each Mongo module's
 `build/test-results/securityTest/` directory. Record the Git revision, commands,
 resolved runtime dependencies, test counts, failures and skips with the review.
 The complete report set must contain the required suites in both compatibility
-lines. A green PR01 report means the reproduction harness works; the findings
-remain open.
+lines. Green R01/R02 reports prove that activation rejects the report witnesses;
+R03 remains open until its own rejection regression is green.
 
 ## Build gate tests
 

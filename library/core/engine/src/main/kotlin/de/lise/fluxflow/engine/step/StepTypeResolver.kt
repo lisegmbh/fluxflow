@@ -1,6 +1,7 @@
 package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.step.StepKind
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import kotlin.reflect.KClass
 
 /**
@@ -12,7 +13,7 @@ interface StepTypeResolver {
      *
      * @param kind The kind of the step.
      * @return The type of the step.
-     * @throws ClassNotFoundException If the type cannot be resolved.
+     * @throws UnknownTypeException If no trusted step type is registered for the exact kind.
      */
     fun resolveType(kind: StepKind): KClass<out Any>
 }
