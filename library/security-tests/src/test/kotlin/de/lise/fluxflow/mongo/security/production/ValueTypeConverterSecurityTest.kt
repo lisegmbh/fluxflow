@@ -32,8 +32,15 @@ import java.util.concurrent.TimeUnit
 
 class ValueTypeConverterSecurityTest {
     @Test
-    fun `V03 registered enum accepts key binary and canonical names`() {
-        val converter = converter("trusted-enum", TrustedEnum::class.java)
+    fun `V03 registered enum accepts exact key binary and canonical registrations`() {
+        val type = TrustedEnum::class.java
+        val converter = ValueTypeConverter(
+            registry(
+                valueEntry("trusted-enum", type),
+                valueEntry(type.name, type),
+                valueEntry(requireNotNull(type.canonicalName), type),
+            )
+        )
 
         assertThat(converter.assertType(SimpleType("trusted-enum"), "first"))
             .isEqualTo(TrustedEnum.FIRST)
@@ -235,6 +242,21 @@ class ValueTypeConverterSecurityTest {
     }
 
     @Test
+    fun `V04 a logical value key does not authorize implicit class-name keys`() {
+        val converter = converter("trusted-enum", TrustedEnum::class.java)
+
+        assertThatThrownBy {
+            converter.assertType(SimpleType(TrustedEnum::class.java.name), "FIRST")
+        }.isExactlyInstanceOf(UnknownTypeException::class.java)
+        assertThatThrownBy {
+            converter.assertType(
+                SimpleType(requireNotNull(TrustedEnum::class.java.canonicalName)),
+                "FIRST",
+            )
+        }.isExactlyInstanceOf(UnknownTypeException::class.java)
+    }
+
+    @Test
     fun `V04 incompatible values and unsupported records never pass through raw`() {
         assertThatThrownBy { SimpleType(Int::class).assertType("not-an-int") }
             .isExactlyInstanceOf(ValueTypeConversionException::class.java)
@@ -255,6 +277,46 @@ class ValueTypeConverterSecurityTest {
         assertThatThrownBy { records.toTypeSafeData() }
             .isExactlyInstanceOf(ValueTypeConversionException::class.java)
             .hasMessageContaining("Unsupported type record")
+    }
+
+    @Test
+    fun `V04 enums nested in untyped maps are rejected instead of losing type information`() {
+        val converter = converter("trusted-enum", TrustedEnum::class.java)
+
+        assertThatThrownBy {
+            converter.assertType(
+                SimpleType(LinkedHashMap::class),
+                linkedMapOf("state" to TrustedEnum.FIRST),
+            )
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("Enum values inside maps")
+            .hasMessageContaining("value[state]")
+    }
+
+    @Test
+    fun `V04 untyped map inspection respects cycle depth and node limits`() {
+        val mapType = SimpleType(LinkedHashMap::class)
+        val cycle = linkedMapOf<String, Any?>()
+        cycle["self"] = cycle
+
+        assertThatThrownBy {
+            ValueTypeConverter(emptyRegistry()).assertType(mapType, cycle)
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("Cyclic untyped map value")
+        assertThatThrownBy {
+            ValueTypeConverter(emptyRegistry(), maxDepth = 2).assertType(
+                mapType,
+                linkedMapOf("nested" to linkedMapOf("value" to "safe")),
+            )
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("maximum depth")
+        assertThatThrownBy {
+            ValueTypeConverter(emptyRegistry(), maxNodes = 2).assertType(
+                mapType,
+                linkedMapOf("first" to "safe", "second" to "safe"),
+            )
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("maximum node count")
     }
 
     @Test
@@ -322,8 +384,13 @@ class ValueTypeConverterSecurityTest {
 
     private fun converter(key: String, type: Class<out Enum<*>>): ValueTypeConverter =
         ValueTypeConverter(
-            registry(TypeManifestEntry(TypeRole.VALUE, key, type.name, "value test"))
+            registry(valueEntry(key, type))
         )
+
+    private fun valueEntry(
+        key: String,
+        type: Class<out Enum<*>>,
+    ): TypeManifestEntry = TypeManifestEntry(TypeRole.VALUE, key, type.name, "value test")
 
     private fun valueContext(
         key: String,
