@@ -9,7 +9,6 @@ import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
 import de.lise.fluxflow.mongo.job.flowquery.JobDataToDocumentReplacer
 import de.lise.fluxflow.persistence.job.JobData
-import de.lise.fluxflow.persistence.job.JobPersistence
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -43,7 +42,8 @@ open class JobMongoConfiguration {
         jobRepository: JobRepository,
         queryableRepository: MongoFlowQueryRepository<JobDocument>,
         queryMapper: QueryMapper<JobData, JobDocument>,
-    ): JobPersistence {
-        return JobMongoPersistence(jobRepository, queryableRepository, queryMapper)
+        access: FluxFlowMongoAccess,
+    ): JobMongoPersistence {
+        return JobMongoPersistence(jobRepository, queryableRepository, queryMapper, access.template)
     }
 }
