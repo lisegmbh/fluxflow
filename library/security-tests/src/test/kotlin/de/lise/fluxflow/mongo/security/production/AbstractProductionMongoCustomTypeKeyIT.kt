@@ -19,8 +19,10 @@ import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.migration.common.TypeRenameMigration
 import org.assertj.core.api.Assertions.assertThat
 import org.bson.Document
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.mongodb.core.query.Query
 import java.util.UUID
 
 abstract class AbstractProductionMongoCustomTypeKeyIT {
@@ -35,6 +37,11 @@ abstract class AbstractProductionMongoCustomTypeKeyIT {
 
     @Autowired
     private lateinit var mongoMigrationProvider: MongoMigrationProvider
+
+    @BeforeEach
+    fun clearWorkflows() {
+        access.template.remove(Query(), WorkflowDocument::class.java)
+    }
 
     @Test
     fun `D08 production wiring preserves and guards the configured Mongo type key`() {
