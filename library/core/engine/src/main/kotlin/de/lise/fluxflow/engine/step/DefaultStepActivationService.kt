@@ -10,6 +10,7 @@ import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStepDefinition
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 import kotlin.reflect.full.isSubclassOf
@@ -50,15 +51,22 @@ class DefaultStepActivationService(
             stepData
         )
         val invokableStepDefinition = when (stepDefinition) {
-            is ReflectedStatefulStepDefinition -> stepDefinition.toInvokableStepDefinition(
-                StepSpecificInstanceActivation(
-                    iocProvider,
-                    workflow,
-                    stepData
-                ).activateInstance(
-                    stepDefinition.backingType
-                )
-            )
+            is ReflectedStatefulStepDefinition -> {
+                val instance = try {
+                    StepSpecificInstanceActivation(
+                        iocProvider,
+                        workflow,
+                        stepData
+                    ).activateInstance(stepDefinition.backingType)
+                } catch (exception: StepActivationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    throw StepActivationException(stepData.id, stepData.kind, exception)
+                } catch (error: LinkageError) {
+                    throw StepActivationException(stepData.id, stepData.kind, error)
+                }
+                stepDefinition.toInvokableStepDefinition(instance)
+            }
 
             else -> throw StepActivationException(
                 "Could not activate step '${stepData.id}' of kind '${stepDefinition.kind}'," +
@@ -126,23 +134,29 @@ class DefaultStepActivationService(
     ): StepDefinition {
         val type = try {
             stepTypeResolver.resolveType(StepKind(stepData.kind))
+        } catch (e: UnknownTypeException) {
+            throw StepActivationException(stepData.id, stepData.kind, e)
         } catch (e: ClassNotFoundException) {
-            throw StepActivationException(
-                "Unable to activate step #${stepData.id} with kind '${stepData.kind}', " +
-                    "because it's type could not be resolved/activated.",
-                e
-            )
+            throw StepActivationException(stepData.id, stepData.kind, e)
         }
 
-        if (type.isSubclassOf(StepDefinition::class)) {
-            return StepSpecificInstanceActivation(
-                iocProvider,
-                workflow,
-                stepData
-            ).activateInstance(type) as StepDefinition
-        }
+        try {
+            if (type.isSubclassOf(StepDefinition::class)) {
+                return StepSpecificInstanceActivation(
+                    iocProvider,
+                    workflow,
+                    stepData
+                ).activateInstance(type) as StepDefinition
+            }
 
-        return stepDefinitionBuilder.build(type)
+            return stepDefinitionBuilder.build(type)
+        } catch (exception: StepActivationException) {
+            throw exception
+        } catch (exception: Exception) {
+            throw StepActivationException(stepData.id, stepData.kind, exception)
+        } catch (error: LinkageError) {
+            throw StepActivationException(stepData.id, stepData.kind, error)
+        }
     }
 
     override fun toInvokableStepDefinition(definitionObject: Any): InvokableStepDefinition {

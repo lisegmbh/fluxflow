@@ -166,6 +166,9 @@ make it absolutely clear, that the annotated class is a step definition.
 
 If the `@Step` annotation is omitted or used without providing a custom
 step kind, the classes fully qualified and canonical name will be used.
+Add an omitted-annotation step to the [trusted type manifest](features/type-manifest.md)
+with an explicit `step` declaration. This makes the type available to fail-closed
+activation without turning its whole package into an allowlist.
 
 **Step definition with default kind**
 

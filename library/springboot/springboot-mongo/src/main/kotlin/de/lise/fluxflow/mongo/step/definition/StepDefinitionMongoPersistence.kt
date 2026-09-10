@@ -1,5 +1,6 @@
 package de.lise.fluxflow.mongo.step.definition
 
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import org.springframework.data.mongodb.core.MongoTemplate
@@ -8,10 +9,17 @@ import org.springframework.data.mongodb.core.query.*
 
 class StepDefinitionMongoPersistence(
     private val repository: StepDefinitionRepository,
-    private val template: MongoTemplate
+    private val template: MongoTemplate,
+    private val valueTypes: ValueTypeConverter,
 ) : StepDefinitionPersistence {
+    constructor(
+        repository: StepDefinitionRepository,
+        template: MongoTemplate,
+    ) : this(repository, template, ValueTypeConverter.builtInsOnly())
+
     override fun save(stepDefinition: StepDefinitionData): StepDefinitionData {
         val document = StepDefinitionDocument(stepDefinition)
+        val typeSafeDocument = document.toStepDefinitionData(valueTypes)
         val query = Query(
             where(StepDefinitionDocument::kind).isEqualTo(stepDefinition.kind)
                 .and(StepDefinitionDocument::version).isEqualTo(stepDefinition.version)
@@ -28,13 +36,13 @@ class StepDefinitionMongoPersistence(
             StepDefinitionDocument::class.java
         )
         
-        return document.toStepDefinitionData()
+        return typeSafeDocument
     }
 
     override fun findForKindAndVersion(stepKind: String, version: String): StepDefinitionData? {
         return repository.findByKindAndVersion(
             stepKind,
             version
-        )?.toStepDefinitionData()
+        )?.toStepDefinitionData(valueTypes)
     }
 }

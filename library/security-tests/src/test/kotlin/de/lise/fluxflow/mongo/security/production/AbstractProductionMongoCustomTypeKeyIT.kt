@@ -1,0 +1,116 @@
+package de.lise.fluxflow.mongo.security.production
+
+import com.mongodb.client.model.Filters.eq
+import com.mongodb.client.model.Updates.combine
+import com.mongodb.client.model.Updates.set
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
+import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
+import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
+import de.lise.fluxflow.mongo.security.fixtures.MODEL_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowModelType
+import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowSubtype
+import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowModel
+import de.lise.fluxflow.mongo.security.fixtures.VALUE_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.securityTestModel
+import de.lise.fluxflow.mongo.workflow.WorkflowDocument
+import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import de.lise.fluxflow.migration.common.TypeRenameMigration
+import org.assertj.core.api.Assertions.assertThat
+import org.bson.Document
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.mongodb.core.query.Query
+import java.util.UUID
+
+abstract class AbstractProductionMongoCustomTypeKeyIT {
+    @Autowired
+    private lateinit var workflows: WorkflowPersistence
+
+    @Autowired
+    private lateinit var access: FluxFlowMongoAccess
+
+    @Autowired
+    private lateinit var workflowFlowQueries: MongoFlowQueryRepository<WorkflowDocument>
+
+    @Autowired
+    private lateinit var mongoMigrationProvider: MongoMigrationProvider
+
+    @BeforeEach
+    fun clearWorkflows() {
+        access.template.remove(Query(), WorkflowDocument::class.java)
+    }
+
+    @Test
+    fun `D08 production wiring preserves and guards the configured Mongo type key`() {
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = securityTestModel()
+        workflows.create(model, identifier)
+        val collection = access.template.getCollection(
+            access.template.getCollectionName(WorkflowDocument::class.java)
+        )
+
+        val persisted = requireNotNull(collection.find(eq("_id", identifier.value)).first())
+        val persistedModel = persisted.get("model", Document::class.java)
+        assertThat(persistedModel.getString("@type"))
+            .isEqualTo(model.javaClass.name)
+        assertThat(persistedModel.containsKey("_class")).isFalse()
+
+        collection.updateOne(
+            eq("_id", identifier.value),
+            combine(
+                set("model.@type", MODEL_TYPE_ALIAS),
+                set("model.nested.0.alias.@type", VALUE_TYPE_ALIAS),
+            ),
+        )
+
+        assertThat(workflows.find(identifier)?.model).isEqualTo(model)
+    }
+
+    @Test
+    fun `D10 type queries use the configured Mongo type key`() {
+        val modelId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val subtypeId = WorkflowIdentifier(UUID.randomUUID().toString())
+        workflows.create(securityTestModel(), modelId)
+        workflows.create(SecurityTestWorkflowSubtype("subtype", "custom type key"), subtypeId)
+
+        val results = workflowFlowQueries.find(WorkflowDocument::class.java) {
+            where {
+                get(WorkflowDocument::model).isType(SecurityTestWorkflowModelType::class)
+            }
+        }
+
+        assertThat(results.map { it.id })
+            .containsExactlyInAnyOrder(modelId.value, subtypeId.value)
+    }
+
+    @Test
+    fun `D10 type rename migrates the configured Mongo type key before the next guarded read`() {
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        val oldAlias = "retired-custom-key-model"
+        val newType = SecurityTestWorkflowModel::class.java.name
+        workflows.create(securityTestModel(), identifier)
+        val collection = access.template.getCollection(
+            access.template.getCollectionName(WorkflowDocument::class.java)
+        )
+        collection.updateOne(
+            eq("_id", identifier.value),
+            combine(
+                set("modelType", oldAlias),
+                set("model.@type", oldAlias),
+            ),
+        )
+
+        requireNotNull(
+            mongoMigrationProvider.provide(TypeRenameMigration(oldAlias, newType))
+        ).execute()
+
+        val migrated = requireNotNull(collection.find(eq("_id", identifier.value)).first())
+        assertThat(migrated.getString("modelType")).isEqualTo(newType)
+        assertThat(migrated.get("model", Document::class.java).getString("@type")).isEqualTo(newType)
+        assertThat(migrated.get("model", Document::class.java).containsKey("_class")).isFalse()
+        assertThat(workflows.find(identifier)?.model).isEqualTo(securityTestModel())
+    }
+}

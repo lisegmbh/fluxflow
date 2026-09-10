@@ -27,6 +27,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    and merges data listeners from the imported and parent step, 
    reducing duplication and improving maintainability.
    [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
+3. **Shared security baseline tests**<br/>
+   Adds a mandatory test gate and shared characterization fixtures for both Spring
+   compatibility lines. This test infrastructure does not change production type resolution.
+4. **Trusted type manifest and registry**<br/>
+   Adds a versioned, role-specific type inventory, a context-local immutable registry,
+   annotation discovery for standard Spring Boot applications, and a Gradle plugin that
+   generates and verifies the manifest in consumer JARs. Mongo enforcement remains a
+   separate follow-up change.
+5. **Read-only Mongo type inventory audit**<br/>
+   Adds an explicit raw-BSON audit API that compares persisted FluxFlow type metadata with
+   the candidate application's trusted registry without hydrating application objects or
+   changing the database. Structured reports distinguish findings, collection failures, and
+   incomplete scans. The manifest guide now documents the consumer inventory check and the
+   required Expand -> Deploy -> Migrate -> Contract sequence for type changes.
+
+6. **Docker runtime for Jenkins integration tests**<br/>
+   Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
+   the Gradle container, and retains test reports on build failures. Security-test exceptions
+   include their full causes in the build log. The Kubernetes cluster must permit the
+   privileged Docker sidecar.
 
 ### Changed
 1. **Spring integration artifacts are now published in two explicit lines**<br/>
@@ -58,6 +78,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
 
 ### Fixed
+1. **Fail-closed persisted step and job activation**<br/>
+   Persisted step and job kinds are now resolved only through exact, role-specific trusted
+   registrations. Unknown kinds fail before their classes can be initialized or constructed.
+   Existing fully qualified kinds remain supported when present in the generated manifest or an
+   explicit context-local registration.
+2. **Fail-closed Mongo type materialization**<br/>
+   FluxFlow Mongo reads now validate model and value type metadata synchronously against the
+   context-local trusted type registry before Spring Data resolves a class. Repository, FlowQuery,
+   aggregation, projection and bootstrap reads share the guarded converter in both Spring Boot
+   compatibility lines. Scheduled-job startup reconciliation reads identifiers first and isolates
+   a rejected job so healthy neighboring jobs can still be restored.
+3. **Fail-closed Mongo value reconstruction**<br/>
+   Legacy value type maps and current typed records now resolve custom value types through the
+   context-local trusted registry. Persisted type names no longer reach a class loader, malformed
+   type graphs fail with defined errors, and unknown values are rejected before create, save, or
+   legacy migration writes data. Registrations authorize exact persisted keys, container conversion
+   is limited to fixed built-ins, and enum values in structurally untyped maps are rejected before
+   their type information can be lost.
+
 ### Removed
 
 ## [0.2.0] - 2025-10-02

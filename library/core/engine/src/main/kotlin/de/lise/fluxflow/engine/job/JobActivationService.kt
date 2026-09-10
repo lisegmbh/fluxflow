@@ -8,12 +8,14 @@ import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.persistence.job.JobData
+import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
 
-class JobActivationService(
+class JobActivationService @JvmOverloads constructor(
     private val iocProvider: IocProvider,
     private val jobDefinitionBuilder: JobDefinitionBuilder,
     private val classLoaderProvider: ClassLoaderProvider,
+    private val typeRegistry: TypeRegistry = TypeRegistry.load(classLoaderProvider.provide()),
 ) {
     fun <TWorkflowModel> activate(
         workflow: Workflow<TWorkflowModel>,
@@ -44,7 +46,8 @@ class JobActivationService(
             jobDefinitionBuilder,
             iocProvider,
             workflow,
-            jobData
+            jobData,
+            typeRegistry,
         ).activate()
     }
 }
