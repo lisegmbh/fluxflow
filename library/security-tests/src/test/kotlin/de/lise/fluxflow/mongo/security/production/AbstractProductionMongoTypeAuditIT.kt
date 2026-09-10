@@ -4,6 +4,7 @@ import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditOptions
+import de.lise.fluxflow.mongo.audit.RawBsonFluxFlowMongoTypeAudit
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
@@ -262,6 +263,34 @@ abstract class AbstractProductionMongoTypeAuditIT {
         assertThat(report.complete).isFalse()
         assertThat(report.isCompatible).isFalse()
         assertThat(report.findings).hasSize(1)
+    }
+
+    @Test
+    fun `O03 audit reports collection failures and continues scanning`() {
+        val failedCollection = collectionName(JobDocument::class.java)
+        val continuedCollection = collectionName(WorkflowDocument::class.java)
+        assertThat(failedCollection).isLessThan(continuedCollection)
+        collection(WorkflowDocument::class.java).insertOne(
+            Document("_id", "scanned-after-failure")
+                .append("_class", WorkflowDocument::class.java.name),
+        )
+        val failingAudit = RawBsonFluxFlowMongoTypeAudit(access) { collectionName ->
+            if (collectionName == failedCollection) {
+                throw IllegalStateException("audit read failed")
+            }
+            access.template.getCollection(collectionName)
+        }
+
+        val report = failingAudit.audit()
+
+        assertThat(report.complete).isFalse()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.failures)
+            .extracting("collection", "cause")
+            .containsExactly(tuple(failedCollection, "IllegalStateException: audit read failed"))
+        assertThat(report.scannedDocumentsByCollection[failedCollection]).isZero()
+        assertThat(report.scannedDocumentsByCollection[continuedCollection]).isEqualTo(1L)
     }
 
     @Test

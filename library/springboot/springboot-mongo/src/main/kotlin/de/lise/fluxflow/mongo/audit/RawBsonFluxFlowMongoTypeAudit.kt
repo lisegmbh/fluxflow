@@ -1,5 +1,6 @@
 package de.lise.fluxflow.mongo.audit
 
+import com.mongodb.client.MongoCollection
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.MongoTypeAliasIssue
 import de.lise.fluxflow.mongo.job.JobDocument
@@ -13,6 +14,9 @@ import org.bson.types.ObjectId
 /** Uses the synchronous driver directly so the scan never invokes the mapping converter. */
 internal class RawBsonFluxFlowMongoTypeAudit(
     private val access: FluxFlowMongoAccess,
+    private val collectionProvider: (String) -> MongoCollection<Document> = { collectionName ->
+        access.template.getCollection(collectionName)
+    },
 ) : FluxFlowMongoTypeAudit {
     private val roleNames = access.typeRegistry.entries
         .groupBy { it.role }
@@ -42,7 +46,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 break
             }
             try {
-                val cursor = access.template.getCollection(target.collection)
+                val cursor = collectionProvider(target.collection)
                     .find()
                     .sort(Document("_id", 1))
                     .batchSize(options.batchSize)
