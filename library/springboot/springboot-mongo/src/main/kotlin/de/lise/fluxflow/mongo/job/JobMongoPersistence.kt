@@ -9,6 +9,7 @@ import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.job.ScheduledJobReference
@@ -25,28 +26,42 @@ class JobMongoPersistence(
     private val queryableRepository: MongoFlowQueryRepository<JobDocument>,
     private val queryMapper: QueryMapper<JobData, JobDocument>,
     private val mongoTemplate: MongoTemplate,
+    private val valueTypes: ValueTypeConverter,
 ) : JobPersistence, ScheduledJobReferencePersistence {
+    constructor(
+        jobRepository: JobRepository,
+        queryableRepository: MongoFlowQueryRepository<JobDocument>,
+        queryMapper: QueryMapper<JobData, JobDocument>,
+        mongoTemplate: MongoTemplate,
+    ) : this(
+        jobRepository,
+        queryableRepository,
+        queryMapper,
+        mongoTemplate,
+        ValueTypeConverter.builtInsOnly(),
+    )
+
     override fun randomId(): String {
         return ObjectId.get()!!.toHexString()
     }
 
     override fun create(jobData: JobData): JobData {
-        return jobRepository.insert(
-            JobDocument(
-                jobData.id,
-                jobData.workflowId,
-                jobData.kind,
-                jobData.parameters,
-                jobData.scheduledTime,
-                jobData.cancellationKey,
-                jobData.status
-            )
-        ).toJobData()
+        val document = JobDocument(
+            jobData.id,
+            jobData.workflowId,
+            jobData.kind,
+            jobData.parameters,
+            jobData.scheduledTime,
+            jobData.cancellationKey,
+            jobData.status,
+        )
+        document.toJobData(valueTypes)
+        return jobRepository.insert(document).toJobData(valueTypes)
     }
 
     override fun findForWorkflow(workflowIdentifier: WorkflowIdentifier): List<JobData> {
         return jobRepository.findByWorkflowId(workflowIdentifier.value).map {
-            it.toJobData()
+            it.toJobData(valueTypes)
         }
     }
 
@@ -99,14 +114,14 @@ class JobMongoPersistence(
     override fun findAll(query: JobDataQuery): Page<JobData> {
         return jobRepository.findAll(
             JobDocumentQuery(query),
-        ).map { it.toJobData() }
+        ).map { it.toJobData(valueTypes) }
     }
 
     override fun findAll(query: FlowQuery<JobData, JobData>): Page<JobData> {
         return queryableRepository.find(
             queryMapper.map(query)
-        ).map { 
-            it.toJobData()
+        ).map {
+            it.toJobData(valueTypes)
         }
     }
 
@@ -122,21 +137,21 @@ class JobMongoPersistence(
         return jobRepository.findByIdAndWorkflowId(
             jobIdentifier.value,
             workflowIdentifier.value
-        )?.toJobData()
+        )?.toJobData(valueTypes)
     }
 
     override fun save(jobData: JobData): JobData {
-        return jobRepository.save(
-            JobDocument(
-                jobData.id,
-                jobData.workflowId,
-                jobData.kind,
-                jobData.parameters,
-                jobData.scheduledTime,
-                jobData.cancellationKey,
-                jobData.status
-            )
-        ).toJobData()
+        val document = JobDocument(
+            jobData.id,
+            jobData.workflowId,
+            jobData.kind,
+            jobData.parameters,
+            jobData.scheduledTime,
+            jobData.cancellationKey,
+            jobData.status,
+        )
+        document.toJobData(valueTypes)
+        return jobRepository.save(document).toJobData(valueTypes)
     }
 
     override fun deleteAllForWorkflow(workflowIdentifier: WorkflowIdentifier) {

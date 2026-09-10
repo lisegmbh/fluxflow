@@ -26,6 +26,7 @@ import de.lise.fluxflow.mongo.migration.MigrationDocument
 import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
 import de.lise.fluxflow.migration.common.TypeRenameMigration
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
+import de.lise.fluxflow.mongo.security.baseline.ENUM_WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.fixtures.HostOnlyWorkflowModel
 import de.lise.fluxflow.mongo.security.fixtures.MODEL_TYPE_ALIAS
@@ -33,10 +34,13 @@ import de.lise.fluxflow.mongo.security.fixtures.SecurityHostDocument
 import de.lise.fluxflow.mongo.security.fixtures.SecurityHostRepository
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowModel
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowModelType
+import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowEnum
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowSubtype
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowValue
 import de.lise.fluxflow.mongo.security.fixtures.SUBTYPE_ALIAS
 import de.lise.fluxflow.mongo.security.fixtures.VALUE_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.VALUE_ENUM_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.UnregisteredSecurityTestEnum
 import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
 import de.lise.fluxflow.mongo.security.fixtures.securityTestEntry
 import de.lise.fluxflow.mongo.security.fixtures.securityTestModel
@@ -637,6 +641,415 @@ abstract class AbstractProductionMongoSecurityContractIT {
     }
 
     @Test
+    fun `V01 legacy value type maps reject an unregistered enum before initialization`() {
+        val workflowId = UUID.randomUUID().toString()
+        listOf(
+            "dataTypeMap.payload.typeName" to "dataEntries",
+            "metadataTypeMap.payload.typeName" to "metadataEntries",
+        ).forEachIndexed { index, (typePath, entriesPath) ->
+            val stepId = ObjectId()
+            steps.create(
+                StepData(
+                    stepId.toHexString(), workflowId, "legacy-value-step-$index", "1",
+                    mapOf("payload" to "safe"), Status.Active, mapOf("payload" to "safe"),
+                )
+            )
+            collection(StepDocument::class.java).updateOne(
+                eq("_id", stepId),
+                combine(unset(entriesPath), set(typePath, ENUM_WITNESS_NAME)),
+            )
+            assertValueTypeRejectedBeforeEnumInitialization {
+                steps.findForWorkflowAndId(
+                    WorkflowIdentifier(workflowId),
+                    StepIdentifier(stepId.toHexString()),
+                )
+            }
+        }
+
+        val jobId = ObjectId()
+        jobs.create(
+            JobData(
+                jobId.toHexString(), workflowId, "legacy-value-job",
+                mapOf("payload" to "safe"), Instant.parse("2026-09-10T10:00:00Z"),
+                null, JobStatus.Scheduled,
+            )
+        )
+        collection(JobDocument::class.java).updateOne(
+            eq("_id", jobId),
+            combine(
+                unset("parameterEntries"),
+                set("parameterTypeMap.payload.typeName", ENUM_WITNESS_NAME),
+            ),
+        )
+        assertValueTypeRejectedBeforeEnumInitialization {
+            jobs.findForWorkflowAndId(
+                WorkflowIdentifier(workflowId),
+                JobIdentifier(jobId.toHexString()),
+            )
+        }
+    }
+
+    @Test
+    fun `V02 typed records reject an unregistered enum before initialization`() {
+        val workflowId = UUID.randomUUID().toString()
+        listOf("dataEntries", "metadataEntries").forEachIndexed { index, recordPath ->
+            val stepId = ObjectId()
+            steps.create(
+                StepData(
+                    stepId.toHexString(), workflowId, "record-value-step-$index", "1",
+                    mapOf("payload" to "safe"), Status.Active, mapOf("payload" to "safe"),
+                )
+            )
+            tamperJvmType(
+                StepDocument::class.java,
+                eq("_id", stepId),
+                recordPath,
+                "payload",
+                ENUM_WITNESS_NAME,
+            )
+            assertValueTypeRejectedBeforeEnumInitialization {
+                steps.findForWorkflowAndId(
+                    WorkflowIdentifier(workflowId),
+                    StepIdentifier(stepId.toHexString()),
+                )
+            }
+        }
+
+        val jobId = ObjectId()
+        jobs.create(
+            JobData(
+                jobId.toHexString(), workflowId, "record-value-job",
+                mapOf("payload" to "safe"), Instant.parse("2026-09-10T10:00:00Z"),
+                null, JobStatus.Scheduled,
+            )
+        )
+        tamperJvmType(
+            JobDocument::class.java,
+            eq("_id", jobId),
+            "parameterEntries",
+            "payload",
+            ENUM_WITNESS_NAME,
+        )
+        assertValueTypeRejectedBeforeEnumInitialization {
+            jobs.findForWorkflowAndId(
+                WorkflowIdentifier(workflowId),
+                JobIdentifier(jobId.toHexString()),
+            )
+        }
+
+        listOf("metadata", "data.0.metadata").forEachIndexed { index, recordPath ->
+            val kind = "record-value-definition-$index"
+            stepDefinitions.save(
+                StepDefinitionData(
+                    kind,
+                    "1",
+                    mapOf("payload" to "safe"),
+                    listOf(
+                        DataDefinitionData(
+                            "data", String::class.java.name,
+                            mapOf("payload" to "safe"), false,
+                        )
+                    ),
+                )
+            )
+            val filter = and(eq("kind", kind), eq("version", "1"))
+            tamperJvmType(
+                StepDefinitionDocument::class.java,
+                filter,
+                recordPath,
+                "payload",
+                ENUM_WITNESS_NAME,
+            )
+            assertValueTypeRejectedBeforeEnumInitialization {
+                stepDefinitions.findForKindAndVersion(kind, "1")
+            }
+        }
+    }
+
+    @Test
+    fun `V03 registered enum values round-trip through current and legacy records without TCCL lookup`() {
+        val workflowId = UUID.randomUUID().toString()
+        val stepId = ObjectId()
+        steps.create(
+            StepData(
+                stepId.toHexString(), workflowId, "allowed-enum-step", "1",
+                mapOf("state" to SecurityTestWorkflowEnum.Ready), Status.Active,
+                mapOf("state" to SecurityTestWorkflowEnum.Done),
+            )
+        )
+        val jobId = ObjectId()
+        jobs.create(
+            JobData(
+                jobId.toHexString(), workflowId, "allowed-enum-job",
+                mapOf("state" to SecurityTestWorkflowEnum.Done),
+                Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled,
+            )
+        )
+        val definitionKind = "allowed-enum-definition"
+        stepDefinitions.save(
+            StepDefinitionData(
+                definitionKind,
+                "1",
+                mapOf("state" to SecurityTestWorkflowEnum.Ready),
+                listOf(
+                    DataDefinitionData(
+                        "data", String::class.java.name,
+                        mapOf("state" to SecurityTestWorkflowEnum.Done), false,
+                    )
+                ),
+            )
+        )
+
+        withContextTypeBlocked(SecurityTestWorkflowEnum::class.java.name) {
+            val step = requireNotNull(
+                steps.findForWorkflowAndId(
+                    WorkflowIdentifier(workflowId), StepIdentifier(stepId.toHexString())
+                )
+            )
+            assertThat(step.data["state"]).isEqualTo(SecurityTestWorkflowEnum.Ready)
+            assertThat(step.metadata["state"]).isEqualTo(SecurityTestWorkflowEnum.Done)
+            assertThat(
+                jobs.findForWorkflowAndId(
+                    WorkflowIdentifier(workflowId), JobIdentifier(jobId.toHexString())
+                )?.parameters?.get("state")
+            ).isEqualTo(SecurityTestWorkflowEnum.Done)
+            val definition = requireNotNull(
+                stepDefinitions.findForKindAndVersion(definitionKind, "1")
+            )
+            assertThat(definition.metadata["state"]).isEqualTo(SecurityTestWorkflowEnum.Ready)
+            assertThat(definition.data.single().metadata["state"])
+                .isEqualTo(SecurityTestWorkflowEnum.Done)
+        }
+
+        val legacyStepId = ObjectId()
+        steps.create(
+            StepData(
+                legacyStepId.toHexString(), workflowId, "allowed-enum-legacy", "1",
+                mapOf("state" to "done"), Status.Active, emptyMap(),
+            )
+        )
+        collection(StepDocument::class.java).updateOne(
+            eq("_id", legacyStepId),
+            combine(
+                unset("dataEntries"),
+                set("dataTypeMap.state.typeName", VALUE_ENUM_ALIAS),
+            ),
+        )
+        withContextTypeBlocked(SecurityTestWorkflowEnum::class.java.name) {
+            val legacy = requireNotNull(
+                steps.findForWorkflowAndId(
+                    WorkflowIdentifier(workflowId), StepIdentifier(legacyStepId.toHexString())
+                )
+            )
+            assertThat(legacy.data["state"]).isEqualTo(SecurityTestWorkflowEnum.Done)
+        }
+    }
+
+    @Test
+    fun `V01 D05 legacy type-name bootstrap rejects unregistered enum and preserves BSON`() {
+        val workflowId = UUID.randomUUID().toString()
+        val stepId = ObjectId()
+        steps.create(
+            StepData(
+                stepId.toHexString(), workflowId, "legacy-type-name-step", "1",
+                mapOf("payload" to "safe"), Status.Active, emptyMap(),
+            )
+        )
+        collection(StepDocument::class.java).updateOne(
+            eq("_id", stepId),
+            combine(
+                unset("dataEntries"),
+                unset("metadataEntries"),
+                set("dataTypeMap.payload.typeName", ENUM_WITNESS_NAME),
+            ),
+        )
+        val before = requireNotNull(
+            collection(StepDocument::class.java).find(eq("_id", stepId)).first()
+        )
+        val jobId = ObjectId()
+        jobs.create(
+            JobData(
+                jobId.toHexString(), workflowId, "legacy-type-name-job",
+                mapOf("payload" to "safe"), Instant.parse("2026-09-10T10:00:00Z"),
+                null, JobStatus.Scheduled,
+            )
+        )
+        collection(JobDocument::class.java).updateOne(
+            eq("_id", jobId),
+            combine(
+                unset("parameterEntries"),
+                set("parameterTypeMap.payload.typeName", ENUM_WITNESS_NAME),
+            ),
+        )
+        val jobBefore = requireNotNull(
+            collection(JobDocument::class.java).find(eq("_id", jobId)).first()
+        )
+
+        val loader = WitnessClassLoader()
+        val result = withContextClassLoader(loader) { runCatching { typeRecordMigration.setup() } }
+
+        assertThat(loader.events)
+            .describedAs("The migration must reject enum names before initialization")
+            .isEmpty()
+        assertThat(result.exceptionOrNull())
+            .isInstanceOf(de.lise.fluxflow.migration.MigrationError::class.java)
+        val persisted = requireNotNull(
+            collection(StepDocument::class.java).find(eq("_id", stepId)).first()
+        )
+        assertThat(persisted).isEqualTo(before)
+        assertThat(
+            collection(JobDocument::class.java).find(eq("_id", jobId)).first()
+        ).isEqualTo(jobBefore)
+    }
+
+    @Test
+    fun `V03 D05 registered legacy enum migration produces safe typed records`() {
+        val workflowId = UUID.randomUUID().toString()
+        val stepId = ObjectId()
+        steps.create(
+            StepData(
+                stepId.toHexString(), workflowId, "legacy-allowed-enum", "1",
+                mapOf("state" to "ready"), Status.Active, emptyMap(),
+            )
+        )
+        collection(StepDocument::class.java).updateOne(
+            eq("_id", stepId),
+            combine(
+                unset("dataEntries"),
+                unset("metadataEntries"),
+                set("dataTypeMap.state.typeName", VALUE_ENUM_ALIAS),
+            ),
+        )
+        val jobId = ObjectId()
+        jobs.create(
+            JobData(
+                jobId.toHexString(), workflowId, "legacy-allowed-enum-job",
+                mapOf("state" to "done"), Instant.parse("2026-09-10T10:00:00Z"),
+                null, JobStatus.Scheduled,
+            )
+        )
+        collection(JobDocument::class.java).updateOne(
+            eq("_id", jobId),
+            combine(
+                unset("parameterEntries"),
+                set("parameterTypeMap.state.typeName", VALUE_ENUM_ALIAS),
+            ),
+        )
+
+        withContextTypeBlocked(SecurityTestWorkflowEnum::class.java.name) {
+            typeRecordMigration.setup()
+            val migrated = requireNotNull(
+                steps.findForWorkflowAndId(
+                    WorkflowIdentifier(workflowId), StepIdentifier(stepId.toHexString())
+                )
+            )
+            assertThat(migrated.data["state"]).isEqualTo(SecurityTestWorkflowEnum.Ready)
+            assertThat(
+                jobs.findForWorkflowAndId(
+                    WorkflowIdentifier(workflowId), JobIdentifier(jobId.toHexString())
+                )?.parameters?.get("state")
+            ).isEqualTo(SecurityTestWorkflowEnum.Done)
+        }
+        val persisted = requireNotNull(
+            collection(StepDocument::class.java).find(eq("_id", stepId)).first()
+        )
+        assertThat(persisted.containsKey("dataEntries")).isTrue()
+        assertThat(
+            collection(JobDocument::class.java)
+                .find(eq("_id", jobId))
+                .first()
+                ?.containsKey("parameterEntries")
+        ).isTrue()
+    }
+
+    @Test
+    fun `V04 create and save reject unregistered value types before writing`() {
+        val workflowId = UUID.randomUUID().toString()
+        val rejectedStepId = ObjectId()
+        assertUnknownType(
+            catchFailure {
+                steps.create(
+                    StepData(
+                        rejectedStepId.toHexString(), workflowId, "rejected-value-step", "1",
+                        mapOf("payload" to UnregisteredSecurityTestEnum.Poison),
+                        Status.Active, emptyMap(),
+                    )
+                )
+            },
+            TypeRole.VALUE,
+            UnregisteredSecurityTestEnum::class.java.name,
+        )
+        assertThat(
+            collection(StepDocument::class.java).countDocuments(eq("_id", rejectedStepId))
+        ).isZero()
+
+        val validStepId = ObjectId()
+        val validStep = steps.create(
+            StepData(
+                validStepId.toHexString(), workflowId, "valid-value-step", "1",
+                mapOf("payload" to "safe"), Status.Active, emptyMap(),
+            )
+        )
+        val stepBefore = requireNotNull(
+            collection(StepDocument::class.java).find(eq("_id", validStepId)).first()
+        )
+        assertUnknownType(
+            catchFailure {
+                steps.save(
+                    validStep.copy(data = mapOf("payload" to UnregisteredSecurityTestEnum.Poison))
+                )
+            },
+            TypeRole.VALUE,
+            UnregisteredSecurityTestEnum::class.java.name,
+        )
+        assertThat(
+            collection(StepDocument::class.java).find(eq("_id", validStepId)).first()
+        ).isEqualTo(stepBefore)
+
+        val rejectedJobId = ObjectId()
+        assertUnknownType(
+            catchFailure {
+                jobs.create(
+                    JobData(
+                        rejectedJobId.toHexString(), workflowId, "rejected-value-job",
+                        mapOf("payload" to UnregisteredSecurityTestEnum.Poison),
+                        Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled,
+                    )
+                )
+            },
+            TypeRole.VALUE,
+            UnregisteredSecurityTestEnum::class.java.name,
+        )
+        assertThat(
+            collection(JobDocument::class.java).countDocuments(eq("_id", rejectedJobId))
+        ).isZero()
+
+        val validJobId = ObjectId()
+        val validJob = jobs.create(
+            JobData(
+                validJobId.toHexString(), workflowId, "valid-value-job",
+                mapOf("payload" to "safe"), Instant.parse("2026-09-10T10:00:00Z"),
+                null, JobStatus.Scheduled,
+            )
+        )
+        val jobBefore = requireNotNull(
+            collection(JobDocument::class.java).find(eq("_id", validJobId)).first()
+        )
+        assertUnknownType(
+            catchFailure {
+                jobs.save(
+                    validJob.copy(parameters = mapOf("payload" to UnregisteredSecurityTestEnum.Poison))
+                )
+            },
+            TypeRole.VALUE,
+            UnregisteredSecurityTestEnum::class.java.name,
+        )
+        assertThat(
+            collection(JobDocument::class.java).find(eq("_id", validJobId)).first()
+        ).isEqualTo(jobBefore)
+    }
+
+    @Test
     fun `D04 production job reads reject types in legacy and current parameter fields`() {
         listOf(
             "parameters.payload" to true,
@@ -893,6 +1306,71 @@ abstract class AbstractProductionMongoSecurityContractIT {
 
     private fun insertRaw(type: Class<*>, document: Document) {
         collection(type).insertOne(document)
+    }
+
+    private fun tamperJvmType(
+        documentType: Class<*>,
+        filter: org.bson.conversions.Bson,
+        recordPath: String,
+        valueKey: String,
+        persistedType: String,
+    ) {
+        val stored = requireNotNull(collection(documentType).find(filter).first())
+        val typedRecords = recordPath.split('.').fold(stored as Any?) { current, segment ->
+            when (current) {
+                is Document -> current[segment]
+                is List<*> -> current[segment.toInt()]
+                else -> error("Could not traverse persisted record path '$recordPath'.")
+            }
+        } as Document
+        val typeRecord = (typedRecords["types"] as Document)[valueKey] as Document
+        val reference = (typeRecord["jvmTypeReference"] as Document).getString("value")
+        val entries = (typedRecords["jvmTypes"] as Document)["entries"] as List<*>
+        val entry = entries.filterIsInstance<Document>().single {
+            it.getString("reference") == reference
+        }
+        entry["type"] = persistedType
+        collection(documentType).replaceOne(filter, stored)
+    }
+
+    private fun assertValueTypeRejectedBeforeEnumInitialization(action: () -> Unit) {
+        val loader = WitnessClassLoader()
+        val thread = Thread.currentThread()
+        val previousLoader = thread.contextClassLoader
+        val result = try {
+            thread.contextClassLoader = loader
+            runCatching(action)
+        } finally {
+            thread.contextClassLoader = previousLoader
+        }
+        assertThat(loader.events)
+            .describedAs("Persisted enum names must be rejected before enumConstants initializes them")
+            .isEmpty()
+        val failure = result.exceptionOrNull()
+            ?: throw AssertionError("Expected the persisted value type to fail closed")
+        assertUnknownType(failure, TypeRole.VALUE, ENUM_WITNESS_NAME)
+    }
+
+    private fun <T> withContextTypeBlocked(typeName: String, action: () -> T): T {
+        val parent = Thread.currentThread().contextClassLoader
+        val blockingLoader = object : ClassLoader(parent) {
+            override fun loadClass(name: String, resolve: Boolean): Class<*> {
+                if (name == typeName) throw ClassNotFoundException(name)
+                return super.loadClass(name, resolve)
+            }
+        }
+        return withContextClassLoader(blockingLoader, action)
+    }
+
+    private fun <T> withContextClassLoader(loader: ClassLoader, action: () -> T): T {
+        val thread = Thread.currentThread()
+        val previousLoader = thread.contextClassLoader
+        return try {
+            thread.contextClassLoader = loader
+            action()
+        } finally {
+            thread.contextClassLoader = previousLoader
+        }
     }
 
     private fun collection(type: Class<*>) = fluxFlowMongoAccess.template.getCollection(

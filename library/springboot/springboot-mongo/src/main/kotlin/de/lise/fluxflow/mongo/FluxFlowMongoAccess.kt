@@ -4,6 +4,7 @@ import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.NullType
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
@@ -47,6 +48,7 @@ class FluxFlowMongoAccess internal constructor(
     internal val converter: MongoConverter
     internal val template: MongoTemplate
     internal val typeKey: String
+    internal val valueTypes = ValueTypeConverter(registry)
 
     private val repositoryFactory: MongoRepositoryFactory
 
