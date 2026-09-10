@@ -1,3 +1,35 @@
+import de.lise.fluxflow.gradle.SecurityTestRequirements
+
+plugins {
+    id("fluxflow.security-tests")
+}
+
+extensions.configure<SecurityTestRequirements>("securityTests") {
+    requiredClasses.set(listOf(
+        "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
+        "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
+        "de.lise.fluxflow.mongo.security.baseline.WorkflowModelBaselineTest",
+        "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoSecurityIT",
+    ))
+}
+
+kotlin.sourceSets.named("test") {
+    kotlin.srcDir("../../security-tests/src/test/kotlin")
+}
+sourceSets.named("test") {
+    java.srcDir("../../security-tests/src/test/java")
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("fluxflow.security.expectRejection", providers.gradleProperty("securityExpectRejection").orElse("false").get())
+}
+
+dependencyManagement {
+    imports {
+        mavenBom("org.testcontainers:testcontainers-bom:2.0.5")
+    }
+}
+
 kotlin {
     sourceSets {
         main {
@@ -22,11 +54,13 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-    testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-mongodb")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation(project(":springboot4:springboot"))
     testImplementation(project(":springboot4:springboot-testing"))
+    testImplementation(project(":core:engine"))
+    testImplementation(project(":core:stereotyped"))
+    testImplementation(project(":core:validation"))
 }

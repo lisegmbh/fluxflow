@@ -12,6 +12,7 @@ out/
 # Gradle
 HELP.md
 .gradle
+.kotlin/
 build/
 !/build
 !gradle/wrapper/gradle-wrapper.jar
@@ -23,3 +24,6 @@ doc/**/*.png
 doc/**/*.pdf
 doc/**/*.cache
 doc/doc.xml
+library/testcontainers-debug.txt
+
+library/testcontainers-debug2.txt
