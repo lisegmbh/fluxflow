@@ -12,9 +12,11 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
     requiredClasses.set(listOf(
         "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
+        "de.lise.fluxflow.mongo.security.consumer.Boot3MongoConsumerContractIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoCustomTypeKeyIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoReconciliationIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoTypeAuditIT",
         "de.lise.fluxflow.mongo.security.production.ValueTypeConverterSecurityTest",
     ))
 }

@@ -62,6 +62,115 @@ internal class MongoDocumentTypePolicy(
         validateFrames(pending)
     }
 
+    /**
+     * Inspects discriminator aliases without asking Spring Data or a class loader to resolve them.
+     * The traversal deliberately shares the same field policies and limits as [validate].
+     */
+    fun auditAliases(
+        targetType: Class<*>,
+        source: Bson,
+        isRegisteredValueType: (Any?) -> Boolean,
+    ): List<MongoTypeAliasDeviation> {
+        val root = source as? Document
+            ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
+        val deviations = mutableListOf<MongoTypeAliasDeviation>()
+
+        if (root.containsKey(typeKey) && !aliases.isAliasFor(root[typeKey], targetType)) {
+            deviations += deviation("/${pointerSegment(typeKey)}", null, root[typeKey], isRegisteredValueType)
+        }
+
+        val pending = ArrayDeque<AuditFrame>()
+        root.entries.asSequence()
+            .filterNot { (key, _) -> key == typeKey }
+            .forEach { (key, value) ->
+                pending.add(
+                    AuditFrame(
+                        value,
+                        "/${pointerSegment(key)}",
+                        1,
+                        policyForRootField(targetType, key),
+                    )
+                )
+            }
+
+        val visited = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+        var nodes = 1
+        while (pending.isNotEmpty()) {
+            val frame = pending.removeLast()
+            nodes++
+            require(nodes <= maxNodes) {
+                "Mongo document exceeds the maximum node count of $maxNodes"
+            }
+            require(frame.depth <= maxDepth) {
+                "Mongo document exceeds the maximum depth of $maxDepth at '${frame.path}'"
+            }
+
+            when (val value = frame.value) {
+                is Map<*, *> -> {
+                    if (!visited.add(value)) {
+                        continue
+                    }
+                    if (value.containsKey(typeKey) && !isAllowed(value[typeKey], frame.policy)) {
+                        deviations += deviation(
+                            "${frame.path}/${pointerSegment(typeKey)}",
+                            expectedRole(frame.policy),
+                            value[typeKey],
+                            isRegisteredValueType,
+                        )
+                    }
+                    value.entries.asSequence()
+                        .filterNot { (key, _) -> key == typeKey }
+                        .forEach { (key, nested) ->
+                            pending.add(
+                                AuditFrame(
+                                    nested,
+                                    "${frame.path}/${pointerSegment(key?.toString().orEmpty())}",
+                                    frame.depth + 1,
+                                    frame.policy.forField(key?.toString()),
+                                )
+                            )
+                        }
+                }
+
+                is Iterable<*> -> {
+                    if (!visited.add(value)) {
+                        continue
+                    }
+                    value.forEachIndexed { index, nested ->
+                        require(nodes + pending.size < maxNodes) {
+                            "Mongo document exceeds the maximum node count of $maxNodes"
+                        }
+                        pending.add(
+                            AuditFrame(
+                                nested,
+                                "${frame.path}/$index",
+                                frame.depth + 1,
+                                frame.policy.forElement(),
+                            )
+                        )
+                    }
+                }
+
+                is Array<*> -> {
+                    if (!visited.add(value)) {
+                        continue
+                    }
+                    value.forEachIndexed { index, nested ->
+                        pending.add(
+                            AuditFrame(
+                                nested,
+                                "${frame.path}/$index",
+                                frame.depth + 1,
+                                frame.policy.forElement(),
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        return deviations
+    }
+
     private fun validateFrames(pending: ArrayDeque<Frame>) {
         val visited = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
         var nodes = 1
@@ -210,7 +319,51 @@ internal class MongoDocumentTypePolicy(
         }
     }
 
+    private fun isAllowed(
+        alias: Any?,
+        policy: NodePolicy,
+    ): Boolean = when (policy) {
+        is NodePolicy.Application -> aliases.isRegistered(policy.role, alias)
+        NodePolicy.Model -> aliases.isRegistered(TypeRole.MODEL, alias)
+        NodePolicy.Infrastructure -> aliases.isInfrastructure(alias)
+        NodePolicy.TypedRecords -> aliases.isAliasFor(alias, TypedRecords::class.java)
+        NodePolicy.StepDefinitionData -> aliases.isAliasFor(alias, DataDefinitionDocument::class.java)
+        NodePolicy.Static -> false
+    }
+
+    private fun expectedRole(policy: NodePolicy): TypeRole? = when (policy) {
+        is NodePolicy.Application -> policy.role
+        NodePolicy.Model -> TypeRole.MODEL
+        else -> null
+    }
+
+    private fun deviation(
+        path: String,
+        expectedRole: TypeRole?,
+        alias: Any?,
+        isRegisteredValueType: (Any?) -> Boolean,
+    ): MongoTypeAliasDeviation {
+        val persistedName = alias as? String
+        val issue = when {
+            persistedName.isNullOrEmpty() -> MongoTypeAliasIssue.MALFORMED
+            aliases.isRegistered(alias) || isRegisteredValueType(alias) -> MongoTypeAliasIssue.DISALLOWED
+            else -> MongoTypeAliasIssue.UNREGISTERED
+        }
+        return MongoTypeAliasDeviation(path, expectedRole, persistedName, issue)
+    }
+
+    private fun pointerSegment(value: String): String = value
+        .replace("~", "~0")
+        .replace("/", "~1")
+
     private data class Frame(
+        val value: Any?,
+        val path: String,
+        val depth: Int,
+        val policy: NodePolicy,
+    )
+
+    private data class AuditFrame(
         val value: Any?,
         val path: String,
         val depth: Int,
@@ -261,4 +414,17 @@ internal class MongoDocumentTypePolicy(
             override fun forElement(): NodePolicy = this
         }
     }
+}
+
+internal data class MongoTypeAliasDeviation(
+    val path: String,
+    val expectedRole: TypeRole?,
+    val persistedName: String?,
+    val issue: MongoTypeAliasIssue,
+)
+
+internal enum class MongoTypeAliasIssue {
+    UNREGISTERED,
+    MALFORMED,
+    DISALLOWED,
 }

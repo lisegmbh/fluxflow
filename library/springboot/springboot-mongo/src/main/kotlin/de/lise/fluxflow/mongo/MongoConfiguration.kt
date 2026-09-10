@@ -1,6 +1,8 @@
 package de.lise.fluxflow.mongo
 
 import de.lise.fluxflow.mongo.bootstrapping.BootstrapMongoConfiguration
+import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.audit.RawBsonFluxFlowMongoTypeAudit
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordRepository
 import de.lise.fluxflow.mongo.continuation.history.ContinuationMongoConfiguration
 import de.lise.fluxflow.mongo.continuation.history.query.QueryableContinuationRecordRepositoryImpl
@@ -63,6 +65,10 @@ open class MongoConfiguration {
         environment,
         customizers,
     )
+
+    @Bean
+    open fun fluxFlowMongoTypeAudit(access: FluxFlowMongoAccess): FluxFlowMongoTypeAudit =
+        RawBsonFluxFlowMongoTypeAudit(access)
 
     @Bean
     open fun workflowRepository(access: FluxFlowMongoAccess): WorkflowRepository =

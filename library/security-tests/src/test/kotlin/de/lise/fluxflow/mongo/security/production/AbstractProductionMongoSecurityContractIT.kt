@@ -42,6 +42,7 @@ import de.lise.fluxflow.mongo.security.fixtures.SUBTYPE_ALIAS
 import de.lise.fluxflow.mongo.security.fixtures.VALUE_TYPE_ALIAS
 import de.lise.fluxflow.mongo.security.fixtures.VALUE_ENUM_ALIAS
 import de.lise.fluxflow.mongo.security.fixtures.UnregisteredSecurityTestEnum
+import de.lise.fluxflow.mongo.security.fixtures.allowedSecurityTestEntries
 import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
 import de.lise.fluxflow.mongo.security.fixtures.securityTestEntry
 import de.lise.fluxflow.mongo.security.fixtures.securityTestModel
@@ -188,7 +189,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
 
     @Test
     @Suppress("DEPRECATION")
-    fun `D01 findAll pagination and FlowQuery reject an unregistered model`() {
+    fun `O02 D01 findAll pagination and FlowQuery reject an unregistered model`() {
         val operations: List<(String) -> Unit> = listOf(
             { workflows.findAll() },
             { workflows.findAll(WorkflowDataQuery(null, emptyList(), PaginationRequest(0, 10))) },
@@ -215,6 +216,23 @@ abstract class AbstractProductionMongoSecurityContractIT {
             workflowCollection().deleteOne(eq("_id", id))
         }
         assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `R04 root discriminator tampering is rejected on production workflow read`() {
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        workflows.create(securityTestModel(), identifier)
+        workflowCollection().updateOne(
+            eq("_id", identifier.value),
+            set("_class", WITNESS_NAME),
+        )
+
+        assertThatThrownBy { workflows.find(identifier) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining(WITNESS_NAME)
+        assertThat(witnessLoader.events)
+            .describedAs("The incompatible root must be rejected before materialization")
+            .isEmpty()
     }
 
     @Test
@@ -1140,6 +1158,71 @@ abstract class AbstractProductionMongoSecurityContractIT {
         assertThat(
             collection(JobDocument::class.java).find(eq("_id", validJobId)).first()
         ).isEqualTo(jobBefore)
+    }
+
+    @Test
+    fun `O06 create rejects an unregistered external model before writing`() {
+        val registryBefore = fluxFlowMongoAccess.typeRegistry.entries.toList()
+
+        repeat(2) { attempt ->
+            val identifier = WorkflowIdentifier("unregistered-consumer-$attempt")
+            val failure = catchFailure {
+                workflows.create(
+                    HostOnlyWorkflowModel("unregistered consumer model"),
+                    identifier,
+                )
+            }
+            val rejection = generateSequence(failure) { it.cause }
+                .firstOrNull { error ->
+                    error is IllegalArgumentException &&
+                            error.message == "Unregistered Mongo type " +
+                            "'${HostOnlyWorkflowModel::class.java.name}' cannot be persisted"
+                }
+            assertThat(rejection)
+                .describedAs("The write must fail at the trusted type boundary")
+                .isNotNull
+            assertThat(
+                workflowCollection().countDocuments(eq("_id", identifier.value))
+            ).isZero()
+        }
+        assertThat(fluxFlowMongoAccess.typeRegistry.entries).containsExactlyElementsOf(registryBefore)
+    }
+
+    @Test
+    fun `O05 expand readers accept old and future models before future writes begin`() {
+        val oldModelType = SecurityTestWorkflowModel::class.java.name
+        val futureModelType = SecurityTestWorkflowSubtype::class.java.name
+        val commonEntries = allowedSecurityTestEntries().filter { entry ->
+            entry.role == TypeRole.VALUE || entry.binaryClassName == oldModelType
+        }.toTypedArray()
+        val preExpand = productionAccess(
+            securityTestRegistry(witnessLoader, *commonEntries)
+        )
+        val expanded = productionAccess(
+            securityTestRegistry(witnessLoader, *allowedSecurityTestEntries())
+        )
+        val oldId = UUID.randomUUID().toString()
+        val futureId = UUID.randomUUID().toString()
+
+        preExpand.template.save(WorkflowDocument(oldId, securityTestModel(), oldModelType))
+
+        assertThat(preExpand.findWorkflow(oldId)?.model)
+            .isEqualTo(securityTestModel())
+        assertThat(expanded.findWorkflow(oldId)?.model)
+            .isEqualTo(securityTestModel())
+
+        val futureModel = SecurityTestWorkflowSubtype("future", "expand first")
+        expanded.template.save(WorkflowDocument(futureId, futureModel, futureModelType))
+
+        val storedFuture = requireNotNull(workflowCollection().find(eq("_id", futureId)).first())
+        assertThat((storedFuture["model"] as Document).getString("_class"))
+            .isEqualTo(futureModelType)
+        assertThat(expanded.findWorkflow(futureId)?.model).isEqualTo(futureModel)
+        assertUnknownType(
+            catchFailure { preExpand.findWorkflow(futureId) },
+            TypeRole.MODEL,
+            futureModelType,
+        )
     }
 
     @Test

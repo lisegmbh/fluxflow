@@ -90,6 +90,15 @@ internal class FluxFlowMongoTypeAliases(
 
     fun isInfrastructure(alias: Any?): Boolean = alias is String && alias in infrastructureAliases
 
+    fun isRegistered(role: TypeRole, alias: Any?): Boolean =
+        alias is String && alias.isNotEmpty() && roleAliases.containsKey(role to alias)
+
+    fun isRegistered(alias: Any?): Boolean =
+        alias is String && alias.isNotEmpty() && aliases.containsKey(alias)
+
+    fun identify(role: TypeRole, alias: Any?): Class<*>? =
+        (alias as? String)?.let { roleAliases[role to it] }
+
     fun isAliasFor(alias: Any?, type: Class<*>): Boolean =
         alias is String && aliases[alias] == type
 

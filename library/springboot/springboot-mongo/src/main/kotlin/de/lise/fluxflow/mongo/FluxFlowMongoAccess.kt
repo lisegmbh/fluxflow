@@ -49,6 +49,9 @@ class FluxFlowMongoAccess internal constructor(
     internal val template: MongoTemplate
     internal val typeKey: String
     internal val valueTypes = ValueTypeConverter(registry)
+    internal val typeRegistry: TypeRegistry = registry
+    internal val typeAliases: FluxFlowMongoTypeAliases
+    internal val documentTypePolicy: MongoDocumentTypePolicy
 
     private val repositoryFactory: MongoRepositoryFactory
 
@@ -80,15 +83,13 @@ class FluxFlowMongoAccess internal constructor(
             DataDefinitionDocument::class.java,
         )
         typeKey = MongoTypeKeyResolver.resolve(hostConverter.typeMapper)
-        val aliases = FluxFlowMongoTypeAliases(registry, rootTypes, infrastructureTypes)
+        typeAliases = FluxFlowMongoTypeAliases(registry, rootTypes, infrastructureTypes)
         val databaseFactory = hostTemplate.mongoDatabaseFactory
         val isolatedConverter = hostConverter.with(databaseFactory).apply {
-            setTypeMapper(typeMapperFactory.create(aliases, typeKey))
+            setTypeMapper(typeMapperFactory.create(typeAliases, typeKey))
         }
-        converter = GuardedMongoConverter(
-            isolatedConverter,
-            MongoDocumentTypePolicy(aliases, typeKey),
-        )
+        documentTypePolicy = MongoDocumentTypePolicy(typeAliases, typeKey)
+        converter = GuardedMongoConverter(isolatedConverter, documentTypePolicy)
         template = MongoTemplate(databaseFactory, converter).apply {
             setApplicationContext(applicationContext)
             if (hostTemplate.hasReadPreference()) {

@@ -80,6 +80,10 @@ class ValueTypeConverter private constructor(
         }
     }
 
+    /** Checks the immutable alias table without resolving or loading a class. */
+    internal fun isRegistered(typeName: Any?): Boolean =
+        typeName is String && typeName.isNotEmpty() && aliases.containsKey(typeName)
+
     private fun resolve(typeName: String): KClass<*> =
         aliases[typeName] ?: throw UnknownTypeException(TypeRole.VALUE, typeName)
 
