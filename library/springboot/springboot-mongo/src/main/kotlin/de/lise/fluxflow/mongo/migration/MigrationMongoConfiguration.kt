@@ -19,6 +19,6 @@ open class MigrationMongoConfiguration {
 
     @Bean
     open fun mongoMigrationProvider(access: FluxFlowMongoAccess): MongoMigrationProvider {
-        return MongoMigrationProvider(access.template)
+        return MongoMigrationProvider(access.template, access.typeKey)
     }
 }
