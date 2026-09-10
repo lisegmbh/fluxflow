@@ -77,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    aggregation, projection and bootstrap reads share the guarded converter in both Spring Boot
    compatibility lines. Scheduled-job startup reconciliation reads identifiers first and isolates
    a rejected job so healthy neighboring jobs can still be restored.
+3. **Fail-closed Mongo value reconstruction**<br/>
+   Legacy value type maps and current typed records now resolve custom value types through the
+   context-local trusted registry. Persisted type names no longer reach a class loader, malformed
+   type graphs fail with defined errors, and unknown values are rejected before create, save, or
+   legacy migration writes data. Fixed built-in scalar and collection conversions remain supported.
 
 ### Removed
 

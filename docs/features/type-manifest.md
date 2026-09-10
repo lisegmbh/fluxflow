@@ -80,9 +80,34 @@ step and job kinds fail with a `StepActivationException` or `JobActivationExcept
 Mongo model and value metadata fail with an `UnknownTypeException` that identifies the role and
 key.
 
-Before upgrading a running system, compare the distinct persisted step and job kinds and Mongo
-model/value discriminators with the generated inventory. Every historical key that can still be
-read needs an exact declaration for its role. Database contents may identify missing declarations,
+Step data, step metadata, job parameters, and step-definition metadata also use the registry when
+reconstructing values from legacy type maps or current typed records. Common JVM scalar, date/time,
+Mongo scalar, map, list, and set representations use a fixed internal allowlist. Every other type,
+including application enums, needs a `value` registration. FluxFlow resolves only the registered
+key, binary class name, or the canonical name derived from that already registered class; it never
+passes a persisted value type name to a class loader. The canonical form keeps records written by
+older FluxFlow versions readable for registered nested classes.
+
+Malformed records fail with `ValueTypeConversionException`. This includes missing or duplicate JVM
+type references, different value and metadata key sets, incompatible values, inconsistent
+collection lengths, cycles, and type graphs beyond the traversal limits. Unknown names continue to
+fail with `UnknownTypeException` and role `VALUE`. Create and save operations validate these types
+before writing, and the legacy-to-typed-record migration applies the same rules per document.
+
+The parameterless `SimpleType`, `CollectionType`, and `TypedRecords` conversion methods remain
+available for compatibility and accept only fixed built-ins. Code that reconstructs registered
+application values directly can bind the registry explicitly:
+
+```kotlin
+val valueTypes = ValueTypeConverter(typeRegistry)
+val restored = typedRecords.toTypeSafeData(valueTypes)
+```
+
+Before upgrading a running system, compare the distinct persisted step and job kinds, Mongo
+model/value discriminators, legacy `typeName` fields, and typed-record JVM type entries with the
+generated inventory. Every historical custom key that can still be read needs an exact declaration
+for its matching role; entries from legacy value maps and typed records use the `value` role.
+Database contents may identify missing declarations,
 but must never add registrations automatically. Applications with dynamic or erased model types
 need explicit entries. A repository fixture cannot replace an inventory check against the actual
 application's data.
