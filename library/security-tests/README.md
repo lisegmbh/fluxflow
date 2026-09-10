@@ -105,7 +105,10 @@ Step, job, step-definition, and type-record migration paths share this converter
 references, key sets, collection metadata, cycles, and excessive graphs fail before raw values can
 escape or persistence writes can occur. A registration authorizes only its exact persisted key.
 Because map records do not describe nested value types, enum values inside maps are rejected before
-write instead of being silently restored as strings.
+write instead of being silently restored as strings. Container normalization is limited to fixed
+built-in aliases; an application container registration requires an actual instance of that type.
+The default writer stores a custom value's canonical JVM name, so that exact key must be registered
+in addition to any logical aliases used by historical records.
 
 ## Build gate tests
 

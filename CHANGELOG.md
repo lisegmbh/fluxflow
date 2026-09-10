@@ -81,7 +81,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Legacy value type maps and current typed records now resolve custom value types through the
    context-local trusted registry. Persisted type names no longer reach a class loader, malformed
    type graphs fail with defined errors, and unknown values are rejected before create, save, or
-   legacy migration writes data. Fixed built-in scalar and collection conversions remain supported.
+   legacy migration writes data. Registrations authorize exact persisted keys, container conversion
+   is limited to fixed built-ins, and enum values in structurally untyped maps are rejected before
+   their type information can be lost.
 
 ### Removed
 

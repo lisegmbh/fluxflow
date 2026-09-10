@@ -45,6 +45,8 @@ fluxflowTypeManifest {
         "com.example.workflow.SubmitOrderStep",
     )
     model("order", "com.example.workflow.OrderModel")
+    value("com.example.workflow.Currency", "com.example.workflow.Currency")
+    // Add only when historical records contain this logical key:
     value("currency", "com.example.workflow.Currency")
 }
 ```
@@ -63,6 +65,12 @@ configuration:
 fun workflowTypes() = TypeRegistrationContributor {
     listOf(
         TypeRegistration(TypeRole.MODEL, "order", OrderModel::class),
+        TypeRegistration(
+            TypeRole.VALUE,
+            requireNotNull(Currency::class.java.canonicalName),
+            Currency::class,
+        ),
+        // Add only when historical records contain this logical key:
         TypeRegistration(TypeRole.VALUE, "currency", Currency::class),
     )
 }
@@ -86,11 +94,19 @@ Mongo scalar, map, list, and set representations use a fixed internal allowlist.
 including application enums, needs a `value` registration. FluxFlow resolves only the registered
 key; it never passes a persisted value type name to a class loader. Historical binary or canonical
 class names remain readable when each persisted spelling has its own explicit `value` entry.
+The default writer stores a custom value's canonical JVM class name in its type record. Register
+that exact canonical name to read records written through the default persistence path. Logical
+aliases are additional entries for records that actually contain those aliases. For nested types,
+the persisted canonical key uses `.`, while the entry's JVM binary class name uses `$`.
 
 Map records describe the map container, but do not carry type records for their nested values.
 FluxFlow therefore rejects enum values anywhere inside a map before writing, because MongoDB would
 otherwise store the enum name as a string and silently lose its type. Store enums as typed fields or
 collection entries instead.
+
+Only aliases from the fixed built-in table enable conversion between MongoDB container
+representations. A registered application `Map`, `List`, or `Set` subtype must already be an
+instance of its declared type; FluxFlow does not coerce a standard container into that subtype.
 
 Malformed records fail with `ValueTypeConversionException`. This includes missing or duplicate JVM
 type references, different value and metadata key sets, incompatible values, inconsistent

@@ -39,6 +39,7 @@ import kotlin.reflect.KClass
  */
 class ValueTypeConverter private constructor(
     private val aliases: Map<String, KClass<*>>,
+    private val normalizableContainerAliases: Set<String>,
     private val maxDepth: Int = DEFAULT_MAX_DEPTH,
     private val maxNodes: Int = DEFAULT_MAX_NODES,
 ) {
@@ -46,7 +47,7 @@ class ValueTypeConverter private constructor(
         registry: TypeRegistry,
         maxDepth: Int = DEFAULT_MAX_DEPTH,
         maxNodes: Int = DEFAULT_MAX_NODES,
-    ) : this(buildAliases(registry), maxDepth, maxNodes)
+    ) : this(buildAliases(registry), BuiltInContainerAliases, maxDepth, maxNodes)
 
     init {
         require(maxDepth > 0) { "Value type maximum depth must be positive" }
@@ -136,15 +137,14 @@ class ValueTypeConverter private constructor(
             depth: Int,
         ): Any? {
             val type = resolve(spec.typeName)
-            if (value is Map<*, *> && Map::class.java.isAssignableFrom(type.java)) {
-                assertUntypedMap(value, path, depth)
-                return value
-            }
             if (type.isInstance(value)) {
+                if (value is Map<*, *>) {
+                    assertUntypedMap(value, path, depth)
+                }
                 return value
             }
 
-            if (value is Collection<*>) {
+            if (spec.typeName in normalizableContainerAliases && value is Collection<*>) {
                 if (Set::class.java.isAssignableFrom(type.java)) {
                     return value.toSet()
                 }
@@ -153,6 +153,14 @@ class ValueTypeConverter private constructor(
                 ) {
                     return value.toList()
                 }
+            }
+
+            if (spec.typeName in normalizableContainerAliases &&
+                value is Map<*, *> &&
+                Map::class.java.isAssignableFrom(type.java)
+            ) {
+                assertUntypedMap(value, path, depth)
+                return value
             }
 
             if (value is Date && type == Instant::class) {
@@ -264,15 +272,24 @@ class ValueTypeConverter private constructor(
     private data class AliasRegistration(
         val alias: String,
         val type: KClass<*>,
-        val source: String,
     )
 
     companion object {
         private const val DEFAULT_MAX_DEPTH = 100
         private const val DEFAULT_MAX_NODES = 100_000
 
+        private val BuiltInRegistrations = builtInRegistrations()
+        private val BuiltInContainerAliases = BuiltInRegistrations
+            .filter { registration ->
+                registration.type == List::class ||
+                        registration.type == Set::class ||
+                        registration.type == Map::class
+            }
+            .mapTo(mutableSetOf(), AliasRegistration::alias)
+
         internal val BuiltInsOnly = ValueTypeConverter(
-            buildAliasMap(builtInRegistrations()),
+            buildAliasMap(BuiltInRegistrations),
+            BuiltInContainerAliases,
             DEFAULT_MAX_DEPTH,
             DEFAULT_MAX_NODES,
         )
@@ -284,9 +301,9 @@ class ValueTypeConverter private constructor(
             val registryTypes = registry.entries
                 .filter { it.role == TypeRole.VALUE }
                 .map { entry ->
-                    AliasRegistration(entry.key, entry.type, "trusted value registry")
+                    AliasRegistration(entry.key, entry.type)
                 }
-            return buildAliasMap(builtInRegistrations() + registryTypes)
+            return buildAliasMap(BuiltInRegistrations + registryTypes)
         }
 
         private fun buildAliasMap(registrations: List<AliasRegistration>): Map<String, KClass<*>> =
@@ -313,7 +330,7 @@ class ValueTypeConverter private constructor(
                     type.qualifiedName?.let(::add)
                     addAll(extraAliases)
                 }
-                registrations += aliases.map { AliasRegistration(it, type, "built-in") }
+                registrations += aliases.map { AliasRegistration(it, type) }
             }
 
             register(Boolean::class, "boolean", "java.lang.Boolean")
