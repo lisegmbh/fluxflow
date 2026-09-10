@@ -43,6 +43,8 @@ internal data class SecurityLiteralKeyModel(
     val payload: SecurityTestWorkflowValue,
 )
 
+internal const val AUDIT_STEP_KIND = "registered-audit-step"
+
 internal sealed interface SecurityTestWorkflowModelType {
     val name: String
 }
@@ -62,6 +64,14 @@ internal data class SecurityTestWorkflowSubtype(
     override val name: String,
     val subtypeValue: String,
 ) : SecurityTestWorkflowModelType
+
+internal object AuditNestedTypes {
+    data class Model(
+        val value: String,
+    )
+}
+
+internal class RegisteredAuditStep
 
 internal data class HostOnlyWorkflowModel(
     val value: String,
@@ -160,6 +170,16 @@ internal fun allowedSecurityTestEntries(): Array<TypeManifestEntry> = arrayOf(
         TypeRole.MODEL,
         SUBTYPE_ALIAS,
         SecurityTestWorkflowSubtype::class.java.name,
+    ),
+    securityTestEntry(
+        TypeRole.MODEL,
+        "nested-audit-model",
+        AuditNestedTypes.Model::class.java.name,
+    ),
+    securityTestEntry(
+        TypeRole.STEP,
+        AUDIT_STEP_KIND,
+        RegisteredAuditStep::class.java.name,
     ),
 )
 

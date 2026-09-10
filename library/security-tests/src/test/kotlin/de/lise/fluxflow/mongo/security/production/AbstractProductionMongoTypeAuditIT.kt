@@ -7,6 +7,9 @@ import de.lise.fluxflow.mongo.audit.MongoTypeAuditOptions
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
+import de.lise.fluxflow.mongo.security.fixtures.AuditNestedTypes
+import de.lise.fluxflow.mongo.security.fixtures.VALUE_TYPE_ALIAS
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
@@ -135,6 +138,7 @@ abstract class AbstractProductionMongoTypeAuditIT {
         collection(StepDocument::class.java).insertOne(
             Document("_id", stepId)
                 .append("_class", StepDocument::class.java.name)
+                .append("kind", AUDIT_STEP_KIND)
                 .append("dataEntries", typedRecords(String::class.java.name)),
         )
         val before = rawSnapshot()
@@ -148,7 +152,104 @@ abstract class AbstractProductionMongoTypeAuditIT {
     }
 
     @Test
-    fun `O03 audit marks capped results incomplete and reports malformed metadata`() {
+    fun `O03 audit accepts the qualified name written for a nested model`() {
+        val id = "nested-model"
+        val model = AuditNestedTypes.Model("nested")
+        access.template.save(
+            WorkflowDocument(id, model, model::class.qualifiedName)
+        )
+        val stored = requireNotNull(
+            collection(WorkflowDocument::class.java).find(Document("_id", id)).first()
+        )
+
+        assertThat(stored.getString("modelType")).isEqualTo(AuditNestedTypes.Model::class.qualifiedName)
+        assertThat((stored["model"] as Document).getString("_class"))
+            .isEqualTo(AuditNestedTypes.Model::class.java.name)
+        assertThat(audit.audit().isCompatible).isTrue()
+    }
+
+    @Test
+    fun `O03 audit accepts fixed scalar and container workflow models`() {
+        val models = listOf<Any?>(
+            null,
+            "scalar",
+            listOf("one", 2, null),
+            linkedMapOf("string" to "value", "null" to null),
+        )
+        models.forEachIndexed { index, model ->
+            access.template.save(
+                WorkflowDocument(
+                    "fixed-model-$index",
+                    model,
+                    model?.let { it::class.qualifiedName },
+                )
+            )
+        }
+
+        assertThat(audit.audit().isCompatible).isTrue()
+    }
+
+    @Test
+    fun `O03 audit classifies malformed and disallowed metadata`() {
+        val stepId = ObjectId()
+        collection(StepDocument::class.java).insertOne(
+            Document("_id", stepId)
+                .append("_class", StepDocument::class.java.name)
+                .append("kind", VALUE_TYPE_ALIAS)
+                .append("dataEntries", typedRecords(42)),
+        )
+
+        val report = audit.audit()
+
+        assertThat(report.findings)
+            .extracting("path", "expectedRole", "issue", "persistedName")
+            .containsExactly(
+                tuple("/dataEntries/jvmTypes/entries/0/type", TypeRole.VALUE, MongoTypeAuditIssue.MALFORMED, null),
+                tuple("/kind", TypeRole.STEP, MongoTypeAuditIssue.DISALLOWED, VALUE_TYPE_ALIAS),
+            )
+    }
+
+    @Test
+    fun `O03 audit rejects missing required kinds and typed record type`() {
+        val stepCollection = collectionName(StepDocument::class.java)
+        val jobCollection = collectionName(JobDocument::class.java)
+        val definitionCollection = collectionName(StepDefinitionDocument::class.java)
+        collection(StepDocument::class.java).insertOne(
+            Document("_id", ObjectId())
+                .append("_class", StepDocument::class.java.name)
+                .append(
+                    "dataEntries",
+                    Document(
+                        "jvmTypes",
+                        Document("entries", listOf(Document("reference", "type-1"))),
+                    ),
+                ),
+        )
+        collection(JobDocument::class.java).insertOne(
+            Document("_id", ObjectId())
+                .append("_class", JobDocument::class.java.name),
+        )
+        collection(StepDefinitionDocument::class.java).insertOne(
+            Document("_id", ObjectId())
+                .append("_class", StepDefinitionDocument::class.java.name)
+                .append("metadata", typedRecords(String::class.java.name)),
+        )
+
+        val report = audit.audit()
+
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.findings)
+            .extracting("collection", "path", "expectedRole", "issue", "persistedName")
+            .containsExactlyInAnyOrder(
+                tuple(stepCollection, "/dataEntries/jvmTypes/entries/0/type", TypeRole.VALUE, MongoTypeAuditIssue.MALFORMED, null),
+                tuple(stepCollection, "/kind", TypeRole.STEP, MongoTypeAuditIssue.MALFORMED, null),
+                tuple(jobCollection, "/kind", TypeRole.JOB, MongoTypeAuditIssue.MALFORMED, null),
+                tuple(definitionCollection, "/kind", TypeRole.STEP, MongoTypeAuditIssue.MALFORMED, null),
+            )
+    }
+
+    @Test
+    fun `O03 audit marks capped results incomplete`() {
         collection(WorkflowDocument::class.java).insertOne(
             Document("_id", "limited-workflow")
                 .append("_class", WorkflowDocument::class.java.name)
@@ -189,7 +290,7 @@ abstract class AbstractProductionMongoTypeAuditIT {
             )
     }
 
-    private fun typedRecords(typeName: String): Document = Document(
+    private fun typedRecords(typeName: Any?): Document = Document(
         "jvmTypes",
         Document(
             "entries",
