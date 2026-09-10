@@ -97,20 +97,13 @@ class ValueTypeConverter private constructor(
         private val active = java.util.Collections.newSetFromMap(
             java.util.IdentityHashMap<TypeSpec, Boolean>()
         )
+        private val activeUntypedContainers = java.util.Collections.newSetFromMap(
+            java.util.IdentityHashMap<Any, Boolean>()
+        )
         private var nodes = 0
 
         fun assertType(spec: TypeSpec, value: Any?, path: String, depth: Int): Any? {
-            nodes++
-            if (nodes > maxNodes) {
-                throw ValueTypeConversionException(
-                    "Value type graph exceeds the maximum node count of $maxNodes at '$path'."
-                )
-            }
-            if (depth > maxDepth) {
-                throw ValueTypeConversionException(
-                    "Value type graph exceeds the maximum depth of $maxDepth at '$path'."
-                )
-            }
+            visitNode(path, depth)
             if (!active.add(spec)) {
                 throw ValueTypeConversionException("Cyclic value type graph detected at '$path'.")
             }
@@ -118,7 +111,7 @@ class ValueTypeConverter private constructor(
             return try {
                 when (spec) {
                     is NullType -> assertNull(value, path)
-                    is SimpleType -> assertSimple(spec, value, path)
+                    is SimpleType -> assertSimple(spec, value, path, depth)
                     is CollectionType -> assertCollection(spec, value, path, depth)
                     else -> throw ValueTypeConversionException(
                         "Unsupported value type specification '${spec::class.java.name}' at '$path'."
@@ -136,8 +129,17 @@ class ValueTypeConverter private constructor(
             return null
         }
 
-        private fun assertSimple(spec: SimpleType, value: Any?, path: String): Any? {
+        private fun assertSimple(
+            spec: SimpleType,
+            value: Any?,
+            path: String,
+            depth: Int,
+        ): Any? {
             val type = resolve(spec.typeName)
+            if (value is Map<*, *> && Map::class.java.isAssignableFrom(type.java)) {
+                assertUntypedMap(value, path, depth)
+                return value
+            }
             if (type.isInstance(value)) {
                 return value
             }
@@ -153,9 +155,6 @@ class ValueTypeConverter private constructor(
                 }
             }
 
-            if (value is Map<*, *> && Map::class.java.isAssignableFrom(type.java)) {
-                return value
-            }
             if (value is Date && type == Instant::class) {
                 return value.toInstant()
             }
@@ -174,6 +173,66 @@ class ValueTypeConverter private constructor(
             throw ValueTypeConversionException(
                 "Value at '$path' is not compatible with registered type '${spec.typeName}'."
             )
+        }
+
+        private fun assertUntypedMap(value: Map<*, *>, path: String, depth: Int) {
+            withUntypedContainer(value, path) {
+                value.entries.forEachIndexed { index, (key, nestedValue) ->
+                    val keyPath = if (key is String) "$path[$key]" else "$path[$index]"
+                    inspectUntypedValue(nestedValue, keyPath, depth + 1)
+                }
+            }
+        }
+
+        private fun inspectUntypedValue(value: Any?, path: String, depth: Int) {
+            visitNode(path, depth)
+            when (value) {
+                is Enum<*> -> throw ValueTypeConversionException(
+                    "Enum values inside maps require explicit type metadata at '$path'."
+                )
+                is Map<*, *> -> assertUntypedMap(value, path, depth)
+                is Collection<*> -> withUntypedContainer(value, path) {
+                    value.forEachIndexed { index, element ->
+                        inspectUntypedValue(element, "$path[$index]", depth + 1)
+                    }
+                }
+                is Array<*> -> withUntypedContainer(value, path) {
+                    value.forEachIndexed { index, element ->
+                        inspectUntypedValue(element, "$path[$index]", depth + 1)
+                    }
+                }
+            }
+        }
+
+        private inline fun withUntypedContainer(
+            value: Any,
+            path: String,
+            inspect: () -> Unit,
+        ) {
+            if (!activeUntypedContainers.add(value)) {
+                throw ValueTypeConversionException(
+                    "Cyclic untyped map value detected at '$path'."
+                )
+            }
+            try {
+                inspect()
+            } finally {
+                activeUntypedContainers.remove(value)
+            }
+        }
+
+        private fun visitNode(path: String, depth: Int) {
+            nodes++
+            if (nodes > maxNodes) {
+                throw ValueTypeConversionException(
+                    "Value type graph exceeds the maximum node count of $maxNodes at '$path'."
+                )
+            }
+            if (depth > maxDepth) {
+                throw ValueTypeConversionException(
+                    "Value type graph exceeds the maximum depth of $maxDepth at '$path'."
+                )
+            }
         }
 
         private fun assertCollection(
@@ -224,14 +283,8 @@ class ValueTypeConverter private constructor(
         private fun buildAliases(registry: TypeRegistry): Map<String, KClass<*>> {
             val registryTypes = registry.entries
                 .filter { it.role == TypeRole.VALUE }
-                .flatMap { entry ->
-                    buildSet {
-                        add(entry.key)
-                        add(entry.binaryClassName)
-                        entry.type.java.canonicalName?.let(::add)
-                    }.map { alias ->
-                        AliasRegistration(alias, entry.type, "trusted value registry")
-                    }
+                .map { entry ->
+                    AliasRegistration(entry.key, entry.type, "trusted value registry")
                 }
             return buildAliasMap(builtInRegistrations() + registryTypes)
         }

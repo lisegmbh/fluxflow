@@ -84,9 +84,13 @@ Step data, step metadata, job parameters, and step-definition metadata also use 
 reconstructing values from legacy type maps or current typed records. Common JVM scalar, date/time,
 Mongo scalar, map, list, and set representations use a fixed internal allowlist. Every other type,
 including application enums, needs a `value` registration. FluxFlow resolves only the registered
-key, binary class name, or the canonical name derived from that already registered class; it never
-passes a persisted value type name to a class loader. The canonical form keeps records written by
-older FluxFlow versions readable for registered nested classes.
+key; it never passes a persisted value type name to a class loader. Historical binary or canonical
+class names remain readable when each persisted spelling has its own explicit `value` entry.
+
+Map records describe the map container, but do not carry type records for their nested values.
+FluxFlow therefore rejects enum values anywhere inside a map before writing, because MongoDB would
+otherwise store the enum name as a string and silently lose its type. Store enums as typed fields or
+collection entries instead.
 
 Malformed records fail with `ValueTypeConversionException`. This includes missing or duplicate JVM
 type references, different value and metadata key sets, incompatible values, inconsistent

@@ -21,6 +21,7 @@ import de.lise.fluxflow.mongo.FluxFlowMongoTypeMapperFactory
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeAliases
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
+import de.lise.fluxflow.mongo.generic.ValueTypeConversionException
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.migration.MigrationDocument
 import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
@@ -851,7 +852,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
         val workflowId = UUID.randomUUID().toString()
         val instant = Instant.parse("2026-09-10T08:15:30Z")
         val stepId = ObjectId()
-        val step = steps.create(
+        steps.create(
             StepData(
                 stepId.toHexString(), workflowId, "fixed-values-step", "1",
                 linkedMapOf(
@@ -873,6 +874,11 @@ abstract class AbstractProductionMongoSecurityContractIT {
             )
         )
 
+        val step = requireNotNull(
+            steps.findForWorkflowAndId(
+                WorkflowIdentifier(workflowId), StepIdentifier(stepId.toHexString())
+            )
+        )
         assertThat(step.data["string"]).isEqualTo("safe")
         assertThat(step.data["number"]).isEqualTo(42)
         assertThat(step.data["instant"]).isEqualTo(instant)
@@ -887,7 +893,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
         assertThat(step.metadata["state"]).isEqualTo(SecurityTestWorkflowEnum.Ready)
 
         val jobId = ObjectId()
-        val job = jobs.create(
+        jobs.create(
             JobData(
                 jobId.toHexString(), workflowId, "fixed-values-job",
                 mapOf(
@@ -897,6 +903,11 @@ abstract class AbstractProductionMongoSecurityContractIT {
                     "null" to null,
                 ),
                 instant, null, JobStatus.Scheduled,
+            )
+        )
+        val job = requireNotNull(
+            jobs.findForWorkflowAndId(
+                WorkflowIdentifier(workflowId), JobIdentifier(jobId.toHexString())
             )
         )
         assertThat(job.parameters["instant"]).isEqualTo(instant)
@@ -1041,6 +1052,28 @@ abstract class AbstractProductionMongoSecurityContractIT {
         )
         assertThat(
             collection(StepDocument::class.java).countDocuments(eq("_id", rejectedStepId))
+        ).isZero()
+
+        val rejectedNestedMapStepId = ObjectId()
+        assertThatThrownBy {
+            steps.create(
+                StepData(
+                    rejectedNestedMapStepId.toHexString(), workflowId,
+                    "rejected-map-enum-step", "1",
+                    mapOf(
+                        "payload" to mapOf(
+                            "nested" to listOf(SecurityTestWorkflowEnum.Ready)
+                        )
+                    ),
+                    Status.Active, emptyMap(),
+                )
+            )
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("Enum values inside maps")
+            .hasMessageContaining("values[payload][nested][0]")
+        assertThat(
+            collection(StepDocument::class.java)
+                .countDocuments(eq("_id", rejectedNestedMapStepId))
         ).isZero()
 
         val validStepId = ObjectId()

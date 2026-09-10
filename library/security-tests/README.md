@@ -103,7 +103,9 @@ Value reconstruction runs after the guarded Mongo conversion boundary and uses a
 exact `VALUE` registrations replace the former context-class-loader lookup in `SimpleType`.
 Step, job, step-definition, and type-record migration paths share this converter. Invalid record
 references, key sets, collection metadata, cycles, and excessive graphs fail before raw values can
-escape or persistence writes can occur.
+escape or persistence writes can occur. A registration authorizes only its exact persisted key.
+Because map records do not describe nested value types, enum values inside maps are rejected before
+write instead of being silently restored as strings.
 
 ## Build gate tests
 
