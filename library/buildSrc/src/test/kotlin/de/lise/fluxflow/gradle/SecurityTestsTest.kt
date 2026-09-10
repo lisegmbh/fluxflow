@@ -50,6 +50,7 @@ class SecurityTestsTest {
         fixture()
         baseline("@Test void baseline() {}")
         securitySource("prototype", "PrototypeTest", "@Test void prototype() {}")
+        securitySource("production", "ProductionTest", "@Test void production() {}")
         regularSource("RegularTest", "@Test void regular() {}")
 
         val result = runner("test").build()
@@ -58,6 +59,7 @@ class SecurityTestsTest {
         assertThat(testReport("test", "de.lise.fluxflow.RegularTest")).exists()
         assertThat(testReport("test", "de.lise.fluxflow.mongo.security.baseline.BaselineTest")).doesNotExist()
         assertThat(testReport("test", "de.lise.fluxflow.mongo.security.prototype.PrototypeTest")).doesNotExist()
+        assertThat(testReport("test", "de.lise.fluxflow.mongo.security.production.ProductionTest")).doesNotExist()
     }
 
     @Test
@@ -65,6 +67,7 @@ class SecurityTestsTest {
         fixture()
         baseline("@Test void baseline() {}")
         securitySource("prototype", "PrototypeTest", "@Test void prototype() {}")
+        securitySource("production", "ProductionTest", "@Test void production() {}")
         regularSource("RegularTest", "@Test void regular() {}")
 
         val result = runner("check").build()
@@ -75,9 +78,31 @@ class SecurityTestsTest {
             .isEqualTo(1)
         assertThat(testCount("securityTest", "de.lise.fluxflow.mongo.security.prototype.PrototypeTest"))
             .isEqualTo(1)
+        assertThat(testCount("securityTest", "de.lise.fluxflow.mongo.security.production.ProductionTest"))
+            .isEqualTo(1)
         assertThat(testReport("test", "de.lise.fluxflow.mongo.security.baseline.BaselineTest")).doesNotExist()
         assertThat(testReport("test", "de.lise.fluxflow.mongo.security.prototype.PrototypeTest")).doesNotExist()
+        assertThat(testReport("test", "de.lise.fluxflow.mongo.security.production.ProductionTest")).doesNotExist()
         assertThat(testReport("securityTest", "de.lise.fluxflow.RegularTest")).doesNotExist()
+    }
+
+    @Test
+    fun `security gate should include production security tests`() {
+        fixture(
+            "securityTests.requiredClasses = ['de.lise.fluxflow.mongo.security.production.ProductionTest']"
+        )
+        securitySource("production", "ProductionTest", "@Test void production() {}")
+
+        val result = runner("securityTest").build()
+
+        assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(
+            File(
+                projectDir,
+                "build/test-results/securityTest/" +
+                    "TEST-de.lise.fluxflow.mongo.security.production.ProductionTest.xml"
+            )
+        ).exists()
     }
 
     @Test
