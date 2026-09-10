@@ -13,6 +13,7 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoSecurityIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoCustomTypeKeyIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoReconciliationIT",
     ))
 }
