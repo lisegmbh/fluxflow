@@ -320,6 +320,40 @@ class ValueTypeConverterSecurityTest {
     }
 
     @Test
+    fun `V04 registered custom container aliases require actual instances`() {
+        val converter = ValueTypeConverter(
+            registry(
+                valueEntry("custom-map", TrustedMap::class.java),
+                valueEntry("custom-list", TrustedList::class.java),
+                valueEntry("custom-set", TrustedSet::class.java),
+            )
+        )
+
+        assertThatThrownBy {
+            converter.assertType(SimpleType("custom-map"), linkedMapOf("value" to "safe"))
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("not compatible")
+        assertThatThrownBy {
+            converter.assertType(SimpleType("custom-list"), listOf("safe"))
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("not compatible")
+        assertThatThrownBy {
+            converter.assertType(SimpleType("custom-set"), setOf("safe"))
+        }.isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("not compatible")
+
+        val customMap = TrustedMap().apply { put("value", "safe") }
+        val customList = TrustedList().apply { add("safe") }
+        val customSet = TrustedSet().apply { add("safe") }
+        assertThat(converter.assertType(SimpleType("custom-map"), customMap))
+            .isSameAs(customMap)
+        assertThat(converter.assertType(SimpleType("custom-list"), customList))
+            .isSameAs(customList)
+        assertThat(converter.assertType(SimpleType("custom-set"), customSet))
+            .isSameAs(customSet)
+    }
+
+    @Test
     fun `V04 value aliases conflicting with built ins fail during construction`() {
         val registry = registry(
             TypeManifestEntry(
@@ -389,7 +423,7 @@ class ValueTypeConverterSecurityTest {
 
     private fun valueEntry(
         key: String,
-        type: Class<out Enum<*>>,
+        type: Class<*>,
     ): TypeManifestEntry = TypeManifestEntry(TypeRole.VALUE, key, type.name, "value test")
 
     private fun valueContext(
@@ -412,4 +446,7 @@ class ValueTypeConverterSecurityTest {
     private enum class TrustedEnum { FIRST, SECOND }
     private enum class FirstContextEnum { ONLY }
     private enum class SecondContextEnum { ONLY }
+    private class TrustedMap : LinkedHashMap<String, Any?>()
+    private class TrustedList : ArrayList<Any?>()
+    private class TrustedSet : LinkedHashSet<Any?>()
 }
