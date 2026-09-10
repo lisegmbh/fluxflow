@@ -73,18 +73,19 @@ application types and explicit contributors, and then publishes one immutable re
 application context. Identical registrations are deduplicated. A malformed resource, missing
 class, or conflicting role/key mapping stops startup and reports both origins.
 
-Step and job activation resolve persisted kinds exclusively through this registry. An exact entry
-with the matching role must exist before FluxFlow initializes or constructs the declared class.
-Unknown kinds fail with a `StepActivationException` or `JobActivationException`; the cause is an
-`UnknownTypeException` that identifies the rejected role and key. Mongo model and value type
-metadata use the same inventory in a separate hardening step.
+Step and job activation resolve persisted kinds exclusively through this registry. Mongo
+persistence uses the same inventory for model and value type metadata. An exact entry with the
+matching role must exist before FluxFlow initializes or constructs the declared class. Unknown
+step and job kinds fail with a `StepActivationException` or `JobActivationException`; rejected
+Mongo model and value metadata fail with an `UnknownTypeException` that identifies the role and
+key.
 
-Before upgrading a running system, compare the distinct persisted step and job kinds with the
-generated inventory. Every historical kind that can still be activated needs an exact `step` or
-`job` declaration. Compare model/value type metadata as preparation for Mongo hardening as well.
-Database contents may identify missing declarations, but must never add registrations
-automatically. Applications with dynamic or erased model types need explicit entries. A repository
-fixture cannot replace an inventory check against the actual application's data.
+Before upgrading a running system, compare the distinct persisted step and job kinds and Mongo
+model/value discriminators with the generated inventory. Every historical key that can still be
+read needs an exact declaration for its role. Database contents may identify missing declarations,
+but must never add registrations automatically. Applications with dynamic or erased model types
+need explicit entries. A repository fixture cannot replace an inventory check against the actual
+application's data.
 
 The manifest is an authorization inventory. It does not provide cryptographic integrity for an
 artifact or validate the constructor arguments and data belonging to an allowed type.

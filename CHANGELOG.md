@@ -71,6 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    registrations. Unknown kinds fail before their classes can be initialized or constructed.
    Existing fully qualified kinds remain supported when present in the generated manifest or an
    explicit context-local registration.
+2. **Fail-closed Mongo type materialization**<br/>
+   FluxFlow Mongo reads now validate model and value type metadata synchronously against the
+   context-local trusted type registry before Spring Data resolves a class. Repository, FlowQuery,
+   aggregation, projection and bootstrap reads share the guarded converter in both Spring Boot
+   compatibility lines. Scheduled-job startup reconciliation reads identifiers first and isolates
+   a rejected job so healthy neighboring jobs can still be restored.
 
 ### Removed
 

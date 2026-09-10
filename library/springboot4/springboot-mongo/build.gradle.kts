@@ -8,7 +8,6 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
     requiredClasses.set(listOf(
         "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
-        "de.lise.fluxflow.mongo.security.baseline.WorkflowModelBaselineTest",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoSecurityIT",
     ))
 }
@@ -18,10 +17,6 @@ kotlin.sourceSets.named("test") {
 }
 sourceSets.named("test") {
     java.srcDir("../../security-tests/src/test/java")
-}
-
-tasks.withType<Test>().configureEach {
-    systemProperty("fluxflow.security.expectRejection", providers.gradleProperty("securityExpectRejection").orElse("false").get())
 }
 
 dependencyManagement {
