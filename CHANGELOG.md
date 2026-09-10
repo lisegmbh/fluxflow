@@ -21,14 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. **Trusted type manifest and registry**<br/>
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
-   generates the manifest in consumer JARs. Mongo enforcement remains a
-   separate follow-up change.
+   generates the manifest in consumer JARs.
 
 ### Changed
 1. **Trusted type inventory is validated during application startup**<br/>
    Duplicate discovered step/job kinds, conflicting model/value registrations, malformed
-   manifests, and missing manifest classes now stop startup, including before the follow-up
-   activation and Mongo enforcement changes. Registry resolution respects `ClassLoaderProvider`
+   manifests, and missing manifest classes now stop startup. Registry resolution respects `ClassLoaderProvider`
    and contributor class identity. The manifest plugin requires Gradle 9.2.0+ and Java 17+
    and compiles its Kotlin DSL API at language/API version 2.2. Generation records
    `manifest.covered-packages`; startup skips annotation scans for those packages. Delegate
@@ -44,6 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    registrations. Unknown kinds fail before their classes can be initialized or constructed.
    Existing fully qualified kinds remain supported when present in the generated manifest or an
    explicit context-local registration.
+2. **Fail-closed Mongo type materialization**<br/>
+   FluxFlow Mongo reads now validate model and value type metadata synchronously against the
+   context-local trusted type registry before Spring Data resolves a class. Repository, FlowQuery,
+   aggregation, projection and bootstrap reads share the guarded converter in both Spring Boot
+   compatibility lines. Scheduled-job startup reconciliation reads identifiers first and isolates
+   a rejected job so healthy neighboring jobs can still be restored.
 
 ### Removed
 
