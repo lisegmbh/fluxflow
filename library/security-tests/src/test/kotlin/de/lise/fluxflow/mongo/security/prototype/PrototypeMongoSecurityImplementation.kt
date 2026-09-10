@@ -8,6 +8,7 @@ import de.lise.fluxflow.mongo.workflow.WorkflowMongoConfiguration
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
 import de.lise.fluxflow.mongo.workflow.query.QueryableWorkflowRepositoryImpl
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import de.lise.fluxflow.reflection.types.TypeManifestException
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.reflection.types.TypeRole
 import org.bson.Document
@@ -28,6 +29,61 @@ fun interface PrototypeMongoTypeMapperFactory {
         typeKey: String,
         trustedRootTypes: Set<Class<*>>,
     ): MongoTypeMapper
+}
+
+/** Version-neutral alias policy shared by the Spring Data 4.x and 5.x adapters. */
+internal class PrototypeMongoAliases(
+    registry: TypeRegistry,
+    trustedRootTypes: Set<Class<*>>,
+) {
+    private val aliases: Map<String, Class<*>>
+    private val writeAliases: Map<Class<*>, String>
+
+    init {
+        val registrations = registry.entries
+            .filter { it.role == TypeRole.MODEL || it.role == TypeRole.VALUE }
+            .map { Registration(it.key, it.type.java) } +
+                trustedRootTypes.map { Registration(it.name, it) }
+        aliases = readAliases(registrations)
+        writeAliases = writeAliases(registrations)
+    }
+
+    fun resolve(value: Any?): Class<*> {
+        require(value is String) { "Mongo type alias must be a string" }
+        require(value.isNotEmpty()) { "Mongo type alias must not be empty" }
+        return aliases[value]
+            ?: throw IllegalArgumentException("Unregistered Mongo type alias '$value'")
+    }
+
+    fun aliasFor(type: Class<*>): String = writeAliases[type]
+        ?: throw IllegalArgumentException(
+            "Unregistered Mongo type '${type.name}' cannot be persisted"
+        )
+
+    private data class Registration(val alias: String, val type: Class<*>)
+
+    private companion object {
+        fun readAliases(registrations: List<Registration>): Map<String, Class<*>> =
+            registrations.groupBy { it.alias }.mapValues { (alias, matches) ->
+                val types = matches.map { it.type }.distinct()
+                if (types.size != 1) {
+                    throw TypeManifestException(
+                        "Mongo type alias '$alias' resolves to multiple classes"
+                    )
+                }
+                types.single()
+            }
+
+        fun writeAliases(registrations: List<Registration>): Map<Class<*>, String> =
+            registrations.groupBy { it.type }.mapValues { (type, matches) ->
+                val aliases = matches.map { it.alias }.distinct()
+                aliases.singleOrNull { it == type.name }
+                    ?: aliases.singleOrNull()
+                    ?: throw TypeManifestException(
+                        "Mongo type '${type.name}' has no unique write alias"
+                    )
+            }
+    }
 }
 
 /**
@@ -147,6 +203,9 @@ class PrototypeFluxFlowMongoAccess(
             MongoDocumentTypePolicy(registry, typeKey),
         )
         template = MongoTemplate(databaseFactory, converter)
+        if (hostTemplate.hasReadPreference()) {
+            template.setReadPreference(hostTemplate.readPreference)
+        }
 
         val repository = MongoRepositoryFactory(template).getRepository(
             WorkflowRepository::class.java,
