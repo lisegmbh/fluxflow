@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.step
 
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.mongo.generic.TypeSpec
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.generic.toGenericMap
 import de.lise.fluxflow.mongo.generic.toTypeSafeData
@@ -75,6 +76,25 @@ data class StepDocument(
             typeSafeData,
             status,
             typeSafeMetadata
+        )
+    }
+
+    fun toStepData(valueTypes: ValueTypeConverter): StepData {
+        val typeSafeData = dataEntries?.toTypeSafeData(valueTypes)
+            ?: dataTypeMap.withData(data).toTypeSafeData(valueTypes)
+        val typeSafeMetadata = metadataEntries?.toTypeSafeData(valueTypes)
+            ?: metadataTypeMap
+                .withData(metadata)
+                .toTypeSafeData(valueTypes)
+                .mapValues { it.value!! }
+        return StepData(
+            id!!,
+            workflowId,
+            kind,
+            version,
+            typeSafeData,
+            status,
+            typeSafeMetadata,
         )
     }
 }

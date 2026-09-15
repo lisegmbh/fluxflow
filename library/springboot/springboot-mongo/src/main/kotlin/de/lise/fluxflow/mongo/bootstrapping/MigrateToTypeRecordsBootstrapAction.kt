@@ -3,6 +3,7 @@ package de.lise.fluxflow.mongo.bootstrapping
 import com.mongodb.client.model.Filters
 import de.lise.fluxflow.migration.MigrationError
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.step.StepDocument
@@ -18,7 +19,23 @@ class MigrateToTypeRecordsBootstrapAction(
     private val jobRepository: JobRepository,
     private val mongoConverter: MongoConverter,
     mongoTemplate: MongoTemplate,
+    private val valueTypes: ValueTypeConverter,
 ) : MongoBootstrapAction(mongoTemplate) {
+
+    constructor(
+        failureAction: PartialFailureAction,
+        stepRepository: StepRepository,
+        jobRepository: JobRepository,
+        mongoConverter: MongoConverter,
+        mongoTemplate: MongoTemplate,
+    ) : this(
+        failureAction,
+        stepRepository,
+        jobRepository,
+        mongoConverter,
+        mongoTemplate,
+        ValueTypeConverter.builtInsOnly(),
+    )
 
     private data class MigrationFailure(
         val documentType: String,
@@ -69,23 +86,20 @@ class MigrateToTypeRecordsBootstrapAction(
 
         while (cursor.hasNext()) {
             val doc = cursor.next()
-            val stepDocument = try {
-                mongoConverter.read(StepDocument::class.java, doc)
+            val migratedDocument = try {
+                val stepDocument = mongoConverter.read(StepDocument::class.java, doc)
+                val stepData = stepDocument.toStepData(valueTypes)
+                stepDocument.copy(
+                    dataEntries = TypedRecords.fromData(stepData.data),
+                    metadataEntries = TypedRecords.fromData(stepData.metadata),
+                )
             } catch (e: Exception) {
                 handleTypeActivationException("workflow", doc, e)?.let { failure ->
                     migrationFailures.add(failure)
                 }
                 null
             }
-            stepDocument?.let {
-                val stepData = it.toStepData()
-                it.copy(
-                    dataEntries = TypedRecords.fromData(stepData.data),
-                    metadataEntries = TypedRecords.fromData(stepData.metadata)
-                )
-            }?.let {
-                buffer.push(it)
-            }
+            migratedDocument?.let { buffer.push(it) }
         }
     }
 
@@ -101,22 +115,19 @@ class MigrateToTypeRecordsBootstrapAction(
 
         while(cursor.hasNext()) {
             val doc = cursor.next()
-            val jobDocument = try {
-                mongoConverter.read(JobDocument::class.java, doc)
+            val migratedDocument = try {
+                val jobDocument = mongoConverter.read(JobDocument::class.java, doc)
+                val jobData = jobDocument.toJobData(valueTypes)
+                jobDocument.copy(
+                    parameterEntries = TypedRecords.fromData(jobData.parameters),
+                )
             }catch (e: Exception) {
                 handleTypeActivationException("job", doc, e)?.let { failure ->
                     migrationFailures.add(failure)
                 }
                 null
             }
-            jobDocument?.let {
-                val jobData = it.toJobData()
-                it.copy(
-                    parameterEntries = TypedRecords.fromData(jobData.parameters)
-                )
-            }?.let {
-                buffer.push(it)
-            }
+            migratedDocument?.let { buffer.push(it) }
         }
     }
 
