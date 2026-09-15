@@ -14,4 +14,9 @@ open class StepActivationException : RuntimeException {
     constructor(id: String, kind: String) : super(
         "Unable to activate step #$id with kind '$kind'"
     )
+
+    constructor(id: String, kind: String, cause: Throwable) : super(
+        "Unable to activate step #$id with kind '$kind'",
+        cause
+    )
 }
