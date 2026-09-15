@@ -4,6 +4,25 @@ spec:
   containers:
     - name: gradle
       image: gradle:9.7.1-jdk17
+      securityContext:
+        # Match the Docker socket group without changing the inherited build UID.
+        runAsGroup: 1000
+      env:
+        - name: DOCKER_HOST
+          value: unix:///var/run/fluxflow-docker/docker.sock
+        - name: DOCKER_TLS_VERIFY
+          value: ""
+        - name: DOCKER_CERT_PATH
+          value: ""
+        # Published ports belong to the sidecar, which shares this pod's network.
+        - name: TESTCONTAINERS_HOST_OVERRIDE
+          value: localhost
+        # Ryuk mounts this path from the Docker daemon's filesystem.
+        - name: TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE
+          value: /var/run/fluxflow-docker/docker.sock
+      volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/fluxflow-docker
       command:
         - cat
       tty: true
@@ -11,3 +30,48 @@ spec:
         requests:
           cpu: 500m
           memory: 500Mi
+    - name: docker
+      image: docker:29.8.0-dind
+      securityContext:
+        privileged: true
+        runAsUser: 0
+        runAsGroup: 0
+        runAsNonRoot: false
+      command:
+        - dockerd-entrypoint.sh
+      args:
+        # Explicit dockerd avoids the entrypoint's automatic TCP listeners.
+        - dockerd
+        - --host=unix:///var/run/fluxflow-docker/docker.sock
+        - --group=1000
+      env:
+        - name: DOCKER_HOST
+          value: unix:///var/run/fluxflow-docker/docker.sock
+        - name: DOCKER_TLS_VERIFY
+          value: ""
+        - name: DOCKER_CERT_PATH
+          value: ""
+      volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/fluxflow-docker
+        - name: docker-storage
+          mountPath: /var/lib/docker
+        - name: containerd-storage
+          mountPath: /var/lib/containerd
+      readinessProbe:
+        exec:
+          command: [docker, info]
+        periodSeconds: 2
+        timeoutSeconds: 5
+        failureThreshold: 60
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+  volumes:
+    - name: docker-socket
+      emptyDir: {}
+    - name: docker-storage
+      emptyDir: {}
+    - name: containerd-storage
+      emptyDir: {}
