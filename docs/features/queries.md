@@ -529,7 +529,9 @@ query.where { root ->
 | **Import**      | `import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType` |
 | **Availability**| Extension function                                                    |
 
-For MongoDB repositories, the type check is implemented using the `_class` field. The check includes the specified type and all its non-abstract subclasses discovered by scanning the application's base packages.
+For MongoDB repositories, the type check uses the application's configured Mongo type metadata
+field. The check includes the specified concrete type and its non-abstract subtypes declared as
+`model` or `value` entries in the trusted type registry.
 
 **Usage:**
 
@@ -540,13 +542,13 @@ query.where { root ->
 ```
 
 !!! note "MongoDB Implementation"
-    - Translates to a MongoDB `$in` query on the `_class` field
-    - Automatically includes all non-abstract subclasses
-    - Requires classes to be in application's base packages
+    - Translates to a MongoDB `$in` query on the configured type metadata field
+    - Includes registered non-abstract subtypes
+    - Uses the context-local immutable type registry
 
 !!! warning "Common Pitfalls"
-    - Classes outside base packages won't be found
-    - Relies on MongoDB's `_class` field being correctly set
+    - Undeclared model or value types are intentionally excluded
+    - Relies on the configured Mongo type metadata field being present
     - Class name or package changes affect existing queries
 
 **Example with inheritance:**

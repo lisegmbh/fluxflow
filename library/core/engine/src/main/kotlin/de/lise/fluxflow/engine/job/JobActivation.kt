@@ -11,14 +11,18 @@ import de.lise.fluxflow.reflection.activation.parameter.FixedValueParameterResol
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.ValueMatcher
+import de.lise.fluxflow.reflection.types.TypeRegistry
+import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
 
-class JobActivation<TWorkflowModel>(
-    private val classLoader: ClassLoader,
+class JobActivation<TWorkflowModel> @JvmOverloads constructor(
+    classLoader: ClassLoader,
     private val jobDefinitionBuilder: JobDefinitionBuilder,
     iocProvider: IocProvider,
     workflow: Workflow<TWorkflowModel>,
-    private val jobData: JobData
+    private val jobData: JobData,
+    private val typeRegistry: TypeRegistry = TypeRegistry.load(classLoader),
 ) {
 
     private val typeActivator: TypeActivator = BasicTypeActivator(
@@ -41,10 +45,19 @@ class JobActivation<TWorkflowModel>(
     )
 
     fun activate(): JobDefinition {
-        val type = Class.forName(jobData.kind, true, classLoader).kotlin
-        return when(
-            val activatedObject = typeActivator.findActivation(type)?.activate()
-        ) {
+        val type = try {
+            typeRegistry.resolve(TypeRole.JOB, jobData.kind)
+        } catch (e: UnknownTypeException) {
+            throw JobActivationException(jobData.id, jobData.kind, e)
+        }
+        val activatedObject = try {
+            typeActivator.findActivation(type)?.activate()
+        } catch (exception: Exception) {
+            throw JobActivationException(jobData.id, jobData.kind, exception)
+        } catch (error: LinkageError) {
+            throw JobActivationException(jobData.id, jobData.kind, error)
+        }
+        return when (activatedObject) {
             null ->
                 throw JobActivationException(jobData.id, jobData.kind)
             is JobDefinition -> {
