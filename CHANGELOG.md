@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 3. **Shared security baseline tests**<br/>
    Adds a mandatory test gate and shared characterization fixtures for both Spring
    compatibility lines. This test infrastructure does not change production type resolution.
+4. **Trusted type manifest and registry**<br/>
+   Adds a versioned, role-specific type inventory, a context-local immutable registry,
+   annotation discovery for standard Spring Boot applications, and a Gradle plugin that
+   generates and verifies the manifest in consumer JARs. Activation and Mongo enforcement
+   remain separate follow-up changes.
 
 6. **Docker runtime for Jenkins integration tests**<br/>
    Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
