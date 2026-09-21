@@ -30,6 +30,8 @@ job can be declared, is lined out within this section.
 
 A job’s behavior can be defined by implementing a new class that is
 annotated with `@Job`.
+The build records annotated jobs in the [trusted type manifest](features/type-manifest.md).
+Custom job kinds remain scoped to the `job` role and cannot authorize a step, model, or value type.
 
 **Example job definition**
 
