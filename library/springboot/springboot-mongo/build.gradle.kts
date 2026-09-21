@@ -27,7 +27,7 @@ tasks.withType<Test>().configureEach {
 // Keep the Boot 3-compatible Testcontainers line, including its Docker API fix.
 dependencyManagement {
     imports {
-        mavenBom("org.testcontainers:testcontainers-bom:1.21.4")
+        mavenBom("org.testcontainers:testcontainers-bom:2.0.5")
     }
 }
 
