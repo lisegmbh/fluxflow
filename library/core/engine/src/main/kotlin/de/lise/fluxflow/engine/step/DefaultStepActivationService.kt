@@ -10,6 +10,7 @@ import de.lise.fluxflow.api.versioning.Version
 import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.step.StepData
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.stereotyped.step.ReflectedStatefulStepDefinition
 import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
 import kotlin.reflect.full.isSubclassOf
@@ -126,12 +127,10 @@ class DefaultStepActivationService(
     ): StepDefinition {
         val type = try {
             stepTypeResolver.resolveType(StepKind(stepData.kind))
+        } catch (e: UnknownTypeException) {
+            throw StepActivationException(stepData.id, stepData.kind, e)
         } catch (e: ClassNotFoundException) {
-            throw StepActivationException(
-                "Unable to activate step #${stepData.id} with kind '${stepData.kind}', " +
-                    "because it's type could not be resolved/activated.",
-                e
-            )
+            throw StepActivationException(stepData.id, stepData.kind, e)
         }
 
         if (type.isSubclassOf(StepDefinition::class)) {
