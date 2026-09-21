@@ -1,8 +1,7 @@
 package de.lise.fluxflow.mongo.generic.record
 
 import de.lise.fluxflow.mongo.generic.TypeSpec
-import de.lise.fluxflow.mongo.generic.toTypeSafeData
-import de.lise.fluxflow.mongo.generic.withData
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 
 data class TypedRecords<TValue>(
     val jvmTypes: JvmTypeMapping,
@@ -10,14 +9,11 @@ data class TypedRecords<TValue>(
     val types: Map<String, TypeRecord>
 ) {
     fun toTypeSafeData(): Map<String, TValue> {
-        return types.mapValues { it.value.toTypeSpec(jvmTypes) }
-            .withData(values)
-            .toTypeSafeData()
-            .mapValues {
-                @Suppress("UNCHECKED_CAST")
-                it.value as TValue
-            }
+        return ValueTypeConverter.BuiltInsOnly.toTypeSafeData(this)
     }
+
+    fun toTypeSafeData(converter: ValueTypeConverter): Map<String, TValue> =
+        converter.toTypeSafeData(this)
 
     companion object {
         fun <TValue> fromData(data: Map<String, TValue>): TypedRecords<TValue> {

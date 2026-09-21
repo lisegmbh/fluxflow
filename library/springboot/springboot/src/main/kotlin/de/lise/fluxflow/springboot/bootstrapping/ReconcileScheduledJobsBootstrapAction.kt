@@ -3,8 +3,9 @@ package de.lise.fluxflow.springboot.bootstrapping
 import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.api.job.Job
 import de.lise.fluxflow.api.job.JobService
-import de.lise.fluxflow.api.job.JobStatus
-import de.lise.fluxflow.api.job.query.JobQueryable.Companion.status
+import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.persistence.job.ScheduledJobReference
+import de.lise.fluxflow.persistence.job.ScheduledJobReferencePersistence
 import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.scheduling.SchedulingService
 import org.slf4j.LoggerFactory
@@ -12,32 +13,45 @@ import org.slf4j.LoggerFactory
 class ReconcileScheduledJobsBootstrapAction(
     private val jobService: JobService,
     private val schedulingService: SchedulingService,
+    private val scheduledJobReferencePersistence: ScheduledJobReferencePersistence,
+    private val workflowService: WorkflowService,
 ) : BootstrapAction {
     override fun setup() {
         Logger.info("Reconciling scheduled jobs on startup...")
 
-        val scheduledJobs = jobService.findAll { 
-            where { 
-                status.isEqual(JobStatus.Scheduled)
-            }
-        }
+        val scheduledJobs = scheduledJobReferencePersistence.findScheduledJobReferences()
 
-        if (scheduledJobs.items.isEmpty()) {
+        if (scheduledJobs.isEmpty()) {
             Logger.info("No scheduled jobs found on startup.")
             return
         }
 
-        scheduledJobs.items.forEach { job ->
-            scheduleJobIfNeeded(job)
+        scheduledJobs.forEach { reference ->
+            reconcile(reference)
         }
 
         Logger.info("Scheduled job reconciliation completed.")
     }
 
-    private fun scheduleJobIfNeeded(job: Job) {
+    private fun reconcile(reference: ScheduledJobReference) {
+        try {
+            val workflow = workflowService.get<Any>(reference.workflowIdentifier)
+            val job = jobService.getJob(workflow, reference.jobIdentifier)
+            scheduleJobIfNeeded(reference, job)
+        } catch (exception: Exception) {
+            Logger.error(
+                "Scheduled job reconciliation failed for workflow \"{}\" and job \"{}\".",
+                reference.workflowIdentifier,
+                reference.jobIdentifier,
+                exception,
+            )
+        }
+    }
+
+    private fun scheduleJobIfNeeded(reference: ScheduledJobReference, job: Job) {
         val schedulingReference = SchedulingReference(
-            job.workflow.identifier,
-            job.identifier,
+            reference.workflowIdentifier,
+            reference.jobIdentifier,
             job.cancellationKey,
             null,
         )
@@ -51,7 +65,7 @@ class ReconcileScheduledJobsBootstrapAction(
 
         Logger.warn(
             "Job with identifier \"{}\" is marked Scheduled but not found in scheduler. Rescheduling it.",
-            job.identifier
+            reference.jobIdentifier,
         )
 
         schedulingService.schedule(
