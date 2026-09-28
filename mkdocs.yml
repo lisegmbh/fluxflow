@@ -26,6 +26,7 @@ nav:
     - Validation: features/validation.md
     - Versioning: features/versioning.md
     - Queries: features/queries.md
+    - Trusted type manifest: features/type-manifest.md
   - Spring:
     - Settings: spring/settings.md
   - Migration guides:
