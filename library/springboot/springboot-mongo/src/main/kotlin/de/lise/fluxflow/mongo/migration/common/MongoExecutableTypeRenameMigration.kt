@@ -14,15 +14,22 @@ import org.springframework.data.mongodb.core.query.isEqualTo
 import org.springframework.data.mongodb.core.updateMulti
 import kotlin.reflect.KProperty1
 
-class MongoExecutableTypeRenameMigration(
+class MongoExecutableTypeRenameMigration internal constructor(
     override val migration: TypeRenameMigration,
     private val isKind: Boolean,
-    private val mongoTemplate: MongoTemplate
+    private val mongoTemplate: MongoTemplate,
+    private val typeKey: String,
 ) : ExecutableMigration {
+    constructor(
+        migration: TypeRenameMigration,
+        isKind: Boolean,
+        mongoTemplate: MongoTemplate,
+    ) : this(migration, isKind, mongoTemplate, "_class")
+
     override fun execute() {
         if (!isKind) {
             updateType(WorkflowDocument::modelType)
-            updateType<WorkflowDocument>("${WorkflowDocument::model.name}._class")
+            updateType<WorkflowDocument>("${WorkflowDocument::model.name}.$typeKey")
 
             updateTypeEntries<StepDocument>(StepDocument::metadataEntries)
             updateTypeEntries<StepDocument>(StepDocument::dataEntries)
