@@ -1,6 +1,7 @@
 package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.ioc.IocProvider
+import de.lise.fluxflow.api.step.StepKind
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.data.DataKind
@@ -96,7 +97,13 @@ class DefaultStepActivationServiceIT {
             mock {},
             mutableMapOf()
         ),
-        StepTypeResolverImpl(TestStepWithImportedData::class.java.classLoader),
+        StepTypeResolverImpl(
+            TestStepWithImportedData::class.java.classLoader,
+            mapOf(
+                StepKind(TestStepWithImportedData::class.java.name) to TestStepWithImportedData::class,
+                StepKind(TestStepWithPrefixedImportedData::class.java.name) to TestStepWithPrefixedImportedData::class,
+            ),
+        ),
         VersionCompatibility.Unknown,
         DefaultCompatibilityTester()
     )
