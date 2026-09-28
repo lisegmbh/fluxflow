@@ -4,11 +4,17 @@ plugins {
     id("fluxflow.security-tests")
 }
 
+kotlin.sourceSets.named("main") {
+    kotlin.srcDir("src/boot3/kotlin")
+}
+
 extensions.configure<SecurityTestRequirements>("securityTests") {
     requiredClasses.set(listOf(
         "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
-        "de.lise.fluxflow.mongo.security.baseline.WorkflowModelBaselineTest",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoSecurityIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoCustomTypeKeyIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoReconciliationIT",
     ))
 }
 
@@ -17,10 +23,6 @@ kotlin.sourceSets.named("test") {
 }
 sourceSets.named("test") {
     java.srcDir("../../security-tests/src/test/java")
-}
-
-tasks.withType<Test>().configureEach {
-    systemProperty("fluxflow.security.expectRejection", providers.gradleProperty("securityExpectRejection").orElse("false").get())
 }
 
 // Boot's dependency-management rules take precedence over a Gradle platform.
@@ -52,6 +54,8 @@ dependencies {
     testImplementation("org.testcontainers:mongodb")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation(project(":core:engine"))
+    testImplementation(project(":core:scheduling"))
     testImplementation(project(":core:stereotyped"))
     testImplementation(project(":core:validation"))
+    testImplementation(project(":springboot:springboot"))
 }

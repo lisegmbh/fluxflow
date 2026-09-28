@@ -1,10 +1,10 @@
-# Security baseline tests
+# Security tests
 
 This source directory is shared by the Spring Boot 3 and Spring Boot 4 Mongo test
-modules. It is not a published module. PR01 adds reproducible characterization
-tests, not a security fix. No production resolver or converter is changed.
+modules. It is not a published module. It contains the reproducible activation baseline
+and permanent production regression tests for trusted Mongo type materialization.
 
-## Run the mandatory baseline
+## Run the mandatory security suite
 
 From `library`, with JDK 17 and a working Docker-compatible container runtime:
 
@@ -13,7 +13,7 @@ From `library`, with JDK 17 and a working Docker-compatible container runtime:
 ```
 
 Both module `check` tasks also run `securityTest`. The gate requires the complete
-baseline suite, rejects skips and missing test/report output, and executes again
+security suite, rejects skips and missing test/report output, and executes again
 even when source files have not changed. A container startup failure is a failure,
 not a reason to disable tests. No production Mongo URI or data is used.
 
@@ -22,12 +22,12 @@ propagation probes do not establish that untrusted types cannot be instantiated.
 
 ## Contract and evidence
 
-| Plan ID | Boundary | PR01 expectation |
+| Plan ID | Boundary | Current expectation |
 |---|---|---|
-| R01 | Persisted step kind through real step activation | Characterize initialization/construction of the harmless marker |
-| R02 | Persisted job kind through real job activation | Characterize initialization/construction of the harmless marker |
-| R03 | Raw Mongo change to `model._class`, then `WorkflowPersistence.find` | Characterize materialization of the harmless model |
-| R04 | Raw Mongo change only to root `_class`, then the same read | Observe the actual root-type behavior independently of R03 |
+| R01 | Persisted step kind through real step activation | Reject an unregistered kind before class initialization/construction |
+| R02 | Persisted job kind through real job activation | Reject an unregistered kind before class initialization/construction |
+| R03 | Raw Mongo change to `model._class`, then `WorkflowPersistence.find` | Reject the model before class initialization or construction |
+| R04 | Raw Mongo change only to the root type key, then the same read | Reject an incompatible root before materialization |
 | R05 | Fixture in a fresh class loader | Distinguish class initialization from constructor invocation |
 | R06 | Gradle task boundary | Missing, filtered, skipped or failing required tests fail the gate |
 
@@ -37,19 +37,55 @@ Each Mongo scenario starts from a valid model and derives the collection name
 from the real Spring Data mapping. Tampering uses the raw driver; the observation
 uses the real Fluxflow persistence/activation boundary.
 
-For the separate before-fix safety demonstration, use the same scenarios with
-`-PsecurityExpectRejection=true`. That mode expects rejection and no marker event;
-it must fail on the vulnerable baseline for R01–R03. It is not the normal CI mode
-and must never be described as a successful security verification. The relevant
-fix PR replaces each temporary production characterization with a mandatory
-rejection regression; fixture positive controls remain.
+R01, R02 and R03 require rejection and no marker event. The security task has no
+compatibility mode that accepts witness materialization.
 
 XML reports are written to each Mongo module's
 `build/test-results/securityTest/` directory. Record the Git revision, commands,
 resolved runtime dependencies, test counts, failures and skips with the review.
 The complete report set must contain the required suites in both compatibility
-lines. A green PR01 report means the reproduction harness works; the findings
-remain open.
+lines. Green R01/R02 reports prove that activation rejects the report witnesses. Green
+R03 reports prove the same at the production Mongo conversion boundary.
+
+## Production Mongo conversion boundary
+
+FluxFlow uses an internal Mongo access object with its own `MappingMongoConverter` and
+`MongoTemplate`. It clones the application's configured
+mapping converter through Spring Data's public `with(MongoDatabaseFactory)` API, replaces
+only the type mapper, and keeps the same `MongoDatabaseFactory`. FluxFlow constructs its
+workflow repository and query fragment from this internal template. The template is held
+inside the access object instead of being exposed as an application `MongoTemplate` bean,
+so application repositories and Boot's conditional bean graph remain unchanged. The
+access object is created during the real Boot AutoConfiguration context;
+an application-style repository remains bound to the host converter while the internal
+FluxFlow repository uses the restricted converter.
+
+This boundary was selected over lifecycle listeners because converter `read` and
+`project` are synchronous materialization points. Listeners can be disabled, can run
+asynchronously, and do not protect direct converter calls. The production contract proves
+rejection through the isolated converter and its version adapter with lifecycle events disabled,
+with an asynchronous event multicaster, and when a listener swallows its own rejection.
+
+The Mongo type mapper is built only from `TypeRegistry` entries with role `MODEL` or
+`VALUE`, plus the trusted `WorkflowDocument` root. The guard assigns the top-level
+`model.<type-key>` discriminator to `MODEL` and discriminators recursively nested below
+the model to `VALUE`. Unknown, empty, non-string, wrong-role, or conflicting aliases fail
+closed before Spring Data can resolve a class. The persisted `modelType` field is not a
+trust anchor. Existing FQCN registrations and logical aliases are both accepted, and no
+BSON rewriting is used.
+
+The shared contract runs against Spring Data MongoDB 4.x and 5.x through two small
+`TypeInformationMapper` adapters. It covers direct converter reads, repository and aggregation
+reads, nested lists/maps/nulls, scalar and
+container models, custom type keys, custom conversions, alias conflicts, unchanged host
+beans, shared transaction rollback, context isolation and traversal limits. The mandatory
+`securityTest` task requires the production suites and fails if a suite is missing,
+skipped, or failing.
+
+The internal template preserves the host mapping context, custom conversions, database
+factory, configured type metadata key and read preference. It stays outside the host bean
+graph. Applications can provide ordered `FluxFlowMongoTemplateCustomizer` beans for
+additional internal-template settings that Spring Data does not expose for safe copying.
 
 ## Build gate tests
 
