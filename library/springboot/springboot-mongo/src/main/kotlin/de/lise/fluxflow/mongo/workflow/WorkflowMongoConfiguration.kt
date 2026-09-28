@@ -3,6 +3,7 @@ package de.lise.fluxflow.mongo.workflow
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.mapper.query.QueryMapperImpl
 import de.lise.fluxflow.mongo.ConditionalOnFluxFlowMongo
+import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.flowquery.repository.MongoExecutor
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
@@ -17,9 +18,12 @@ import org.springframework.data.mongodb.core.MongoTemplate
 @ConditionalOnFluxFlowMongo
 open class WorkflowMongoConfiguration {
     @Bean
-    internal open fun workflowMongoExecutor(mongoTemplate: MongoTemplate): MongoExecutor<WorkflowDocument> {
-        return MongoExecutor(mongoTemplate, WorkflowDocument::class.java)
+    internal open fun workflowMongoExecutor(access: FluxFlowMongoAccess): MongoExecutor<WorkflowDocument> {
+        return workflowMongoExecutor(access.template)
     }
+
+    internal fun workflowMongoExecutor(mongoTemplate: MongoTemplate): MongoExecutor<WorkflowDocument> =
+        MongoExecutor(mongoTemplate, WorkflowDocument::class.java)
 
     @Bean
     internal open fun workflowFlowQueryRepository(

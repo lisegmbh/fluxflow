@@ -89,3 +89,9 @@ internal class MongoSecurityHarness : AutoCloseable {
         }
     }
 }
+
+internal const val WITNESS_NAME =
+    "de.lise.fluxflow.mongo.security.baseline.fixture.ActivationWitness"
+
+internal const val ENUM_WITNESS_NAME =
+    "de.lise.fluxflow.mongo.security.baseline.fixture.EnumActivationWitness"

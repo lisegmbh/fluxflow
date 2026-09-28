@@ -12,7 +12,11 @@ plugins {
 }
 
 val testSources = extensions.getByType<SourceSetContainer>().named("test")
-val baselinePattern = "de/lise/fluxflow/mongo/security/baseline/**"
+val securityTestPatterns = listOf(
+    "de/lise/fluxflow/mongo/security/baseline/**",
+    "de/lise/fluxflow/mongo/security/consumer/**",
+    "de/lise/fluxflow/mongo/security/production/**",
+)
 val securityRequirements = extensions.create<SecurityTestRequirements>("securityTests")
 securityRequirements.requiredClasses.convention(emptyList())
 
@@ -47,7 +51,7 @@ val securityTest = tasks.register<MandatorySecurityTest>("securityTest") {
     dependsOn(verifySecurityTestClasses)
     testClassesDirs = testSources.get().output.classesDirs
     classpath = testSources.get().runtimeClasspath
-    include(baselinePattern)
+    include(securityTestPatterns)
     useJUnitPlatform()
     testLogging {
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
