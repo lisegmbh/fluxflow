@@ -17,39 +17,45 @@ class TypeRegistry private constructor(
         fun load(
             classLoader: ClassLoader,
             additionalEntries: Iterable<TypeManifestEntry> = emptyList(),
+        ): TypeRegistry = load(classLoader, additionalEntries, emptyList())
+
+        fun load(
+            classLoader: ClassLoader,
+            additionalEntries: Iterable<TypeManifestEntry>,
+            resolvedEntries: Iterable<TypeRegistryEntry>,
         ): TypeRegistry = create(
             classLoader,
             TypeManifestLoader(classLoader).load() + additionalEntries,
+            resolvedEntries,
         )
 
         fun create(
             classLoader: ClassLoader,
             entries: Iterable<TypeManifestEntry>,
+        ): TypeRegistry = create(classLoader, entries, emptyList())
+
+        fun create(
+            classLoader: ClassLoader,
+            entries: Iterable<TypeManifestEntry>,
+            resolvedEntries: Iterable<TypeRegistryEntry>,
         ): TypeRegistry {
-            val inputSnapshot = entries.toList().sortedWith(
-                compareBy<TypeManifestEntry> { it.role.ordinal }
-                    .thenBy { it.key }
-                    .thenBy { it.binaryClassName }
-                    .thenBy { it.origin }
-            )
-            inputSnapshot.forEach { entry ->
-                TypeManifest.validateEntry(
-                    entry.role,
-                    entry.key,
-                    entry.binaryClassName,
-                    entry.origin,
-                )
+            val explicit = resolvedEntries.flatMap { registration ->
+                if (registration.binaryClassName != registration.type.java.name) {
+                    throw TypeManifestException("A resolved registration must use its class's binary name.")
+                }
+                if (registration.origins.isEmpty()) {
+                    throw TypeManifestException("A resolved registration must declare its origin.")
+                }
+                registration.origins.map { origin ->
+                    ResolvedRegistration(
+                        TypeManifestEntry(registration.role, registration.key, registration.binaryClassName, origin),
+                        registration.type,
+                    )
+                }
             }
-            inputSnapshot
-                .groupBy { TypeIdentity(it.role, it.key) }
-                .entries
-                .firstOrNull { (_, registrations) ->
-                    registrations.map { it.binaryClassName }.distinct().size > 1
-                }
-                ?.let { (identity, registrations) ->
-                    throw conflict(identity, registrations)
-                }
-            val resolved = inputSnapshot.map { entry ->
+            val inputSnapshot = entries.sortedWith(TypeManifest.entryOrder)
+            TypeManifest.normalize(inputSnapshot + explicit.map { it.entry })
+            val resolved = (inputSnapshot.map { entry ->
                 val type = try {
                     Class.forName(entry.binaryClassName, false, classLoader).kotlin
                 } catch (exception: ClassNotFoundException) {
@@ -58,7 +64,20 @@ class TypeRegistry private constructor(
                     throw unresolved(entry, error)
                 }
                 ResolvedRegistration(entry, type)
-            }
+            } + explicit).sortedWith { first, second -> TypeManifest.entryOrder.compare(first.entry, second.entry) }
+
+            resolved.groupBy { TypeIdentity(it.entry.role, it.entry.key) }
+                .entries.firstOrNull { (_, registrations) -> registrations.map { it.type.java }.distinct().size > 1 }
+                ?.let { (identity, registrations) ->
+                    throw TypeRegistrationConflictException(
+                        identity.role,
+                        identity.key,
+                        "Conflicting ${identity.role.manifestName} type registrations for key '${identity.key}': " +
+                            "distinct classes from different class loaders share binary name " +
+                            "'${registrations.first().entry.binaryClassName}' from " +
+                            registrations.map { it.entry.origin }.distinct().sorted().joinToString() + "."
+                    )
+                }
 
             val registryEntries = resolved
                 .groupBy { TypeIdentity(it.entry.role, it.entry.key) }
@@ -89,24 +108,6 @@ class TypeRegistry private constructor(
                         "for key '${entry.key}' from '${entry.origin}'.",
                 cause,
             )
-
-        private fun conflict(
-            identity: TypeIdentity,
-            registrations: List<TypeManifestEntry>,
-        ): TypeManifestException {
-            val details = registrations
-                .groupBy { it.binaryClassName }
-                .toSortedMap()
-                .map { (className, registrationsForClass) ->
-                    val origins = registrationsForClass.map { it.origin }.distinct().sorted()
-                    "'$className' from ${origins.joinToString(prefix = "[", postfix = "]")}"
-                }
-                .joinToString("; ")
-            return TypeManifestException(
-                "Conflicting ${identity.role.manifestName} type registrations for key " +
-                        "'${identity.key}': $details."
-            )
-        }
     }
 
     private data class TypeIdentity(
@@ -119,11 +120,3 @@ class TypeRegistry private constructor(
         val type: KClass<*>,
     )
 }
-
-data class TypeRegistryEntry(
-    val role: TypeRole,
-    val key: String,
-    val binaryClassName: String,
-    val type: KClass<*>,
-    val origins: List<String>,
-)

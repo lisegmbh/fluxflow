@@ -1,6 +1,7 @@
 package de.lise.fluxflow.springboot.types
 
 import de.lise.fluxflow.reflection.types.TypeManifestEntry
+import de.lise.fluxflow.reflection.types.TypeManifest
 import de.lise.fluxflow.reflection.types.TypeManifestException
 import de.lise.fluxflow.reflection.types.TypeRole
 import de.lise.fluxflow.stereotyped.job.Job
@@ -30,11 +31,7 @@ class AnnotatedTypeRegistrationScanner(
                     .map { definition -> registration(definition.metadata, basePackage) }
             }
             .distinctBy { Triple(it.role, it.key, it.binaryClassName) }
-            .sortedWith(
-                compareBy<TypeManifestEntry> { it.role.ordinal }
-                    .thenBy { it.key }
-                    .thenBy { it.binaryClassName }
-            )
+            .sortedWith(TypeManifest.entryOrder)
     }
 
     private fun registration(

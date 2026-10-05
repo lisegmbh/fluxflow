@@ -1,6 +1,7 @@
 package de.lise.fluxflow.springboot.types
 
 import de.lise.fluxflow.reflection.types.TypeRegistry
+import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -13,9 +14,10 @@ open class TypeRegistryConfiguration {
     open fun fluxFlowTypeRegistry(
         context: ApplicationContext,
         contributors: Map<String, TypeRegistrationContributor>,
+        classLoaderProvider: ClassLoaderProvider,
     ): TypeRegistry = FluxFlowTypeRegistryFactory(
         context,
-        context.classLoader ?: TypeRegistryConfiguration::class.java.classLoader,
+        classLoaderProvider.provide(),
         contributors,
     ).create()
 }

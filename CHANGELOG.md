@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    privileged Docker sidecar.
 
 ### Changed
+1. **Trusted type inventory is validated during application startup**<br/>
+   Duplicate discovered step/job kinds, conflicting model/value registrations, malformed
+   manifests, and missing manifest classes now stop startup, including before the follow-up
+   activation and Mongo enforcement changes. Registry resolution respects `ClassLoaderProvider`
+   and contributor class identity. The manifest plugin requires Gradle 9.2.0+ and Java 17+;
+   delegate IDE builds to Gradle to regenerate manifests after type changes.
+   See the [migration guidance](docs/features/type-manifest.md).
+
 1. **Spring integration artifacts are now published in two explicit lines**<br/>
    All Spring Boot integration artifacts are now published under coordinates that carry the supported
    Spring Boot major version: `*-spring3` for Spring Boot 3 (e.g. `de.lise.fluxflow:springboot-spring3`)

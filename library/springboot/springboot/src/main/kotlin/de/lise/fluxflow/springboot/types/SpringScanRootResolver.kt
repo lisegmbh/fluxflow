@@ -18,9 +18,7 @@ class SpringScanRootResolver(
     fun resolve(): List<String> {
         val roots = mutableListOf<String>()
         val beanFactory = context.autowireCapableBeanFactory as? ConfigurableListableBeanFactory
-            ?: throw IllegalArgumentException(
-                "FluxFlow type scanning requires a configurable application context."
-            )
+            ?: return normalize(rootsFromContext())
 
         if (AutoConfigurationPackages.has(beanFactory)) {
             roots += AutoConfigurationPackages.get(beanFactory)
@@ -64,6 +62,27 @@ class SpringScanRootResolver(
         return explicitRoots.ifEmpty {
             listOf(ClassUtils.getPackageName(metadata.className))
         }
+    }
+
+    private fun rootsFromContext(): List<String> {
+        val roots = mutableListOf<String>()
+        context.getBeansWithAnnotation(SpringBootApplication::class.java).forEach { (name, bean) ->
+            val annotation = context.findAnnotationOnBean(name, SpringBootApplication::class.java)
+                ?: return@forEach
+            roots += (annotation.scanBasePackages.toList() +
+                annotation.scanBasePackageClasses.map { it.java.packageName }).ifEmpty {
+                listOf((context.getType(name) ?: bean.javaClass).packageName)
+            }
+        }
+        context.getBeansWithAnnotation(ComponentScan::class.java).forEach { (name, bean) ->
+            val annotation = context.findAnnotationOnBean(name, ComponentScan::class.java)
+                ?: return@forEach
+            roots += (annotation.basePackages.toList() +
+                annotation.basePackageClasses.map { it.java.packageName }).ifEmpty {
+                listOf((context.getType(name) ?: bean.javaClass).packageName)
+            }
+        }
+        return roots
     }
 
     private fun strings(value: Any?): List<String> = when (value) {
