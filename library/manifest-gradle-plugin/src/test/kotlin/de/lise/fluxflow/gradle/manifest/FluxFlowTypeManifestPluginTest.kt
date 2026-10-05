@@ -5,8 +5,11 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
 import java.util.zip.ZipFile
+import java.util.concurrent.TimeUnit
 
 class FluxFlowTypeManifestPluginTest {
     @TempDir
@@ -94,12 +97,22 @@ class FluxFlowTypeManifestPluginTest {
         )
     }
 
-    @Test
-    fun `O06 should generate and verify the manifest in an executable boot jar`() {
-        fakeSpringBootPlugin()
+    @ParameterizedTest
+    @ValueSource(strings = ["3.5.7", "4.0.6"])
+    fun `O06 should generate and verify the manifest in an executable boot jar`(bootVersion: String) {
         fixture(
             declarations = "model 'external-model', 'example.ExternalModel'",
-            additionalPlugins = "id 'org.springframework.boot'",
+            additionalPlugins = "id 'org.springframework.boot' version '$bootVersion'",
+        )
+        runtimeManifestProbe()
+        File(projectDir, "build.gradle").appendText(
+            """
+
+            tasks.named('bootJar') {
+                mainClass = 'example.ManifestRuntimeProbe'
+                archiveClassifier = 'boot'
+            }
+            """.trimIndent()
         )
 
         val result = run("check").build()
@@ -113,6 +126,18 @@ class FluxFlowTypeManifestPluginTest {
         assertThat(bootManifest.toString(Charsets.UTF_8)).contains(
             "model.external-model=example.ExternalModel"
         )
+        val executable = File(System.getProperty("java.home"),
+            "bin/java" + if (File.separatorChar == '\\') ".exe" else "")
+        val output = File(projectDir, "boot-runtime-output.txt")
+        val process = ProcessBuilder(executable.absolutePath, "-jar",
+            File(projectDir, "build/libs/manifest-fixture-boot.jar").absolutePath)
+            .redirectErrorStream(true).redirectOutput(output).start()
+        try {
+            assertThat(process.waitFor(60, TimeUnit.SECONDS)).isTrue()
+            assertThat(process.exitValue()).withFailMessage(output.readText()).isZero()
+        } finally {
+            process.destroyForcibly()
+        }
     }
 
     @Test
@@ -173,6 +198,114 @@ class FluxFlowTypeManifestPluginTest {
         assertThat(result.task(":verifyFluxflowTypeManifest")?.outcome)
             .isEqualTo(TaskOutcome.SUCCESS)
         assertThat(marker).doesNotExist()
+    }
+
+    @Test
+    fun `should ignore unrelated classes with compileOnly supertypes`() {
+        fixture(declarations = "")
+        externalTypeProject("compileOnly")
+        File(projectDir, "src/main/java/example/UnrelatedFilter.java").writeText(
+            """
+            package example;
+            public class UnrelatedFilter extends external.ExternalModel {}
+            """.trimIndent()
+        )
+
+        run("check").build()
+
+        assertThat(manifestFromJar().toString(Charsets.UTF_8)).isEqualTo(
+            "manifest.version=1\nstep.review=example.ReviewStep\njob.notification=example.NotificationJob\n"
+        )
+    }
+
+    @Test
+    fun `should reject registered classes available only to the plugin loader`() {
+        fixture(declarations = "model 'plugin-only', 'de.lise.fluxflow.reflection.types.TypeRegistry'")
+
+        val result = run("check").buildAndFail()
+
+        assertThat(result.output).contains("Could not resolve model type 'de.lise.fluxflow.reflection.types.TypeRegistry'")
+    }
+
+    @Test
+    fun `should preserve nested default keys and binary class names`() {
+        fixture(declarations = "")
+        File(projectDir, "src/main/java/example/Outer.java").writeText(
+            """
+            package example;
+            public class Outer {
+                @de.lise.fluxflow.stereotyped.step.Step
+                public static class Nested {}
+            }
+            """.trimIndent()
+        )
+
+        run("check").build()
+
+        assertThat(manifestFromJar().toString(Charsets.UTF_8))
+            .contains("step.example.Outer.Nested=example.Outer${'$'}Nested\n")
+    }
+
+    @Test
+    fun `should reject annotated classes with missing runtime supertypes`() {
+        fixture(declarations = "")
+        externalTypeProject("compileOnly")
+        File(projectDir, "src/main/java/example/BrokenStep.java").writeText(
+            """
+            package example;
+            @de.lise.fluxflow.stereotyped.step.Step(kind = "broken")
+            public class BrokenStep extends external.ExternalModel {}
+            """.trimIndent()
+        )
+
+        val result = run("check").buildAndFail()
+
+        assertThat(result.output).contains("Could not resolve step type 'example.BrokenStep'")
+    }
+
+    @Test
+    fun `should reject classes declaring both step and job roles`() {
+        fixture(declarations = "")
+        File(projectDir, "src/main/java/example/Ambiguous.java").writeText(
+            """
+            package example;
+            @de.lise.fluxflow.stereotyped.step.Step(kind = "ambiguous")
+            @de.lise.fluxflow.stereotyped.job.Job(kind = "ambiguous")
+            public class Ambiguous {}
+            """.trimIndent()
+        )
+
+        val result = run("check").buildAndFail()
+
+        assertThat(result.output).contains("Compiled class 'example.Ambiguous' declares both @Step and @Job")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["9.2.0", "9.7.1"])
+    fun `should support the documented Kotlin DSL on supported Gradle versions`(gradleVersion: String) {
+        fixture(declarations = "")
+        File(projectDir, "build.gradle").delete()
+        File(projectDir, "build.gradle.kts").writeText(
+            """
+            plugins {
+                java
+                id("de.lise.fluxflow.type-manifest")
+            }
+            repositories { mavenCentral() }
+            dependencies {
+                implementation(files("${escapedPath(System.getProperty("fluxflow.test.stereotypedJar"))}"))
+            }
+            fluxflowTypeManifest {
+                model("external-model", "example.ExternalModel")
+                value("currency", "java.lang.String")
+            }
+            """.trimIndent()
+        )
+
+        run("check").withGradleVersion(gradleVersion).build()
+
+        assertThat(manifestFromJar().toString(Charsets.UTF_8))
+            .contains("model.external-model=example.ExternalModel\n", "value.currency=java.lang.String\n")
     }
 
     private fun fixture(
@@ -315,60 +448,6 @@ class FluxFlowTypeManifestPluginTest {
             }
             """.trimIndent()
         )
-    }
-
-    private fun fakeSpringBootPlugin() {
-        File(projectDir, "buildSrc/build.gradle").apply {
-            parentFile.mkdirs()
-            writeText(
-                """
-                plugins {
-                    id 'java-gradle-plugin'
-                }
-
-                gradlePlugin {
-                    plugins {
-                        fakeSpringBoot {
-                            id = 'org.springframework.boot'
-                            implementationClass = 'fixture.FakeSpringBootPlugin'
-                        }
-                    }
-                }
-                """.trimIndent()
-            )
-        }
-        File(projectDir, "buildSrc/src/main/java/fixture/FakeSpringBootPlugin.java").apply {
-            parentFile.mkdirs()
-            writeText(
-                """
-                package fixture;
-
-                import org.gradle.api.Plugin;
-                import org.gradle.api.Project;
-                import org.gradle.api.tasks.SourceSet;
-                import org.gradle.api.tasks.SourceSetContainer;
-                import org.gradle.api.tasks.bundling.Jar;
-
-                public class FakeSpringBootPlugin implements Plugin<Project> {
-                    @Override
-                    public void apply(Project project) {
-                        SourceSetContainer sourceSets = project.getExtensions()
-                            .getByType(SourceSetContainer.class);
-                        project.getTasks().register("bootJar", Jar.class, task -> {
-                            task.getArchiveClassifier().set("boot");
-                            var mainOutput = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME)
-                                .map(SourceSet::getOutput);
-                            task.into("BOOT-INF/classes", copy -> {
-                                copy.from(mainOutput);
-                                copy.exclude("META-INF/**");
-                            });
-                            task.from(mainOutput, copy -> copy.include("META-INF/**"));
-                        });
-                    }
-                }
-                """.trimIndent()
-            )
-        }
     }
 
     private fun run(vararg arguments: String): GradleRunner = GradleRunner.create()

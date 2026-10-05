@@ -2,6 +2,7 @@ package de.lise.fluxflow.reflection.types
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 
 class TypeManifestTest {
@@ -71,6 +72,21 @@ class TypeManifestTest {
             .hasMessageContaining("duplicate.jar")
             .hasMessageContaining("line 3")
             .hasMessageContaining("step.review")
+    }
+
+    @Test
+    fun `should report the same conflict and origins when writing and creating a registry`() {
+        val declarations = listOf(
+            TypeManifestEntry(TypeRole.MODEL, "shared", "java.lang.String", "first.jar"),
+            TypeManifestEntry(TypeRole.MODEL, "shared", "java.lang.StringBuilder", "second.jar"),
+        )
+
+        val writing = catchThrowable { TypeManifest.write(declarations) }
+        val creating = catchThrowable { TypeRegistry.create(javaClass.classLoader, declarations.reversed()) }
+
+        assertThat(writing).isInstanceOf(TypeManifestException::class.java)
+        assertThat(writing.message).isEqualTo(creating.message)
+        assertThat(writing.message).contains("first.jar", "second.jar")
     }
 
     private class ReviewStep

@@ -22,11 +22,31 @@ import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import org.springframework.beans.factory.ObjectProvider
 import java.time.Instant
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 
 class BasicConfigurationActivationTest {
+    @Test
+    fun `registry should initialize with the default provider without circular dependencies`() {
+        AnnotationConfigApplicationContext().use { context ->
+            context.setAllowCircularReferences(false)
+            context.register(BasicConfiguration::class.java)
+            context.addBeanFactoryPostProcessor { beanFactory ->
+                beanFactory.beanDefinitionNames.forEach {
+                    beanFactory.getBeanDefinition(it).isLazyInit = true
+                }
+            }
+            context.refresh()
+
+            assertThat(context.getBean(TypeRegistry::class.java)).isNotNull()
+            assertThat(context.getBean(ClassLoaderProvider::class.java).provide())
+                .isSameAs(context.classLoader)
+        }
+    }
+
     @Test
     fun `O06 should pass the context registry to job activation`() {
         val registry = TypeRegistry.create(
@@ -47,9 +67,12 @@ class BasicConfigurationActivationTest {
             ),
         )
         val configuration = BasicConfiguration()
-        BasicConfiguration::class.java.getDeclaredField("typeRegistry").apply {
+        val provider = mock<ObjectProvider<TypeRegistry>> {
+            on { getObject() } doReturn registry
+        }
+        BasicConfiguration::class.java.getDeclaredField("typeRegistryProvider").apply {
             isAccessible = true
-            set(configuration, registry)
+            set(configuration, provider)
         }
         val service = configuration.jobActivationService(
             WiringNoDependencies,

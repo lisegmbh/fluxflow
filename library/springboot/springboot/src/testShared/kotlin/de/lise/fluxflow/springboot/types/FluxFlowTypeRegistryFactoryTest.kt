@@ -1,6 +1,8 @@
 package de.lise.fluxflow.springboot.types
 
 import de.lise.fluxflow.api.step.StepKind
+import de.lise.fluxflow.api.step.StepConfigurationException
+import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.reflection.types.TypeRegistration
 import de.lise.fluxflow.reflection.types.TypeManifest
 import de.lise.fluxflow.reflection.types.TypeManifestException
@@ -20,6 +22,9 @@ import org.junit.jupiter.api.io.TempDir
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.ApplicationContext
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory
+import org.mockito.kotlin.mock
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -199,6 +204,7 @@ class FluxFlowTypeRegistryFactoryTest {
         )
         val context = AnnotationConfigApplicationContext()
         context.classLoader = classLoader
+        context.beanFactory.registerSingleton("classLoaderProvider", ClassLoaderProvider { classLoader })
         context.register(
             DefaultTypeApplication::class.java,
             TypeRegistryConfiguration::class.java,
@@ -232,6 +238,7 @@ class FluxFlowTypeRegistryFactoryTest {
         )
         val context = AnnotationConfigApplicationContext()
         context.classLoader = classLoader
+        context.beanFactory.registerSingleton("classLoaderProvider", ClassLoaderProvider { classLoader })
         context.register(
             DefaultTypeApplication::class.java,
             TypeRegistryConfiguration::class.java,
@@ -250,7 +257,111 @@ class FluxFlowTypeRegistryFactoryTest {
     }
 
     private fun context(vararg configurations: Class<*>): AnnotationConfigApplicationContext =
-        AnnotationConfigApplicationContext(*configurations)
+        AnnotationConfigApplicationContext().apply {
+            beanFactory.registerSingleton("classLoaderProvider", ClassLoaderProvider { javaClass.classLoader })
+            register(*configurations)
+            refresh()
+        }
+
+    @Test
+    fun `should load registry manifests through the configured class loader provider`() {
+        val manifest = temporaryDirectory.resolve(TypeManifest.RESOURCE_PATH)
+        Files.createDirectories(manifest.parent)
+        Files.writeString(manifest, "manifest.version=1\nmodel.provider-only=java.lang.String\n")
+        URLClassLoader(arrayOf(temporaryDirectory.toUri().toURL()), javaClass.classLoader).use { loader ->
+            AnnotationConfigApplicationContext().use { context ->
+                context.beanFactory.registerSingleton("classLoaderProvider", ClassLoaderProvider { loader })
+                context.register(DefaultTypeApplication::class.java, TypeRegistryConfiguration::class.java)
+                context.refresh()
+
+                assertThat(context.getBean(TypeRegistry::class.java).resolve(TypeRole.MODEL, "provider-only"))
+                    .isEqualTo(String::class)
+            }
+        }
+    }
+
+    @Test
+    fun `should preserve the class identity supplied by a contributor`() {
+        val original = ExplicitUnannotatedModel::class.java
+        val bytes = original.getResourceAsStream("/${original.name.replace('.', '/')}.class")!!.use { it.readAllBytes() }
+        val contributed = object : ClassLoader(javaClass.classLoader) {
+            fun copy(): Class<*> = defineClass(original.name, bytes, 0, bytes.size)
+        }.copy().kotlin
+        val contributor = TypeRegistrationContributor {
+            listOf(TypeRegistration(TypeRole.MODEL, "child-model", contributed))
+        }
+
+        context(DefaultTypeApplication::class.java).use { context ->
+            val registry = FluxFlowTypeRegistryFactory(context, javaClass.classLoader, listOf(contributor)).create()
+
+            assertThat(registry.resolve(TypeRole.MODEL, "child-model").java).isSameAs(contributed.java)
+        }
+    }
+
+    @Test
+    fun `should include contributor steps in the two argument builder`() {
+        context(DefaultTypeApplication::class.java).use { context ->
+            context.beanFactory.registerSingleton("plainSteps", FixedContributor(
+                TypeRegistration(TypeRole.STEP, "plain-step", ExplicitUnannotatedModel::class)
+            ))
+
+            assertThat(StepKindMapBuilder(context, javaClass.classLoader).build())
+                .containsEntry(StepKind("plain-step"), ExplicitUnannotatedModel::class)
+        }
+    }
+
+    @Test
+    fun `should reuse the context registry in the two argument builder`() {
+        context(DefaultTypeApplication::class.java).use { context ->
+            val registry = TypeRegistry.create(javaClass.classLoader, emptyList(), listOf(
+                de.lise.fluxflow.reflection.types.TypeRegistryEntry(TypeRole.STEP, "registry-step",
+                    ExplicitUnannotatedModel::class.java.name, ExplicitUnannotatedModel::class, listOf("context"))
+            ))
+            context.beanFactory.registerSingleton("existingRegistry", registry)
+
+            assertThat(StepKindMapBuilder(context, javaClass.classLoader).build())
+                .containsExactlyEntriesOf(mapOf(StepKind("registry-step") to ExplicitUnannotatedModel::class))
+        }
+    }
+
+    @Test
+    fun `should keep the step configuration exception for conflicting step kinds`() {
+        context(DefaultTypeApplication::class.java).use { context ->
+            context.beanFactory.registerSingleton("conflictingStep", FixedContributor(
+                TypeRegistration(TypeRole.STEP, "scanned-step", String::class)
+            ))
+
+            assertThatThrownBy { StepKindMapBuilder(context, javaClass.classLoader).build() }
+                .isInstanceOf(StepConfigurationException::class.java)
+                .hasMessageContaining("scanned-step")
+                .hasMessageContaining("conflictingStep")
+        }
+    }
+
+    @Test
+    fun `should discover steps through a non configurable application context`() {
+        context(DefaultTypeApplication::class.java).use { context ->
+            val plain = object : ApplicationContext by context {
+                override fun getAutowireCapableBeanFactory(): AutowireCapableBeanFactory = mock()
+            }
+
+            assertThat(StepKindMapBuilder(plain, javaClass.classLoader).build())
+                .containsEntry(StepKind("scanned-step"), DefaultScannedStep::class)
+        }
+    }
+
+    @Test
+    fun `should retain manifest exceptions for conflicts in other roles`() {
+        context(DefaultTypeApplication::class.java).use { context ->
+            context.beanFactory.registerSingleton("conflictingJob", FixedContributor(
+                TypeRegistration(TypeRole.JOB, "scanned-job", String::class)
+            ))
+
+            assertThatThrownBy { StepKindMapBuilder(context, javaClass.classLoader).build() }
+                .isInstanceOf(TypeManifestException::class.java)
+                .hasMessageContaining("job")
+        }
+    }
 
     @Configuration
     open class RegistryConsumerConfiguration {

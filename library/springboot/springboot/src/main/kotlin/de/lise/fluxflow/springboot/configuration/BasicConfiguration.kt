@@ -88,6 +88,7 @@ import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -105,7 +106,7 @@ import java.time.Clock
 @Import(ChangeDetectionConfiguration::class, TypeRegistryConfiguration::class)
 open class BasicConfiguration {
     @Autowired
-    private lateinit var typeRegistry: TypeRegistry
+    private lateinit var typeRegistryProvider: ObjectProvider<TypeRegistry>
 
     @Lazy
     @Autowired
@@ -426,7 +427,7 @@ open class BasicConfiguration {
             iocProvider,
             jobDefinitionBuilder,
             classLoaderProvider,
-            typeRegistry,
+            typeRegistryProvider.getObject(),
         )
     }
 
