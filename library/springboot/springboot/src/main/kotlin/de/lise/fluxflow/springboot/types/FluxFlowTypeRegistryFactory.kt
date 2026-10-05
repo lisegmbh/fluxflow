@@ -1,6 +1,6 @@
 package de.lise.fluxflow.springboot.types
 
-import de.lise.fluxflow.reflection.types.TypeManifestEntry
+import de.lise.fluxflow.reflection.types.TypeRegistryEntry
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import org.springframework.context.ApplicationContext
 
@@ -10,7 +10,7 @@ import org.springframework.context.ApplicationContext
 class FluxFlowTypeRegistryFactory(
     private val context: ApplicationContext,
     private val classLoader: ClassLoader,
-    contributors: Map<String, TypeRegistrationContributor> = emptyMap(),
+    contributors: Map<String, TypeRegistrationContributor> = context.getBeansOfType(TypeRegistrationContributor::class.java),
 ) {
     private val contributors = contributors.toMap()
 
@@ -31,14 +31,15 @@ class FluxFlowTypeRegistryFactory(
         val scannedEntries = AnnotatedTypeRegistrationScanner(classLoader).scan(scanRoots)
         val explicitEntries = contributors.toSortedMap().flatMap { (beanName, contributor) ->
             contributor.registrations().map { registration ->
-                TypeManifestEntry(
+                TypeRegistryEntry(
                     registration.role,
                     registration.key,
                     registration.type.java.name,
-                    "explicit contributor '$beanName' (${contributor.javaClass.name})",
+                    registration.type,
+                    listOf("explicit contributor '$beanName' (${contributor.javaClass.name})"),
                 )
             }
         }
-        return TypeRegistry.load(classLoader, scannedEntries + explicitEntries)
+        return TypeRegistry.load(classLoader, scannedEntries, explicitEntries)
     }
 }

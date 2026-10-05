@@ -12,6 +12,11 @@ object TypeManifest {
 
     private const val VERSION_PROPERTY = "manifest.version"
 
+    val entryOrder: Comparator<TypeManifestEntry> = compareBy<TypeManifestEntry> { it.role.ordinal }
+        .thenBy { it.key }
+        .thenBy { it.binaryClassName }
+        .thenBy { it.origin }
+
     fun read(origin: String, source: Reader): List<TypeManifestEntry> {
         val entries = mutableListOf<TypeManifestEntry>()
         val propertyLines = mutableMapOf<String, Int>()
@@ -80,24 +85,7 @@ object TypeManifest {
     }
 
     fun write(entries: Iterable<TypeManifestEntry>): String {
-        val normalized = entries
-            .onEach { validateEntry(it.role, it.key, it.binaryClassName, it.origin) }
-            .distinctBy { Triple(it.role, it.key, it.binaryClassName) }
-            .sortedWith(
-                compareBy<TypeManifestEntry> { it.role.ordinal }
-                    .thenBy { it.key }
-                    .thenBy { it.binaryClassName }
-            )
-
-        normalized.groupBy { it.role to it.key }.forEach { (identity, registrations) ->
-            val classes = registrations.map { it.binaryClassName }.distinct()
-            if (classes.size > 1) {
-                throw TypeManifestException(
-                    "Conflicting ${identity.first.manifestName} type declarations for key " +
-                            "'${identity.second}': ${classes.sorted().joinToString()}"
-                )
-            }
-        }
+        val normalized = normalize(entries).distinctBy { Triple(it.role, it.key, it.binaryClassName) }
 
         return buildString {
             append(VERSION_PROPERTY).append('=').append(VERSION).append('\n')
@@ -110,6 +98,24 @@ object TypeManifest {
                     .append('\n')
             }
         }
+    }
+
+    /** Validates and orders declarations while retaining every registration's origin. */
+    fun normalize(entries: Iterable<TypeManifestEntry>): List<TypeManifestEntry> {
+        val normalized = entries.sortedWith(entryOrder)
+        normalized.forEach { validateEntry(it.role, it.key, it.binaryClassName, it.origin) }
+        normalized.groupBy { it.role to it.key }.entries
+            .firstOrNull { (_, registrations) -> registrations.map { it.binaryClassName }.distinct().size > 1 }
+            ?.let { (identity, registrations) ->
+                val details = registrations.groupBy { it.binaryClassName }.toSortedMap()
+                    .map { (className, registrationsForClass) ->
+                        val origins = registrationsForClass.map { it.origin }.distinct().sorted()
+                        "'$className' from ${origins.joinToString(prefix = "[", postfix = "]")}"
+                    }.joinToString("; ")
+                throw TypeRegistrationConflictException(identity.first, identity.second,
+                    "Conflicting ${identity.first.manifestName} type registrations for key '${identity.second}': $details.")
+            }
+        return normalized
     }
 
     internal fun validateEntry(

@@ -236,6 +236,65 @@ class TypeRegistryTest {
             .hasRootCauseInstanceOf(NoClassDefFoundError::class.java)
     }
 
+    @Test
+    fun `should reject distinct resolved classes sharing a binary name and key`() {
+        val original = ReviewStep::class.java
+        val bytes = original.getResourceAsStream("/${original.name.replace('.', '/')}.class")!!.use { it.readAllBytes() }
+        val copy = object : ClassLoader(javaClass.classLoader) {
+            fun copy(): Class<*> = defineClass(original.name, bytes, 0, bytes.size)
+        }.copy().kotlin
+
+        assertThatThrownBy {
+            TypeRegistry.create(javaClass.classLoader, emptyList(), listOf(
+                TypeRegistryEntry(TypeRole.STEP, "shared", original.name, original.kotlin, listOf("parent")),
+                TypeRegistryEntry(TypeRole.STEP, "shared", original.name, copy, listOf("child")),
+            ))
+        }.isInstanceOf(TypeManifestException::class.java)
+            .hasMessageContaining("different class loaders")
+            .hasMessageContaining("parent")
+            .hasMessageContaining("child")
+    }
+
+    @Test
+    fun `should merge manifest and resolved registrations of the same class with all origins`() {
+        val registry = TypeRegistry.create(javaClass.classLoader,
+            listOf(entry(TypeRole.STEP, "review", ReviewStep::class, "manifest")),
+            listOf(TypeRegistryEntry(TypeRole.STEP, "review", ReviewStep::class.java.name,
+                ReviewStep::class, listOf("contributor", "manifest"))),
+        )
+
+        assertThat(registry.entries.single().origins).containsExactly("contributor", "manifest")
+        assertThat(registry.resolve(TypeRole.STEP, "review").java).isSameAs(ReviewStep::class.java)
+    }
+
+    @Test
+    fun `should reject resolved registrations without origins as manifest errors`() {
+        assertThatThrownBy {
+            TypeRegistry.create(javaClass.classLoader, emptyList(), listOf(
+                TypeRegistryEntry(TypeRole.VALUE, "string", String::class.java.name, String::class, emptyList())
+            ))
+        }.isInstanceOf(TypeManifestException::class.java)
+    }
+
+    @Test
+    fun `should report the same first loader identity conflict independent of input order`() {
+        val original = ReviewStep::class.java
+        val bytes = original.getResourceAsStream("/${original.name.replace('.', '/')}.class")!!.use { it.readAllBytes() }
+        val copy = object : ClassLoader(javaClass.classLoader) {
+            fun copy(): Class<*> = defineClass(original.name, bytes, 0, bytes.size)
+        }.copy().kotlin
+        val registrations = listOf("z-key", "a-key").flatMap { key -> listOf(
+            TypeRegistryEntry(TypeRole.STEP, key, original.name, original.kotlin, listOf("parent")),
+            TypeRegistryEntry(TypeRole.STEP, key, original.name, copy, listOf("child")),
+        ) }
+
+        val forward = catchThrowable { TypeRegistry.create(javaClass.classLoader, emptyList(), registrations) }
+        val reverse = catchThrowable { TypeRegistry.create(javaClass.classLoader, emptyList(), registrations.reversed()) }
+
+        assertThat(forward).isInstanceOf(TypeManifestException::class.java)
+        assertThat(forward.message).isEqualTo(reverse.message).contains("a-key")
+    }
+
     private fun entry(
         role: TypeRole,
         key: String,
