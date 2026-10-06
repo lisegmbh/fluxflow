@@ -18,29 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-1. **FlowQuery API**<br/>
-   Introduces an expression-based querying approach that offers a more expressive and unified API.
-   [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
-2. **Reusable step data imports (`@Import`)**<br/>
-   Enables reusing and composing common step data sets by importing data definitions from another type.
-   Supports optional kind prefixing (CamelCase or Plain) 
-   and merges data listeners from the imported and parent step, 
-   reducing duplication and improving maintainability.
-   [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
-3. **Shared security baseline tests**<br/>
-   Adds a mandatory test gate and shared characterization fixtures for both Spring
-   compatibility lines. This test infrastructure does not change production type resolution.
-4. **Trusted type manifest and registry**<br/>
+1. **Trusted type manifest and registry**<br/>
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
    generates and verifies the manifest in consumer JARs. Activation and Mongo enforcement
    remain separate follow-up changes.
-
-6. **Docker runtime for Jenkins integration tests**<br/>
-   Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
-   the Gradle container, and retains test reports on build failures. Security-test exceptions
-   include their full causes in the build log. The Kubernetes cluster must permit the
-   privileged Docker sidecar.
 
 ### Changed
 1. **Trusted type inventory is validated during application startup**<br/>
@@ -54,6 +36,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    byte-exact JAR verification tasks to `check`.
    See the [migration guidance](docs/features/type-manifest.md).
 
+### Deprecated
+### Fixed
+### Removed
+
+## [0.3.0] - 2026-10-06
+
+### Added
+1. **FlowQuery API**<br/>
+   Introduces an expression-based querying approach that offers a more expressive and unified API.
+   [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
+2. **Reusable step data imports (`@Import`)**<br/>
+   Enables reusing and composing common step data sets by importing data definitions from another type.
+   Supports optional kind prefixing (CamelCase or Plain) 
+   and merges data listeners from the imported and parent step, 
+   reducing duplication and improving maintainability.
+   [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
+3. **Shared security baseline tests**<br/>
+   Adds a mandatory test gate and shared characterization fixtures for both Spring
+   compatibility lines. This test infrastructure does not change production type resolution.
+6. **Docker runtime for Jenkins integration tests**<br/>
+   Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
+   the Gradle container, and retains test reports on build failures. Security-test exceptions
+   include their full causes in the build log. The Kubernetes cluster must permit the
+   privileged Docker sidecar.
+
+### Changed
 1. **Spring integration artifacts are now published in two explicit lines**<br/>
    All Spring Boot integration artifacts are now published under coordinates that carry the supported
    Spring Boot major version: `*-spring3` for Spring Boot 3 (e.g. `de.lise.fluxflow:springboot-spring3`)
