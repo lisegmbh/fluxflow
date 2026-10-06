@@ -250,7 +250,7 @@ class FluxFlowTypeManifestPluginTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["9.2.0", "9.7.1"])
+    @ValueSource(strings = ["9.2.0", "9.8.0"])
     fun `should support the documented Kotlin DSL on supported Gradle versions`(gradleVersion: String) {
         fixture(declarations = "")
         File(projectDir, "build.gradle").delete()
