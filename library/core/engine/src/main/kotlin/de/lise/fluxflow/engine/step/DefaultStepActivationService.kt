@@ -27,6 +27,12 @@ class DefaultStepActivationService(
         invokableStepDefinition: InvokableStepDefinition,
         identifier: StepIdentifier,
     ): Step {
+        val kind = invokableStepDefinition.definition.kind
+        try {
+            stepTypeResolver.resolveType(kind)
+        } catch (exception: UnknownTypeException) {
+            throw StepActivationException(identifier.value, kind.value, exception)
+        }
         return activate(
             workflow,
             StepData(

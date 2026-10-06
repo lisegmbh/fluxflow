@@ -42,14 +42,13 @@ class StepServiceImpl(
     private val queryMapper: QueryMapper<StepQueryable, StepData>
 ) : StepService {
     fun create(workflow: Workflow<*>, invokableStepDefinition: InvokableStepDefinition): StepCreationResult {
-        stepDefinitionVersionRecorder.record(invokableStepDefinition.definition)
-
         val step = stepActivationService.activateInitial(
             workflow,
             invokableStepDefinition,
             StepIdentifier(persistence.randomId())
         )
 
+        stepDefinitionVersionRecorder.record(invokableStepDefinition.definition)
         createData(step)
         eventService.publish(StepCreatedEvent(step))
 

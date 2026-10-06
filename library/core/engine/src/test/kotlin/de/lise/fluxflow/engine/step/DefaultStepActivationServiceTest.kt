@@ -1,7 +1,11 @@
 package de.lise.fluxflow.engine.step
 
 import de.lise.fluxflow.api.ioc.IocProvider
+import de.lise.fluxflow.api.step.InvokableStepDefinition
 import de.lise.fluxflow.api.step.Status
+import de.lise.fluxflow.api.step.Step
+import de.lise.fluxflow.api.step.StepDefinition
+import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.step.StepKind
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.StepActivationException
@@ -9,6 +13,7 @@ import de.lise.fluxflow.api.versioning.DefaultCompatibilityTester
 import de.lise.fluxflow.api.versioning.NoVersion
 import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.Workflow
+import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.reflection.types.TypeRole
 import de.lise.fluxflow.reflection.types.UnknownTypeException
@@ -25,6 +30,8 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import kotlin.reflect.KClass
 
@@ -67,6 +74,75 @@ class DefaultStepActivationServiceTest {
             .hasMessage("Unable to activate step #unsafe-step with kind '$kind'")
         assertThat(failure?.cause).isSameAs(rejection)
         verifyNoInteractions(definitionBuilder)
+    }
+
+    @Test
+    fun `activateInitial should reject an unregistered step kind before activating it`() {
+        val kind = "unregistered-step"
+        val rejection = UnknownTypeException(TypeRole.STEP, kind)
+        val resolver = mock<StepTypeResolver> {
+            on { resolveType(StepKind(kind)) } doThrow rejection
+        }
+        val definition = mock<StepDefinition> {
+            on { this.kind } doReturn StepKind(kind)
+            on { version } doReturn NoVersion()
+            on { metadata } doReturn emptyMap()
+        }
+        val invokable = mock<InvokableStepDefinition> {
+            on { this.definition } doReturn definition
+        }
+        val service = DefaultStepActivationService(
+            mock(),
+            mock(),
+            resolver,
+            VersionCompatibility.Unknown,
+            DefaultCompatibilityTester(),
+        )
+        val workflow = mock<Workflow<Any>> {
+            on { identifier } doReturn WorkflowIdentifier("workflow-id")
+        }
+
+        val failure = runCatching {
+            service.activateInitial(workflow, invokable, StepIdentifier("new-step"))
+        }.exceptionOrNull()
+
+        assertThat(failure)
+            .isExactlyInstanceOf(StepActivationException::class.java)
+            .hasMessage("Unable to activate step #new-step with kind '$kind'")
+        assertThat(failure?.cause).isSameAs(rejection)
+        verify(invokable, never()).activate(any())
+    }
+
+    @Test
+    fun `activateInitial should activate a step whose kind is registered`() {
+        val kind = StepKind("registered-step")
+        val resolver = mock<StepTypeResolver> {
+            on { resolveType(kind) } doReturn TestStepWithDataConstructor::class
+        }
+        val definition = mock<StepDefinition> {
+            on { this.kind } doReturn kind
+            on { version } doReturn NoVersion()
+            on { metadata } doReturn emptyMap()
+        }
+        val activated = mock<Step>()
+        val invokable = mock<InvokableStepDefinition> {
+            on { this.definition } doReturn definition
+            on { activate(any()) } doReturn activated
+        }
+        val service = DefaultStepActivationService(
+            mock(),
+            mock(),
+            resolver,
+            VersionCompatibility.Unknown,
+            DefaultCompatibilityTester(),
+        )
+        val workflow = mock<Workflow<Any>> {
+            on { identifier } doReturn WorkflowIdentifier("workflow-id")
+        }
+
+        val step = service.activateInitial(workflow, invokable, StepIdentifier("new-step"))
+
+        assertThat(step).isSameAs(activated)
     }
 
     @Test
