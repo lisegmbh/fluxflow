@@ -1,5 +1,14 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
     `java-gradle-plugin`
+}
+
+kotlin {
+    compilerOptions {
+        languageVersion.set(KotlinVersion.KOTLIN_2_2)
+        apiVersion.set(KotlinVersion.KOTLIN_2_2)
+    }
 }
 
 dependencies {

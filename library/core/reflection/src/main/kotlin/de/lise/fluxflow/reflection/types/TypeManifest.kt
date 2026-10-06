@@ -11,16 +11,18 @@ object TypeManifest {
     const val VERSION = "1"
 
     private const val VERSION_PROPERTY = "manifest.version"
+    private const val COVERED_PACKAGES_PROPERTY = "manifest.covered-packages"
 
     val entryOrder: Comparator<TypeManifestEntry> = compareBy<TypeManifestEntry> { it.role.ordinal }
         .thenBy { it.key }
         .thenBy { it.binaryClassName }
         .thenBy { it.origin }
 
-    fun read(origin: String, source: Reader): List<TypeManifestEntry> {
+    fun read(origin: String, source: Reader): TypeManifestContents {
         val entries = mutableListOf<TypeManifestEntry>()
         val propertyLines = mutableMapOf<String, Int>()
         var version: String? = null
+        var coveredPackages = emptyList<String>()
 
         source.buffered().use { reader ->
             reader.lineSequence().forEachIndexed { index, line ->
@@ -60,6 +62,10 @@ object TypeManifest {
                     version = value
                     return@forEachIndexed
                 }
+                if (name == COVERED_PACKAGES_PROPERTY) {
+                    coveredPackages = parseCoveredPackages(value, origin, lineNumber)
+                    return@forEachIndexed
+                }
 
                 val separator = name.indexOf('.')
                 val roleName = name.take(separator.coerceAtLeast(0))
@@ -81,14 +87,21 @@ object TypeManifest {
                 "Invalid FluxFlow type manifest '$origin': unsupported version '$version'."
             )
         }
-        return entries
+        return TypeManifestContents(entries, coveredPackages)
     }
 
-    fun write(entries: Iterable<TypeManifestEntry>): String {
+    fun write(
+        entries: Iterable<TypeManifestEntry>,
+        coveredPackages: Iterable<String> = emptyList(),
+    ): String {
         val normalized = normalize(entries).distinctBy { Triple(it.role, it.key, it.binaryClassName) }
+        val packages = normalizeCoveredPackages(coveredPackages)
 
         return buildString {
             append(VERSION_PROPERTY).append('=').append(VERSION).append('\n')
+            if (packages.isNotEmpty()) {
+                append(COVERED_PACKAGES_PROPERTY).append('=').append(packages.joinToString(",")).append('\n')
+            }
             normalized.forEach { entry ->
                 append(entry.role.manifestName)
                     .append('.')
@@ -118,6 +131,9 @@ object TypeManifest {
         return normalized
     }
 
+    fun covers(packageName: String, coveredPackages: Iterable<String>): Boolean =
+        coveredPackages.any { packageName == it || packageName.startsWith("$it.") }
+
     internal fun validateEntry(
         role: TypeRole,
         key: String,
@@ -138,6 +154,17 @@ object TypeManifest {
             throw TypeManifestException("A FluxFlow type registration must declare its origin.")
         }
     }
+
+    private fun parseCoveredPackages(value: String, origin: String, lineNumber: Int): List<String> {
+        val packages = value.split(',').map(String::trim).filter(String::isNotEmpty)
+        if (packages.any { it.any(Char::isWhitespace) || it.startsWith('.') || it.endsWith('.') }) {
+            invalid(origin, lineNumber, "invalid covered package list '$value'")
+        }
+        return normalizeCoveredPackages(packages)
+    }
+
+    private fun normalizeCoveredPackages(packages: Iterable<String>): List<String> =
+        packages.map(String::trim).filter(String::isNotEmpty).distinct().sorted()
 
     private fun hasContinuation(line: String): Boolean {
         var backslashes = 0

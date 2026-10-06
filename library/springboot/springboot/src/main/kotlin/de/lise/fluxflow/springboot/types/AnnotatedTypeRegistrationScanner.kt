@@ -11,6 +11,7 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.core.type.AnnotationMetadata
 import org.springframework.core.type.filter.AnnotationTypeFilter
+import org.springframework.util.ClassUtils
 
 /**
  * Discovers annotated step and job declarations without initializing their classes.
@@ -18,16 +19,26 @@ import org.springframework.core.type.filter.AnnotationTypeFilter
 class AnnotatedTypeRegistrationScanner(
     private val classLoader: ClassLoader,
 ) {
-    fun scan(basePackages: Iterable<String>): List<TypeManifestEntry> {
+    fun scan(
+        basePackages: Iterable<String>,
+        coveredPackages: Iterable<String> = emptyList(),
+    ): List<TypeManifestEntry> {
         val scanner = ClassPathScanningCandidateComponentProvider(false)
         scanner.setResourceLoader(PathMatchingResourcePatternResolver(classLoader))
         scanner.addIncludeFilter(AnnotationTypeFilter(Step::class.java, false))
         scanner.addIncludeFilter(AnnotationTypeFilter(Job::class.java, false))
 
         return basePackages
+            .filterNot { TypeManifest.covers(it, coveredPackages) }
             .flatMap { basePackage ->
                 scanner.findCandidateComponents(basePackage)
                     .filterIsInstance<AnnotatedBeanDefinition>()
+                    .filterNot { definition ->
+                        TypeManifest.covers(
+                            ClassUtils.getPackageName(definition.beanClassName ?: definition.metadata.className),
+                            coveredPackages,
+                        )
+                    }
                     .map { definition -> registration(definition.metadata, basePackage) }
             }
             .distinctBy { Triple(it.role, it.key, it.binaryClassName) }

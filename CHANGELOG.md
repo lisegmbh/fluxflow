@@ -47,8 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Duplicate discovered step/job kinds, conflicting model/value registrations, malformed
    manifests, and missing manifest classes now stop startup, including before the follow-up
    activation and Mongo enforcement changes. Registry resolution respects `ClassLoaderProvider`
-   and contributor class identity. The manifest plugin requires Gradle 9.2.0+ and Java 17+;
-   delegate IDE builds to Gradle to regenerate manifests after type changes.
+   and contributor class identity. The manifest plugin requires Gradle 9.2.0+ and Java 17+
+   and compiles its Kotlin DSL API at language/API version 2.2. Generation records
+   `manifest.covered-packages`; startup skips annotation scans for those packages. Delegate
+   IDE builds to Gradle so covered packages pick up type changes. The plugin no longer adds
+   byte-exact JAR verification tasks to `check`.
    See the [migration guidance](docs/features/type-manifest.md).
 
 1. **Spring integration artifacts are now published in two explicit lines**<br/>

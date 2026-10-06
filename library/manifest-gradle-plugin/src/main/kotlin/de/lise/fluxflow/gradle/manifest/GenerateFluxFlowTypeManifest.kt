@@ -29,7 +29,7 @@ import java.nio.file.Files
 @CacheableTask
 abstract class GenerateFluxFlowTypeManifest : DefaultTask() {
     @get:Input
-    abstract val declarations: ListProperty<String>
+    abstract val declarations: ListProperty<ManifestDeclaration>
 
     @get:Input
     abstract val sourceProjectPath: Property<String>
@@ -52,8 +52,7 @@ abstract class GenerateFluxFlowTypeManifest : DefaultTask() {
             .toTypedArray()
 
         URLClassLoader(urls, ClassLoader.getPlatformClassLoader()).use { classLoader ->
-            val explicitEntries = declarations.get().map { encoded ->
-                val declaration = ManifestDeclarationCodec.decode(encoded)
+            val explicitEntries = declarations.get().map { declaration ->
                 TypeManifestEntry(
                     declaration.role,
                     declaration.key,
@@ -67,7 +66,7 @@ abstract class GenerateFluxFlowTypeManifest : DefaultTask() {
             val entries = explicitEntries + scannedEntries
 
             TypeRegistry.create(classLoader, entries)
-            val content = TypeManifest.write(entries)
+            val content = TypeManifest.write(entries, coveredPackages())
             val target = outputFile.get().asFile.toPath()
             Files.createDirectories(target.parent)
             Files.writeString(target, content, Charsets.UTF_8)
@@ -86,6 +85,25 @@ abstract class GenerateFluxFlowTypeManifest : DefaultTask() {
                 .map { it!! }
                 .toList()
         }
+
+    private fun coveredPackages(): List<String> =
+        classesDirectories.files
+            .filter(File::isDirectory)
+            .flatMap { directory ->
+                Files.walk(directory.toPath()).use { paths ->
+                    paths
+                        .filter(Files::isRegularFile)
+                        .filter { it.fileName.toString().endsWith(".class") }
+                        .map { directory.toPath().relativize(it).toString() }
+                        .map { it.removeSuffix(".class").replace(File.separatorChar, '.') }
+                        .filter { it != "module-info" && !it.endsWith(".package-info") }
+                        .map { className -> className.substringBeforeLast('.', missingDelimiterValue = "") }
+                        .filter { it.isNotEmpty() }
+                        .toList()
+                }
+            }
+            .distinct()
+            .sorted()
 
     private fun inspect(bytecode: ClassReader, classLoader: ClassLoader): TypeManifestEntry? {
         val annotations = mutableMapOf<TypeRole, String>()
