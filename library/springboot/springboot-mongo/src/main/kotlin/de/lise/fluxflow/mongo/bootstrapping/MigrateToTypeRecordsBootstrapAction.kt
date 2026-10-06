@@ -93,7 +93,7 @@ class MigrateToTypeRecordsBootstrapAction(
                     stepDocument.copy(
                         dataEntries = TypedRecords.fromData(stepData.data),
                         metadataEntries = TypedRecords.fromData(stepData.metadata),
-                    )
+                    ).also { it.toStepData(valueTypes) }
                 } catch (e: Exception) {
                     handleTypeActivationException(StepDocument::class.java, doc, e)?.let { failure ->
                         migrationFailures.add(failure)
@@ -121,7 +121,7 @@ class MigrateToTypeRecordsBootstrapAction(
                     val jobData = jobDocument.toJobData(valueTypes)
                     jobDocument.copy(
                         parameterEntries = TypedRecords.fromData(jobData.parameters),
-                    )
+                    ).also { it.toJobData(valueTypes) }
                 } catch (e: Exception) {
                     handleTypeActivationException(JobDocument::class.java, doc, e)?.let { failure ->
                         migrationFailures.add(failure)

@@ -59,6 +59,8 @@ internal data class PrototypeWorkflowSubtype(
     val subtypeValue: String,
 ) : PrototypeWorkflowModelType
 
+/** Host registration deliberately omitted from the isolated prototype inventory. */
+internal data class PrototypeHostOnlySubtype(override val name: String) : PrototypeWorkflowModelType
 internal data class HostOnlyWorkflowModel(
     val value: String,
 )

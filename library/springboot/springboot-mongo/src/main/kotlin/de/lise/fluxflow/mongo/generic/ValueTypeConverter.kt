@@ -6,12 +6,15 @@ import de.lise.fluxflow.reflection.types.TypeManifestException
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.reflection.types.TypeRole
 import de.lise.fluxflow.reflection.types.UnknownTypeException
+import org.springframework.core.convert.ConversionException
+import org.springframework.core.convert.ConversionService
 import org.bson.Document
 import org.bson.types.Binary
 import org.bson.types.Decimal128
 import org.bson.types.ObjectId
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.net.MalformedURLException
 import java.net.URI
 import java.net.URL
 import java.time.Duration
@@ -42,6 +45,7 @@ class ValueTypeConverter private constructor(
     private val normalizableContainerAliases: Set<String>,
     private val maxDepth: Int = DEFAULT_MAX_DEPTH,
     private val maxNodes: Int = DEFAULT_MAX_NODES,
+    private val hostConversions: ConversionService? = null,
 ) {
     constructor(
         registry: TypeRegistry,
@@ -163,6 +167,59 @@ class ValueTypeConverter private constructor(
                 return value
             }
 
+            if (value is Int && type == Byte::class && value in Byte.MIN_VALUE..Byte.MAX_VALUE) {
+                return value.toByte()
+            }
+            if (value is Int && type == Short::class && value in Short.MIN_VALUE..Short.MAX_VALUE) {
+                return value.toShort()
+            }
+            if (value is Double && type == Float::class) {
+                // BSON widens Float to Double. Keep exact bits (including signed zero); canonicalize NaN.
+                if (value.isNaN()) return Float.NaN
+                val restored = value.toFloat()
+                if (restored.toDouble().toRawBits() == value.toRawBits()) return restored
+            }
+
+            if (type == BigInteger::class) {
+                try {
+                    if (value is String) return BigInteger(value)
+                    if (value is Decimal128 && !value.isNaN && !value.isInfinite) {
+                        return value.bigDecimalValue().toBigIntegerExact()
+                    }
+                } catch (_: NumberFormatException) {
+                    // Malformed strings must retain the registered type mismatch below.
+                } catch (_: ArithmeticException) {
+                    // Fractional and non-finite decimal values cannot represent an integer.
+                }
+            }
+            if (type == BigDecimal::class) {
+                try {
+                    if (value is String) return BigDecimal(value)
+                    if (value is Decimal128 && !value.isNaN && !value.isInfinite) return value.bigDecimalValue()
+                } catch (_: NumberFormatException) {
+                    // Malformed scalar input follows the same bounded conversion failure below.
+                } catch (_: ArithmeticException) {
+                    // Decimal128 states without a BigDecimal representation must not pass through.
+                }
+            }
+
+            if (value is String && type == URL::class) {
+                try {
+                    return URL(value)
+                } catch (_: MalformedURLException) {
+                    // Parsing does not connect or resolve the URL; malformed forms retain the type mismatch below.
+                }
+            }
+            if (value is Date && type in HostDateTypes && hostConversions != null) {
+                try {
+                    val restored = hostConversions.convert(value, type.java)
+                    if (restored != null && type.isInstance(restored)) return restored
+                } catch (failure: ConversionException) {
+                    throw ValueTypeConversionException(
+                        "Host date conversion failed for registered type '${spec.typeName}' at '$path'.", failure
+                    )
+                }
+            }
             if (value is Date && type == Instant::class) {
                 return value.toInstant()
             }
@@ -278,6 +335,11 @@ class ValueTypeConverter private constructor(
         private const val DEFAULT_MAX_DEPTH = 100
         private const val DEFAULT_MAX_NODES = 100_000
 
+        // The host determines JSR-310 system-zone versus native UTC semantics for these fixed scalar types.
+        private val HostDateTypes = setOf(LocalDate::class, LocalTime::class, LocalDateTime::class)
+
+        internal fun withHostConversions(registry: TypeRegistry, conversions: ConversionService): ValueTypeConverter =
+            ValueTypeConverter(buildAliases(registry), BuiltInContainerAliases, hostConversions = conversions)
         private val BuiltInRegistrations = builtInRegistrations()
         private val BuiltInContainerAliases = BuiltInRegistrations
             .filter { registration ->

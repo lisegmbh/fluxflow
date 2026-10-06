@@ -82,8 +82,14 @@ open class ProductionMongoSecurityConfiguration {
     @Bean
     open fun mongoCustomConversions(
         @Value("\${fluxflow.security.test.mapped-status:false}") mappedStatus: Boolean,
+        @Value("\${fluxflow.security.test.numeric-decimal128:false}") numericDecimal128: Boolean,
+        @Value("\${fluxflow.security.test.native-java-time:false}") nativeJavaTime: Boolean,
     ): MongoCustomConversions =
         MongoCustomConversions.create { adapter ->
+            if (nativeJavaTime) adapter.useNativeDriverJavaTimeCodecs()
+            if (numericDecimal128) {
+                adapter.bigDecimal(MongoCustomConversions.BigDecimalRepresentation.DECIMAL128)
+            }
             adapter.registerConverter(SecurityConvertedValueWriter)
             adapter.registerConverter(SecurityConvertedValueReader)
             if (mappedStatus) {

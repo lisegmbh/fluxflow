@@ -139,11 +139,36 @@ Only aliases from the fixed built-in table enable conversion between MongoDB con
 representations. A registered application `Map`, `List`, or `Set` subtype must already be an
 instance of its declared type; FluxFlow does not coerce a standard container into that subtype.
 
+Mongo scalar restoration is restricted to fixed built-in types after resolving their VALUE key.
+BSON int32 values restore Byte and Short only within their exact ranges. BSON doubles restore Float
+only when Double-to-Float-to-Double preserves its bits, including signed zero and infinities;
+NaN is restored as the canonical Float NaN. BigDecimal accepts decimal strings and finite
+Decimal128 values without losing scale; BigInteger additionally requires an exact integer.
+URL accepts its stored string form without connecting to the address. Incompatible representations
+remain conversion errors; these conversions do not apply to registered application classes.
+
+Big-number writes depend on the host's Mongo representation. When configuring custom conversions
+for Spring Data 5, choose `MongoCustomConversions.BigDecimalRepresentation.DECIMAL128` or an
+appropriate String writing converter explicitly. FluxFlow does not add a BigInteger writer or
+change the host's representation. Decimal128 writes must fit its precision and range; an exact
+string representation can retain values beyond that range.
+
+Production persistence restores BSON Date values to LocalDate, LocalTime and LocalDateTime through
+the isolated host converter's conversion service. This preserves the host's Spring JSR-310
+system-zone or native UTC codec behavior, including under non-UTC process timezones. Millisecond
+precision follows BSON Date. Standalone `ValueTypeConverter(typeRegistry)` and legacy built-in-only
+helpers have no host timezone conversion; use production persistence for these host-normalized
+values. The existing public constructor signatures remain available.
+
 Malformed records fail with `ValueTypeConversionException`. This includes missing or duplicate JVM
 type references, different value and metadata key sets, incompatible values, inconsistent
 collection lengths, cycles, and type graphs beyond the traversal limits. Unknown names continue to
 fail with `UnknownTypeException` and role `VALUE`. Create and save operations validate these types
 before writing, and the legacy-to-typed-record migration applies the same rules per document.
+The migration also validates the newly constructed records before adding them to a write batch.
+If a readable legacy alias would produce an unregistered canonical key, that document remains
+unchanged. Healthy documents still migrate; the configured Fail or Warn policy reports rejected
+documents without adding registrations from persisted data.
 
 The parameterless `SimpleType`, `CollectionType`, and `TypedRecords` conversion methods remain
 available for compatibility and accept only fixed built-ins. Code that reconstructs registered

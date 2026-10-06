@@ -15,11 +15,16 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoMappedFieldsIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoPathFieldsIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoNumericIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoJavaTimeIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoNativeJavaTimeIT",
+        "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoMigrationCopyIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoCustomTypeKeyIT",
         "de.lise.fluxflow.mongo.security.production.Boot3ProductionMongoReconciliationIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot3PrototypeMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot3PrototypeMongoHostTemplateIT",
         "de.lise.fluxflow.mongo.security.production.ValueTypeConverterSecurityTest",
+        "de.lise.fluxflow.mongo.security.production.ValueTypeConverterJavaCompatibilityTest",
     ))
 }
 
@@ -63,4 +68,9 @@ dependencies {
     testImplementation(project(":core:stereotyped"))
     testImplementation(project(":core:validation"))
     testImplementation(project(":springboot:springboot"))
+}
+
+// Exercise host JSR-310 and native UTC codecs under a deterministic non-UTC process timezone.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.timezone", "Europe/Berlin")
 }

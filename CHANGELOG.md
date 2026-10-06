@@ -66,6 +66,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    is limited to fixed built-ins, and enum values in structurally untyped maps are rejected before
    their type information can be lost.
 
+5. **Exact Mongo built-in scalar restoration**<br/>
+   Restores BSON-normalized Byte, Short, Float, BigDecimal, BigInteger and URL values only for
+   their fixed registered types, preserving numeric ranges, reversible Float values and decimal
+   precision. Production JavaTime reconstruction follows the isolated host converter's JSR-310
+   or native UTC behavior. Big-number writes still require the host's chosen representation;
+   standalone converters keep their existing constructor signatures and have no host timezone
+   bridge. Type-record migration validates newly constructed records before buffering writes,
+   leaving rejected documents unchanged under its configured Fail or Warn policy.
+
 ### Removed
 
 ## [0.3.0] - 2026-10-06
