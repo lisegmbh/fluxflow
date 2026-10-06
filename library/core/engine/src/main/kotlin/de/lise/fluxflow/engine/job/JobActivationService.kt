@@ -5,15 +5,20 @@ import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.Job
 import de.lise.fluxflow.api.job.JobDefinition
 import de.lise.fluxflow.api.job.JobIdentifier
+import de.lise.fluxflow.api.job.JobKind
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.persistence.job.JobData
+import de.lise.fluxflow.reflection.types.TypeRegistry
+import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
 
-class JobActivationService(
+class JobActivationService @JvmOverloads constructor(
     private val iocProvider: IocProvider,
     private val jobDefinitionBuilder: JobDefinitionBuilder,
     private val classLoaderProvider: ClassLoaderProvider,
+    private val typeRegistry: TypeRegistry = TypeRegistry.load(classLoaderProvider.provide()),
 ) {
     fun <TWorkflowModel> activate(
         workflow: Workflow<TWorkflowModel>,
@@ -26,6 +31,14 @@ class JobActivationService(
             jobData.cancellationKey?.let { CancellationKey(it) },
             jobData.status
         )
+    }
+
+    fun requireRegistered(kind: JobKind) {
+        try {
+            typeRegistry.resolve(TypeRole.JOB, kind.value)
+        } catch (exception: UnknownTypeException) {
+            throw JobActivationException(kind.value, exception)
+        }
     }
 
     fun toJobDefinition(definitionObject: Any): JobDefinition {
@@ -44,7 +57,8 @@ class JobActivationService(
             jobDefinitionBuilder,
             iocProvider,
             workflow,
-            jobData
+            jobData,
+            typeRegistry,
         ).activate()
     }
 }

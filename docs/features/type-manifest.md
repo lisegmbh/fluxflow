@@ -91,9 +91,19 @@ from contributor beans. Manifests without that property keep the previous full s
 registrations are deduplicated. A malformed resource, missing class, or conflicting role/key
 mapping stops startup and reports both origins.
 
-This startup validation takes effect immediately when upgrading, including for `job`, `model`,
-and `value` registrations before their activation and persistence consumers use the registry
-exclusively. For example, two discovered `@Job("notify")` classes now prevent startup, as does
+Step and job activation resolve persisted kinds exclusively through this registry. An exact entry
+with the matching role must exist before FluxFlow initializes or constructs the declared class.
+Unknown kinds fail with a `StepActivationException` or `JobActivationException`; the cause is an
+`UnknownTypeException` that identifies the rejected role and key. Scheduling a job and creating a
+step require that same entry before anything is written. An unknown job kind fails with
+`JobActivationException` and the message `Unable to schedule job with kind '<kind>'`, without
+cancelling, persisting, or scheduling. An unknown step kind fails with `StepActivationException`
+before the step document or its definition snapshot is written. Reading jobs stays
+fail-closed: one job that cannot be activated fails the whole `findAllJobs` call. Mongo model and value type
+metadata use the same inventory in a separate hardening step.
+This startup validation takes effect immediately when upgrading, including for `model` and
+`value` registrations before their persistence consumers use the registry exclusively.
+For example, two discovered `@Job("notify")` classes now prevent startup, as does
 a dependency manifest referencing a class absent at runtime. Audit duplicate kinds and dependency
 manifests before upgrading; invalid registrations are not ignored.
 
@@ -102,15 +112,12 @@ resolution. Contributors retain the exact `KClass` they supply. Registrations fo
 role/key and binary name from different class loaders conflict if they identify different JVM
 classes. Contributor classes must also be compatible with the application's shared APIs.
 
-The registry introduced with this feature is the shared inventory for the activation and Mongo
-hardening work. Until those consumers use it exclusively, the presence of a manifest alone does
-not make persisted type resolution fail closed.
-
-Before upgrading a running system to fail-closed resolution, compare the distinct persisted step
-and job kinds and the model/value type metadata with the generated inventory. Database contents
-may identify missing declarations, but must never add registrations automatically. Applications
-with dynamic or erased model types need explicit entries. A repository fixture cannot replace an
-inventory check against the actual application's data.
+Before upgrading a running system, compare the distinct persisted step and job kinds with the
+generated inventory. Every historical kind that can still be activated needs an exact `step` or
+`job` declaration. Compare model/value type metadata as preparation for Mongo hardening as well.
+Database contents may identify missing declarations, but must never add registrations
+automatically. Applications with dynamic or erased model types need explicit entries. A repository
+fixture cannot replace an inventory check against the actual application's data.
 
 The manifest is an authorization inventory. It does not provide cryptographic integrity for an
 artifact or validate the constructor arguments and data belonging to an allowed type.

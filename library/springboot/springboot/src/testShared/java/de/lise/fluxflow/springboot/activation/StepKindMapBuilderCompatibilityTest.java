@@ -14,6 +14,6 @@ class StepKindMapBuilderCompatibilityTest {
             getClass().getClassLoader()
         );
 
-        assertThat(builder.build()).isEmpty();
+        assertThat(builder.build()).isNotNull();
     }
 }

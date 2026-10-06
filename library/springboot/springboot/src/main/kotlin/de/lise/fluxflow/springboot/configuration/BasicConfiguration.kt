@@ -88,6 +88,7 @@ import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -104,6 +105,9 @@ import java.time.Clock
 @ComponentScan(basePackages = ["de.lise.fluxflow.springboot.autoconfigure"])
 @Import(ChangeDetectionConfiguration::class, TypeRegistryConfiguration::class)
 open class BasicConfiguration {
+    @Autowired
+    private lateinit var typeRegistryProvider: ObjectProvider<TypeRegistry>
+
     @Lazy
     @Autowired
     // This needs to be done to avoid the circular dependency between StepServiceImpl and ContinuationService
@@ -422,7 +426,8 @@ open class BasicConfiguration {
         return JobActivationService(
             iocProvider,
             jobDefinitionBuilder,
-            classLoaderProvider
+            classLoaderProvider,
+            typeRegistryProvider.getObject(),
         )
     }
 

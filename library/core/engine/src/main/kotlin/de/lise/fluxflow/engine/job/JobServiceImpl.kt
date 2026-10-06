@@ -30,6 +30,7 @@ class JobServiceImpl(
     ): Job {
         val model = jobContinuation.model!!
         val jobDefinition = jobActivationService.toJobDefinition(model)
+        jobActivationService.requireRegistered(jobDefinition.kind)
         val job = jobDefinition.createJob(
             JobIdentifier(jobPersistence.randomId()),
             workflow,
@@ -71,6 +72,7 @@ class JobServiceImpl(
         workflow: Workflow<TWorkflowModel>,
         job: Job
     ): Job {
+        jobActivationService.requireRegistered(job.definition.kind)
         val duplicatedJob = job.definition.createJob(
             JobIdentifier(jobPersistence.randomId()),
             workflow,
