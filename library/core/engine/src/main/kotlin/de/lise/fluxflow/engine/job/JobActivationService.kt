@@ -5,10 +5,13 @@ import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.Job
 import de.lise.fluxflow.api.job.JobDefinition
 import de.lise.fluxflow.api.job.JobIdentifier
+import de.lise.fluxflow.api.job.JobKind
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.reflection.types.TypeRegistry
+import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
 
 class JobActivationService @JvmOverloads constructor(
@@ -28,6 +31,14 @@ class JobActivationService @JvmOverloads constructor(
             jobData.cancellationKey?.let { CancellationKey(it) },
             jobData.status
         )
+    }
+
+    fun requireRegistered(kind: JobKind) {
+        try {
+            typeRegistry.resolve(TypeRole.JOB, kind.value)
+        } catch (exception: UnknownTypeException) {
+            throw JobActivationException(kind.value, exception)
+        }
     }
 
     fun toJobDefinition(definitionObject: Any): JobDefinition {
