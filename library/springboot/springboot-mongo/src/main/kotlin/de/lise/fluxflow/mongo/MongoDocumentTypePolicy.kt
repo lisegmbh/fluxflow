@@ -19,6 +19,7 @@ internal class MongoDocumentTypePolicy(
     private val typeKey: String = "_class",
     private val maxDepth: Int = 100,
     private val maxNodes: Int = 100_000,
+    private val fieldNames: MongoFieldNames? = null,
 ) {
     init {
         require(maxDepth > 0) { "Mongo document maximum depth must be positive" }
@@ -48,8 +49,10 @@ internal class MongoDocumentTypePolicy(
     fun validateProjection(targetType: Class<*>, source: Bson) {
         val root = source as? Document
             ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
-        val rootPolicy = when (aliases.rolesOf(targetType)) {
+        val roles = aliases.rolesOf(targetType)
+        val rootPolicy = when (roles) {
             setOf(TypeRole.MODEL) -> NodePolicy.Model
+            setOf(TypeRole.MODEL, TypeRole.VALUE) -> NodePolicy.Projection(roles)
             else -> NodePolicy.Application(TypeRole.VALUE)
         }
         validateAlias(root, rootPolicy, "projection")
@@ -57,7 +60,7 @@ internal class MongoDocumentTypePolicy(
         root.entries.asSequence()
             .filterNot { (key, _) -> key == typeKey }
             .forEach { (key, value) ->
-                pending.add(Frame(value, key, 1, rootPolicy.forField(key)))
+                pending.add(Frame(value, key, 1, policyForField(rootPolicy, key)))
             }
         validateFrames(pending)
     }
@@ -89,7 +92,7 @@ internal class MongoDocumentTypePolicy(
                                     nested,
                                     "${frame.path}.$key",
                                     frame.depth + 1,
-                                    frame.policy.forField(key?.toString()),
+                                    policyForField(frame.policy, key?.toString()),
                                 )
                             )
                         }
@@ -135,8 +138,31 @@ internal class MongoDocumentTypePolicy(
         }
     }
 
+    private fun policyForRootField(targetType: Class<*>, key: String): NodePolicy =
+        policyForField(NodePolicy.RootFields(targetType), key)
+
+    private fun policyForField(policy: NodePolicy, key: String?): NodePolicy {
+        val base = if (policy is NodePolicy.Namespace) policy.base else policy
+        val mappedType = when (base) {
+            is NodePolicy.RootFields -> base.type
+            NodePolicy.TypedRecords -> TypedRecords::class.java
+            NodePolicy.StepDefinitionData -> DataDefinitionDocument::class.java
+            else -> null
+        }
+        if (mappedType == null || fieldNames == null || key == null) {
+            return if (base is NodePolicy.RootFields) policyForRootProperty(base.type, key) else base.forField(key)
+        }
+        val path = (if (policy is NodePolicy.Namespace) policy.path else emptyList()) + key
+        val property = fieldNames.propertyAt(mappedType, path)
+        if (property != null) {
+            return if (base is NodePolicy.RootFields) policyForRootProperty(base.type, property) else base.forField(property)
+        }
+        return if (fieldNames.isNamespace(mappedType, path)) NodePolicy.Namespace(mappedType, path, base)
+            else NodePolicy.Static
+    }
+
     @Suppress("DEPRECATION")
-    private fun policyForRootField(targetType: Class<*>, key: String): NodePolicy = when (targetType) {
+    private fun policyForRootProperty(targetType: Class<*>, key: String?): NodePolicy = when (targetType) {
         WorkflowDocument::class.java -> when (key) {
             WorkflowDocument::model.name -> NodePolicy.Model
             else -> NodePolicy.Static
@@ -188,6 +214,7 @@ internal class MongoDocumentTypePolicy(
         try {
             when (policy) {
                 is NodePolicy.Application -> aliases.resolve(policy.role, alias)
+                is NodePolicy.Projection -> aliases.resolve(policy.roles, alias)
                 NodePolicy.Model -> aliases.resolve(TypeRole.MODEL, alias)
                 NodePolicy.Infrastructure -> require(aliases.isInfrastructure(alias)) {
                     "Mongo type alias '$alias' is not allowed in FluxFlow infrastructure metadata"
@@ -200,7 +227,7 @@ internal class MongoDocumentTypePolicy(
                 ) {
                     "Mongo type alias '$alias' is not a step data definition"
                 }
-                NodePolicy.Static -> throw IllegalArgumentException(
+                NodePolicy.Static, is NodePolicy.Namespace, is NodePolicy.RootFields -> throw IllegalArgumentException(
                     "Mongo type metadata is not allowed at '$path.$typeKey'"
                 )
             }
@@ -221,12 +248,29 @@ internal class MongoDocumentTypePolicy(
         fun forField(key: String?): NodePolicy
         fun forElement(): NodePolicy
 
+        data class RootFields(val type: Class<*>) : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Static
+            override fun forElement(): NodePolicy = Static
+        }
+
+        /** Mapping path containers carry no discriminator authorization of their own. */
+        data class Namespace(val type: Class<*>, val path: List<String>, val base: NodePolicy) : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Static
+            override fun forElement(): NodePolicy = Static
+        }
+
         data class Application(val role: TypeRole) : NodePolicy {
             override fun forField(key: String?): NodePolicy = this
             override fun forElement(): NodePolicy = this
         }
 
         data object Model : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Application(TypeRole.VALUE)
+            override fun forElement(): NodePolicy = Application(TypeRole.VALUE)
+        }
+
+        /** An isolated projection may originate in either registered application context. */
+        data class Projection(val roles: Set<TypeRole>) : NodePolicy {
             override fun forField(key: String?): NodePolicy = Application(TypeRole.VALUE)
             override fun forElement(): NodePolicy = Application(TypeRole.VALUE)
         }

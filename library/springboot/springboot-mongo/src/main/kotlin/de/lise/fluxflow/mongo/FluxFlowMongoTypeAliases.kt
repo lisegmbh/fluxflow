@@ -79,6 +79,14 @@ internal class FluxFlowMongoTypeAliases(
         return roleAliases[role to alias] ?: throw UnknownTypeException(role, alias)
     }
 
+    fun resolve(roles: Set<TypeRole>, alias: Any?): Class<*> {
+        require(alias is String) { "Mongo type alias must be a string" }
+        require(alias.isNotEmpty()) { "Mongo type alias must not be empty" }
+        val orderedRoles = roles.sortedBy(TypeRole::name)
+        return orderedRoles.firstNotNullOfOrNull { roleAliases[it to alias] }
+            ?: throw UnknownTypeException(orderedRoles.first(), alias)
+    }
+
     fun aliasFor(type: Class<*>): String {
         if (type !in writeTypes) {
             throw IllegalArgumentException("Unregistered Mongo type '${type.name}' cannot be persisted")

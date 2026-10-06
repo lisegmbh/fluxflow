@@ -85,7 +85,7 @@ class FluxFlowMongoAccess internal constructor(
         }
         converter = GuardedMongoConverter(
             isolatedConverter,
-            MongoDocumentTypePolicy(aliases, typeKey),
+            MongoDocumentTypePolicy(aliases, typeKey, fieldNames = MongoFieldNames(hostConverter.mappingContext)),
         )
         template = MongoTemplate(databaseFactory, converter).apply {
             setApplicationContext(applicationContext)

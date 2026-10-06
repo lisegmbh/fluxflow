@@ -768,6 +768,14 @@ open class BasicConfiguration {
         )
     }
 
+    /** Compatibility factory for callers supplying only bulk job access. */
+    @Deprecated("Override the four-argument factory to customize the production reconciliation bean")
+    @Suppress("DEPRECATION")
+    open fun startupJobReconciliation(
+        jobService: JobService,
+        schedulingService: SchedulingService,
+    ): BootstrapAction = ReconcileScheduledJobsBootstrapAction(jobService, schedulingService)
+
     @Bean
     @Order(105)
     @ConditionalOnProperty(

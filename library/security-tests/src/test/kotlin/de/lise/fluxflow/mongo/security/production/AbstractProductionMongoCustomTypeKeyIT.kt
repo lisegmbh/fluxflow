@@ -9,6 +9,7 @@ import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.migration.MongoMigrationProvider
 import de.lise.fluxflow.mongo.security.fixtures.MODEL_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.SUBTYPE_ALIAS
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowModelType
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowSubtype
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowModel
@@ -75,6 +76,12 @@ abstract class AbstractProductionMongoCustomTypeKeyIT {
         val subtypeId = WorkflowIdentifier(UUID.randomUUID().toString())
         workflows.create(securityTestModel(), modelId)
         workflows.create(SecurityTestWorkflowSubtype("subtype", "custom type key"), subtypeId)
+        val collection = access.template.getCollection(access.template.getCollectionName(WorkflowDocument::class.java))
+        collection.updateOne(eq("_id", modelId.value), set("model.@type", MODEL_TYPE_ALIAS))
+        collection.updateOne(eq("_id", subtypeId.value), set("model.@type", SUBTYPE_ALIAS))
+        assertThat(workflows.find(modelId)?.model).isEqualTo(securityTestModel())
+        assertThat(workflows.find(subtypeId)?.model)
+            .isEqualTo(SecurityTestWorkflowSubtype("subtype", "custom type key"))
 
         val results = workflowFlowQueries.find(WorkflowDocument::class.java) {
             where {

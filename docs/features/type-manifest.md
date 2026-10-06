@@ -119,5 +119,22 @@ Database contents may identify missing declarations, but must never add registra
 automatically. Applications with dynamic or erased model types need explicit entries. A repository
 fixture cannot replace an inventory check against the actual application's data.
 
+Mongo reads, type-record bootstrap migration and scheduled-job reference queries use the host
+converter's mapping context, including custom field names and status converters. Mapped PATH fields
+follow their BSON nesting; literal KEY field names retain their dots. Infrastructure mapping namespaces do not
+authorize type metadata on themselves or on unknown neighboring fields. `isType` queries
+accept registered logical MODEL and VALUE aliases as well as their JVM binary names. An isolated
+projection of a class registered in both roles accepts either declared alias at its root;
+nested values still require VALUE registration and full workflow models require MODEL registration.
+
+Scheduled-job reconciliation uses raw references when the persistence implementation supplies
+`ScheduledJobReferencePersistence`, then restores each job independently. The deprecated
+two-argument `ReconcileScheduledJobsBootstrapAction(JobService, SchedulingService)` constructor
+and `BasicConfiguration.startupJobReconciliation(JobService, SchedulingService)` factory remain
+available for existing callers. They retain bulk reads and fail-fast behavior, including guarded
+type errors, because they do not receive raw references or a `WorkflowService`.
+The production Spring bean uses the four-argument factory. Subclasses that customized the old
+two-argument factory must move that override to the four-argument factory to customize this bean.
+
 The manifest is an authorization inventory. It does not provide cryptographic integrity for an
 artifact or validate the constructor arguments and data belonging to an allowed type.

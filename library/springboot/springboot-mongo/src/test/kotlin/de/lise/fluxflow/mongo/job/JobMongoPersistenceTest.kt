@@ -23,6 +23,10 @@ import org.mockito.kotlin.whenever
 import org.springframework.boot.test.system.CapturedOutput
 import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.core.convert.MappingMongoConverter
+import org.springframework.data.mongodb.core.convert.NoOpDbRefResolver
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext
 
 @ExtendWith(OutputCaptureExtension::class)
 class JobMongoPersistenceTest {
@@ -36,6 +40,14 @@ class JobMongoPersistenceTest {
         val documents = mock<FindIterable<Document>>()
         val cursor = mock<MongoCursor<Document>>()
         val objectId = ObjectId()
+        val mappingContext = MongoMappingContext().apply {
+            setSimpleTypeHolder(MongoCustomConversions.create {}.simpleTypeHolder)
+            afterPropertiesSet()
+        }
+        val converter = MappingMongoConverter(NoOpDbRefResolver.INSTANCE, mappingContext).apply {
+            afterPropertiesSet()
+        }
+        whenever(mongoTemplate.converter).thenReturn(converter)
 
         whenever(mongoTemplate.getCollectionName(JobDocument::class.java)).thenReturn("jobs")
         whenever(mongoTemplate.getCollection("jobs")).thenReturn(collection)

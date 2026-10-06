@@ -58,10 +58,16 @@ open class ProductionMongoSecurityConfiguration {
     ): TypeRegistry = securityTestRegistry(loader, *allowedSecurityTestEntries())
 
     @Bean
-    open fun mongoCustomConversions(): MongoCustomConversions =
+    open fun mongoCustomConversions(
+        @Value("\${fluxflow.security.test.mapped-status:false}") mappedStatus: Boolean,
+    ): MongoCustomConversions =
         MongoCustomConversions.create { adapter ->
             adapter.registerConverter(SecurityConvertedValueWriter)
             adapter.registerConverter(SecurityConvertedValueReader)
+            if (mappedStatus) {
+                adapter.registerConverter(MappedJobStatusWriter)
+                adapter.registerConverter(MappedJobStatusReader)
+            }
         }
 
     @Bean
