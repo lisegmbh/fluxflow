@@ -22,7 +22,7 @@ pluginManagement {
 Apply the manifest plugin with the same version as the FluxFlow libraries:
 
 The plugin requires Java 17 or newer and Gradle 9.2.0 or newer. Its Kotlin DSL configuration
-and manifest generation are tested on Gradle 9.2.0 and the repository's Gradle 9.7.1 wrapper.
+and manifest generation are tested on Gradle 9.2.0 and the repository's Gradle 9.8.0 wrapper.
 
 ```kotlin
 plugins {
