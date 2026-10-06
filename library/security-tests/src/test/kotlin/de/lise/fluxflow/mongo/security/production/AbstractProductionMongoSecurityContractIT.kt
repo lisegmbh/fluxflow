@@ -29,6 +29,10 @@ import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.fixtures.HostOnlyWorkflowModel
 import de.lise.fluxflow.mongo.security.fixtures.MODEL_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.DUAL_MODEL_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.DUAL_VALUE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.SecurityDualRoleRecord
+import de.lise.fluxflow.mongo.security.fixtures.SecurityDualRoleEnvelope
 import de.lise.fluxflow.mongo.security.fixtures.SecurityHostDocument
 import de.lise.fluxflow.mongo.security.fixtures.SecurityHostRepository
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowModel
@@ -380,6 +384,40 @@ abstract class AbstractProductionMongoSecurityContractIT {
 
         assertThat(results.map { it.id })
             .containsExactlyInAnyOrder(modelId.value, subtypeId.value)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `type queries find logical model subtype and nested value aliases`() {
+        val modelId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val subtypeId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val valueId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = securityTestModel()
+        val subtype = SecurityTestWorkflowSubtype("subtype", "logical alias")
+        workflows.create(model, modelId)
+        workflows.create(subtype, subtypeId)
+        workflows.create(SecurityDualRoleEnvelope(SecurityDualRoleRecord("value")), valueId)
+        workflowCollection().updateOne(eq("_id", modelId.value), set("model._class", MODEL_TYPE_ALIAS))
+        workflowCollection().updateOne(eq("_id", subtypeId.value), set("model._class", SUBTYPE_ALIAS))
+        workflowCollection().updateOne(eq("_id", valueId.value), set("model.payload._class", DUAL_VALUE_ALIAS))
+        assertThat(workflows.find(modelId)?.model).isEqualTo(model)
+        assertThat(workflows.find(subtypeId)?.model).isEqualTo(subtype)
+
+        val interfaceResults = workflowFlowQueries.find(WorkflowDocument::class.java) {
+            where { get(WorkflowDocument::model).isType(SecurityTestWorkflowModelType::class) }
+        }
+        val exactResults = workflowFlowQueries.find(WorkflowDocument::class.java) {
+            where { get(WorkflowDocument::model).isType(SecurityTestWorkflowModel::class) }
+        }
+        val valueResults = workflowFlowQueries.find(WorkflowDocument::class.java) {
+            where {
+                get(WorkflowDocument::model).asType(SecurityDualRoleEnvelope::class)
+                    .get(SecurityDualRoleEnvelope::payload).isType(SecurityDualRoleRecord::class)
+            }
+        }
+        assertThat(interfaceResults.map { it.id }).containsExactlyInAnyOrder(modelId.value, subtypeId.value)
+        assertThat(exactResults.map { it.id }).containsExactly(modelId.value)
+        assertThat(valueResults.map { it.id }).containsExactly(valueId.value)
         assertThat(witnessLoader.events).isEmpty()
     }
 
@@ -789,6 +827,63 @@ abstract class AbstractProductionMongoSecurityContractIT {
         }
 
         assertUnknownType(failure, TypeRole.VALUE, SUBTYPE_ALIAS)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `dual role records project with their distinct model and value aliases`() {
+        val modelId = UUID.randomUUID().toString()
+        val valueId = UUID.randomUUID().toString()
+        val model = SecurityDualRoleRecord("model")
+        val value = SecurityDualRoleRecord("value")
+        workflows.create(model, WorkflowIdentifier(modelId))
+        workflows.create(SecurityDualRoleEnvelope(value), WorkflowIdentifier(valueId))
+        workflowCollection().updateOne(eq("_id", modelId), set("model._class", DUAL_MODEL_ALIAS))
+        workflowCollection().updateOne(eq("_id", valueId), set("model.payload._class", DUAL_VALUE_ALIAS))
+
+        val projectedModel = workflowFlowQueries.find(SecurityDualRoleRecord::class.java) {
+            where { get(WorkflowDocument::id).isEqual(modelId) }.project {
+                get(WorkflowDocument::model).asType(SecurityDualRoleRecord::class)
+            }
+        }
+        val projectedValue = workflowFlowQueries.find(SecurityDualRoleRecord::class.java) {
+            where { get(WorkflowDocument::id).isEqual(valueId) }.project {
+                get(WorkflowDocument::model).asType(SecurityDualRoleEnvelope::class)
+                    .get(SecurityDualRoleEnvelope::payload)
+            }
+        }
+
+        assertThat(projectedModel).containsExactly(model)
+        assertThat(projectedValue).containsExactly(value)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `dual role projections keep nested values and complete workflow model roles strict`() {
+        val id = UUID.randomUUID().toString()
+        workflows.create(SecurityDualRoleRecord("safe"), WorkflowIdentifier(id))
+        workflowCollection().updateOne(
+            eq("_id", id),
+            combine(
+                set("model._class", DUAL_MODEL_ALIAS),
+                set("model.nested", Document("_class", SUBTYPE_ALIAS)
+                    .append("name", "forbidden nested model").append("subtypeValue", "value")),
+            ),
+        )
+        val constructions = SecurityDualRoleRecord.constructions.get()
+        assertUnknownType(catchFailure {
+            workflowFlowQueries.find(SecurityDualRoleRecord::class.java) {
+                where { get(WorkflowDocument::id).isEqual(id) }.project {
+                    get(WorkflowDocument::model).asType(SecurityDualRoleRecord::class)
+                }
+            }
+        }, TypeRole.VALUE, SUBTYPE_ALIAS)
+        assertThat(SecurityDualRoleRecord.constructions.get()).isEqualTo(constructions)
+
+        workflowCollection().updateOne(eq("_id", id), set("model._class", DUAL_VALUE_ALIAS))
+        assertUnknownType(catchFailure { workflows.find(WorkflowIdentifier(id)) },
+            TypeRole.MODEL, DUAL_VALUE_ALIAS)
+        assertThat(SecurityDualRoleRecord.constructions.get()).isEqualTo(constructions)
         assertThat(witnessLoader.events).isEmpty()
     }
 

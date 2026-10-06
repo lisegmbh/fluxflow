@@ -25,6 +25,21 @@ internal const val MODEL_TYPE_ALIAS = "workflow-model"
 internal const val VALUE_TYPE_ALIAS = "workflow-value"
 
 internal const val SUBTYPE_ALIAS = "workflow-subtype"
+internal const val DUAL_MODEL_ALIAS = "dual-model"
+internal const val DUAL_VALUE_ALIAS = "dual-value"
+
+internal data class SecurityDualRoleRecord(val value: String, val nested: Any? = null) {
+    init { constructions.incrementAndGet() }
+
+    companion object {
+        val constructions = java.util.concurrent.atomic.AtomicInteger()
+    }
+}
+internal data class SecurityDualRoleEnvelope(val payload: SecurityDualRoleRecord)
+internal data class SecurityLiteralKeyModel(
+    @field:Field(name = "literal.payload", nameType = org.springframework.data.mongodb.core.mapping.FieldName.Type.KEY)
+    val payload: SecurityTestWorkflowValue,
+)
 
 internal sealed interface SecurityTestWorkflowModelType {
     val name: String
@@ -91,6 +106,10 @@ internal fun securityTestEntry(
 ): TypeManifestEntry = TypeManifestEntry(role, key, binaryClassName, "Mongo security contract fixture")
 
 internal fun allowedSecurityTestEntries(): Array<TypeManifestEntry> = arrayOf(
+    securityTestEntry(TypeRole.MODEL, SecurityLiteralKeyModel::class.java.name, SecurityLiteralKeyModel::class.java.name),
+    securityTestEntry(TypeRole.MODEL, DUAL_MODEL_ALIAS, SecurityDualRoleRecord::class.java.name),
+    securityTestEntry(TypeRole.VALUE, DUAL_VALUE_ALIAS, SecurityDualRoleRecord::class.java.name),
+    securityTestEntry(TypeRole.MODEL, SecurityDualRoleEnvelope::class.java.name, SecurityDualRoleEnvelope::class.java.name),
     securityTestEntry(
         TypeRole.MODEL,
         SecurityTestWorkflowModel::class.java.name,

@@ -68,13 +68,15 @@ internal class MongoCompiler(
         root: Expression<TRoot, *>,
         current: IsTypeExpression<TRoot, *, *>
     ): MongoToken {
-        val allKnownTypes = subclassProvider.findSubclasses(current.requiredType)
+        val aliases = if (subclassProvider is TypeAliasProvider)
+            subclassProvider.findTypeAliases(current.requiredType)
+        else subclassProvider.findSubclasses(current.requiredType).map { it.name }
         val instanceToken = doCompile(root, current.instance).asStatementToken(root, current.instance)
 
         return StatementOperationToken(
             ConvertingStatementToken(instanceToken) { "${it}.${config.typeFieldName}" },
             "in",
-            ConstantToken(allKnownTypes.map { it.name })
+            ConstantToken(aliases.toList())
         )
     }
 

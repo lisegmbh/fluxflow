@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    See the [migration guidance](docs/features/type-manifest.md).
 
 ### Deprecated
+1. **Two-argument scheduled-job reconciliation APIs**<br/>
+   The constructor and `BasicConfiguration` factory remain source- and JVM-signature compatible,
+   but retain bulk, fail-fast reads. Use the four-argument APIs for per-job isolation with raw
+   references; migrate old configuration overrides to the four-argument bean factory.
 
 ### Fixed
 1. **Fail-closed persisted step and job activation**<br/>
@@ -48,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    aggregation, projection and bootstrap reads share the guarded converter in both Spring Boot
    compatibility lines. Scheduled-job startup reconciliation reads identifiers first and isolates
    a rejected job so healthy neighboring jobs can still be restored.
+3. **Mongo mapping and logical type alias consistency**<br/>
+   Guarded reads, type-record bootstrap migration and scheduled-job reference queries honor
+   host field naming and status conversion, including nested PATH mappings and literal dotted
+   KEY names. `isType` finds registered MODEL and VALUE aliases,
+   including subtype filters and custom type keys. Dual-role projections accept their declared
+   root aliases while nested values and complete workflow models retain strict role checks.
 
 ### Removed
 

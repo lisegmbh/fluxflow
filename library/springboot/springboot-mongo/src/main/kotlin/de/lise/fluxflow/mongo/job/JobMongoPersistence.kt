@@ -1,7 +1,7 @@
 package de.lise.fluxflow.mongo.job
 
-import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Projections.include
+import de.lise.fluxflow.mongo.MongoFieldNames
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.job.CancellationKey
@@ -51,22 +51,28 @@ class JobMongoPersistence(
     }
 
     override fun findScheduledJobReferences(): List<ScheduledJobReference> {
+        val converter = mongoTemplate.converter
+        val entity = converter.mappingContext.getRequiredPersistentEntity(JobDocument::class.java)
+        val fieldNames = MongoFieldNames(converter.mappingContext)
+        val workflowIdField = fieldNames.fieldName(JobDocument::class.java, JobDocument::workflowId.name)
+        val filter = org.springframework.data.mongodb.core.convert.QueryMapper(converter)
+            .getMappedObject(Document(JobDocument::jobStatus.name, JobStatus.Scheduled), entity)
         val collection = mongoTemplate.getCollection(
             mongoTemplate.getCollectionName(JobDocument::class.java),
         )
 
         return collection
-            .find(eq(JobDocument::jobStatus.name, JobStatus.Scheduled.name))
-            .projection(include("_id", JobDocument::workflowId.name))
+            .find(filter)
+            .projection(include("_id", workflowIdField))
             .iterator()
             .use { documents ->
                 documents.asSequence()
-                    .mapNotNull { it.toScheduledJobReference() }
+                    .mapNotNull { it.toScheduledJobReference(fieldNames) }
                     .toList()
             }
     }
 
-    private fun Document.toScheduledJobReference(): ScheduledJobReference? {
+    private fun Document.toScheduledJobReference(fieldNames: MongoFieldNames): ScheduledJobReference? {
         val jobId = when (val persistedId = this["_id"]) {
             is String -> persistedId
             is ObjectId -> persistedId.toHexString()
@@ -75,7 +81,7 @@ class JobMongoPersistence(
                 "The persisted job identifier must be a String or ObjectId.",
             )
         }
-        val workflowId = this[JobDocument::workflowId.name] as? String
+        val workflowId = fieldNames.read(this, JobDocument::class.java, JobDocument::workflowId.name) as? String
             ?: return malformedReference(
                 jobId,
                 "The persisted workflow identifier must be a String.",
