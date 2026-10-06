@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 3. **Shared security baseline tests**<br/>
    Adds a mandatory test gate and shared characterization fixtures for both Spring
    compatibility lines. This test infrastructure does not change production type resolution.
+
 6. **Docker runtime for Jenkins integration tests**<br/>
    Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
    the Gradle container, and retains test reports on build failures. Security-test exceptions
