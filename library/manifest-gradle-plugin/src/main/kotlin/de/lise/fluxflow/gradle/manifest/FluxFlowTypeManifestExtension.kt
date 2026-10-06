@@ -8,8 +8,8 @@ import javax.inject.Inject
 open class FluxFlowTypeManifestExtension @Inject constructor(
     objects: ObjectFactory,
 ) {
-    internal val declarations: ListProperty<String> = objects
-        .listProperty(String::class.java)
+    internal val declarations: ListProperty<ManifestDeclaration> = objects
+        .listProperty(ManifestDeclaration::class.java)
         .convention(emptyList())
 
     fun step(key: String, binaryClassName: String) = register(TypeRole.STEP, key, binaryClassName)
@@ -21,6 +21,6 @@ open class FluxFlowTypeManifestExtension @Inject constructor(
     fun value(key: String, binaryClassName: String) = register(TypeRole.VALUE, key, binaryClassName)
 
     private fun register(role: TypeRole, key: String, binaryClassName: String) {
-        declarations.add(ManifestDeclarationCodec.encode(role, key, binaryClassName))
+        declarations.add(ManifestDeclaration(role, key, binaryClassName))
     }
 }

@@ -89,6 +89,52 @@ class TypeManifestTest {
         assertThat(writing.message).contains("first.jar", "second.jar")
     }
 
+    @Test
+    fun `should persist covered packages with declarations`() {
+        val declarations = listOf(
+            TypeManifestEntry(TypeRole.STEP, "review", ReviewStep::class.java.name, "test"),
+        )
+
+        val content = TypeManifest.write(declarations, listOf("com.example.workflow", "com.example"))
+        val parsed = TypeManifest.read("origin", content.reader())
+
+        assertThat(content).isEqualTo(
+            """
+            manifest.version=1
+            manifest.covered-packages=com.example,com.example.workflow
+            step.review=de.lise.fluxflow.reflection.types.TypeManifestTest${'$'}ReviewStep
+            """.trimIndent() + "\n"
+        )
+        assertThat(parsed.coveredPackages).containsExactly("com.example", "com.example.workflow")
+        assertThat(parsed.entries.single().key).isEqualTo("review")
+    }
+
+    @Test
+    fun `should omit covered packages when none are declared`() {
+        val content = TypeManifest.write(
+            listOf(TypeManifestEntry(TypeRole.STEP, "review", ReviewStep::class.java.name, "test")),
+        )
+        val parsed = TypeManifest.read("origin", content.reader())
+
+        assertThat(content).doesNotContain("covered-packages")
+        assertThat(parsed.coveredPackages).isEmpty()
+    }
+
+    @Test
+    fun `should reject unknown manifest metadata properties`() {
+        val unexpected = """
+            manifest.version=1
+            manifest.unexpected=true
+        """.trimIndent()
+
+        assertThatThrownBy {
+            TypeManifest.read("fixture.jar", unexpected.reader())
+        }
+            .isInstanceOf(TypeManifestException::class.java)
+            .hasMessageContaining("fixture.jar")
+            .hasMessageContaining("manifest.unexpected")
+    }
+
     private class ReviewStep
     private class NotificationJob
     private class OrderModel
