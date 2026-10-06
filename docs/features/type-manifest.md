@@ -94,7 +94,12 @@ mapping stops startup and reports both origins.
 Step and job activation resolve persisted kinds exclusively through this registry. An exact entry
 with the matching role must exist before FluxFlow initializes or constructs the declared class.
 Unknown kinds fail with a `StepActivationException` or `JobActivationException`; the cause is an
-`UnknownTypeException` that identifies the rejected role and key. Mongo model and value type
+`UnknownTypeException` that identifies the rejected role and key. Scheduling a job and creating a
+step require that same entry before anything is written. An unknown job kind fails with
+`JobActivationException` and the message `Unable to schedule job with kind '<kind>'`, without
+cancelling, persisting, or scheduling. An unknown step kind fails with `StepActivationException`
+before the step document or its definition snapshot is written. Reading jobs stays
+fail-closed: one job that cannot be activated fails the whole `findAllJobs` call. Mongo model and value type
 metadata use the same inventory in a separate hardening step.
 This startup validation takes effect immediately when upgrading, including for `model` and
 `value` registrations before their persistence consumers use the registry exclusively.
