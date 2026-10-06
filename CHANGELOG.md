@@ -37,7 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    See the [migration guidance](docs/features/type-manifest.md).
 
 ### Deprecated
+
 ### Fixed
+1. **Fail-closed persisted step and job activation**<br/>
+   Persisted step and job kinds are now resolved only through exact, role-specific trusted
+   registrations. Unknown kinds fail before their classes can be initialized or constructed.
+   Existing fully qualified kinds remain supported when present in the generated manifest or an
+   explicit context-local registration.
+
 ### Removed
 
 ## [0.3.0] - 2026-10-06
@@ -92,12 +99,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
 
 ### Fixed
-1. **Fail-closed persisted step and job activation**<br/>
-   Persisted step and job kinds are now resolved only through exact, role-specific trusted
-   registrations. Unknown kinds fail before their classes can be initialized or constructed.
-   Existing fully qualified kinds remain supported when present in the generated manifest or an
-   explicit context-local registration.
-
 ### Removed
 
 ## [0.2.0] - 2025-10-02
