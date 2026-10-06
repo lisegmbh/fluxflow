@@ -2,6 +2,7 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+import org.gradle.plugin.devel.GradlePluginDevelopmentExtension
 
 // A module's Spring line is defined by the tree it lives in. Core modules (null)
 // are Spring-agnostic and must not depend on either line.
@@ -21,11 +22,20 @@ val verifyPublications = tasks.register("verifyPublications") {
         publishedProjects.forEach { publishedProject ->
             val line = springLineOf(publishedProject.path)
             val expectedArtifactId = publishedProject.name + (line ?: "")
+            val pluginMarkerArtifactIds = publishedProject.extensions
+                .findByType(GradlePluginDevelopmentExtension::class.java)
+                ?.plugins
+                ?.map { "${it.id}.gradle.plugin" }
+                ?.toSet()
+                .orEmpty()
 
             publishedProject.extensions.getByType(PublishingExtension::class.java)
                 .publications
                 .withType(MavenPublication::class.java)
-                .filter { it.artifactId != expectedArtifactId }
+                .filter {
+                    it.artifactId != expectedArtifactId &&
+                            it.artifactId !in pluginMarkerArtifactIds
+                }
                 .forEach { publication ->
                     violations += "${publishedProject.path} publishes as \"${publication.artifactId}\"" +
                             " but must publish as \"$expectedArtifactId\"."

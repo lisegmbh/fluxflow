@@ -57,6 +57,7 @@ import de.lise.fluxflow.persistence.workflow.flowquery.WorkflowQueryableToDataRe
 import de.lise.fluxflow.reflection.activation.parameter.IocParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.ParameterResolver
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
+import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.scheduling.SchedulingCallback
 import de.lise.fluxflow.scheduling.SchedulingService
 import de.lise.fluxflow.springboot.activation.StepKindMapBuilder
@@ -65,6 +66,7 @@ import de.lise.fluxflow.springboot.bootstrapping.ReconcileScheduledJobsBootstrap
 import de.lise.fluxflow.springboot.bootstrapping.SpringBootstrapper
 import de.lise.fluxflow.springboot.expression.SpringSelectorExpressionParser
 import de.lise.fluxflow.springboot.ioc.SpringIocProvider
+import de.lise.fluxflow.springboot.types.TypeRegistryConfiguration
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
 import de.lise.fluxflow.stereotyped.job.parameter.ParameterDefinitionBuilder
@@ -100,7 +102,7 @@ import java.time.Clock
 
 @Configuration
 @ComponentScan(basePackages = ["de.lise.fluxflow.springboot.autoconfigure"])
-@Import(ChangeDetectionConfiguration::class)
+@Import(ChangeDetectionConfiguration::class, TypeRegistryConfiguration::class)
 open class BasicConfiguration {
     @Lazy
     @Autowired
@@ -476,11 +478,13 @@ open class BasicConfiguration {
     @Bean
     open fun stepKindMapBuilder(
         context: ApplicationContext,
-        classLoaderProvider: ClassLoaderProvider
+        classLoaderProvider: ClassLoaderProvider,
+        typeRegistry: TypeRegistry,
     ): StepKindMapBuilder {
         return StepKindMapBuilder(
             context,
-            classLoaderProvider.provide()
+            classLoaderProvider.provide(),
+            typeRegistry,
         )
     }
 
