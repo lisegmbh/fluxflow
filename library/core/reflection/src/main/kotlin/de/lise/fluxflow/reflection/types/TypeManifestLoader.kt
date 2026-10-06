@@ -6,7 +6,9 @@ package de.lise.fluxflow.reflection.types
 class TypeManifestLoader(
     private val classLoader: ClassLoader,
 ) {
-    fun load(): List<TypeManifestEntry> {
+    fun load(): List<TypeManifestEntry> = loadContents().entries
+
+    fun loadContents(): TypeManifestContents {
         val resources = try {
             classLoader.getResources(TypeManifest.RESOURCE_PATH).toList()
         } catch (exception: Exception) {
@@ -15,21 +17,25 @@ class TypeManifestLoader(
                 exception,
             )
         }
-        return resources
-        .sortedBy { it.toExternalForm() }
-        .flatMap { resource ->
-            try {
-                resource.openStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                    TypeManifest.read(resource.toExternalForm(), reader)
+        val manifests = resources
+            .sortedBy { it.toExternalForm() }
+            .map { resource ->
+                try {
+                    resource.openStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                        TypeManifest.read(resource.toExternalForm(), reader)
+                    }
+                } catch (exception: TypeManifestException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    throw TypeManifestException(
+                        "Could not read FluxFlow type manifest '${resource.toExternalForm()}'.",
+                        exception,
+                    )
                 }
-            } catch (exception: TypeManifestException) {
-                throw exception
-            } catch (exception: Exception) {
-                throw TypeManifestException(
-                    "Could not read FluxFlow type manifest '${resource.toExternalForm()}'.",
-                    exception,
-                )
             }
-        }
+        return TypeManifestContents(
+            entries = manifests.flatMap { it.entries },
+            coveredPackages = manifests.flatMap { it.coveredPackages }.distinct().sorted(),
+        )
     }
 }

@@ -1,5 +1,6 @@
 package de.lise.fluxflow.springboot.types
 
+import de.lise.fluxflow.reflection.types.TypeManifestLoader
 import de.lise.fluxflow.reflection.types.TypeRegistryEntry
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import org.springframework.context.ApplicationContext
@@ -27,8 +28,10 @@ class FluxFlowTypeRegistryFactory(
     )
 
     fun create(): TypeRegistry {
+        val contents = TypeManifestLoader(classLoader).loadContents()
         val scanRoots = SpringScanRootResolver(context).resolve()
-        val scannedEntries = AnnotatedTypeRegistrationScanner(classLoader).scan(scanRoots)
+        val scannedEntries = AnnotatedTypeRegistrationScanner(classLoader)
+            .scan(scanRoots, contents.coveredPackages)
         val explicitEntries = contributors.toSortedMap().flatMap { (beanName, contributor) ->
             contributor.registrations().map { registration ->
                 TypeRegistryEntry(
@@ -40,6 +43,6 @@ class FluxFlowTypeRegistryFactory(
                 )
             }
         }
-        return TypeRegistry.load(classLoader, scannedEntries, explicitEntries)
+        return TypeRegistry.create(classLoader, contents.entries + scannedEntries, explicitEntries)
     }
 }

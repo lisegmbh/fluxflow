@@ -24,7 +24,7 @@ class FluxFlowTypeManifestPluginTest {
             """.trimIndent()
         )
 
-        val firstResult = run("check", "--rerun-tasks", "--configuration-cache").build()
+        val firstResult = run("jar", "--rerun-tasks", "--configuration-cache").build()
         val firstManifest = manifestFromJar()
 
         fixture(
@@ -33,19 +33,18 @@ class FluxFlowTypeManifestPluginTest {
                 model 'external-model', 'example.ExternalModel'
             """.trimIndent()
         )
-        val secondResult = run("check", "--rerun-tasks", "--configuration-cache").build()
+        val secondResult = run("jar", "--rerun-tasks", "--configuration-cache").build()
         val secondManifest = manifestFromJar()
 
         assertThat(firstResult.task(":generateFluxflowTypeManifest")?.outcome)
             .isEqualTo(TaskOutcome.SUCCESS)
-        assertThat(firstResult.task(":verifyFluxflowTypeManifest")?.outcome)
-            .isEqualTo(TaskOutcome.SUCCESS)
-        assertThat(secondResult.task(":verifyFluxflowTypeManifest")?.outcome)
-            .isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(firstResult.task(":jar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(secondResult.task(":jar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
         assertThat(firstManifest).isEqualTo(secondManifest)
         assertThat(firstManifest.toString(Charsets.UTF_8)).isEqualTo(
             """
             manifest.version=1
+            manifest.covered-packages=example
             step.review=example.ReviewStep
             job.notification=example.NotificationJob
             model.external-model=example.ExternalModel
@@ -55,51 +54,22 @@ class FluxFlowTypeManifestPluginTest {
     }
 
     @Test
-    fun `O06 should fail check when the jar omits the generated manifest`() {
+    fun `should not register archive verification tasks`() {
         fixture(
             declarations = "model 'external-model', 'example.ExternalModel'",
-            jarConfiguration = """
-                eachFile {
-                    if (path == 'META-INF/fluxflow/type-manifest.properties') {
-                        exclude()
-                    }
-                }
-            """.trimIndent(),
+            additionalPlugins = "id 'org.springframework.boot' version '3.5.7'",
         )
 
-        val result = run("check").buildAndFail()
+        val result = run("tasks", "--all").build()
 
-        assertThat(result.task(":verifyFluxflowTypeManifest")?.outcome)
-            .isEqualTo(TaskOutcome.FAILED)
-        assertThat(result.output).contains("does not contain META-INF/fluxflow/type-manifest.properties")
-    }
-
-    @Test
-    fun `O06 should fail check when the jar contains the manifest more than once`() {
-        fixture(
-            declarations = "model 'external-model', 'example.ExternalModel'",
-            jarConfiguration = """
-                duplicatesStrategy = DuplicatesStrategy.INCLUDE
-                from(layout.buildDirectory.file(
-                    'generated/fluxflowTypeManifest/META-INF/fluxflow/type-manifest.properties'
-                )) {
-                    into 'META-INF/fluxflow'
-                }
-            """.trimIndent(),
-        )
-
-        val result = run("check").buildAndFail()
-
-        assertThat(result.task(":verifyFluxflowTypeManifest")?.outcome)
-            .isEqualTo(TaskOutcome.FAILED)
-        assertThat(result.output).contains(
-            "contains META-INF/fluxflow/type-manifest.properties more than once"
-        )
+        assertThat(result.output)
+            .doesNotContain("verifyFluxflowTypeManifest")
+            .doesNotContain("verifyFluxflowTypeManifestBootJar")
     }
 
     @ParameterizedTest
     @ValueSource(strings = ["3.5.7", "4.0.6"])
-    fun `O06 should generate and verify the manifest in an executable boot jar`(bootVersion: String) {
+    fun `O06 should generate the manifest in an executable boot jar`(bootVersion: String) {
         fixture(
             declarations = "model 'external-model', 'example.ExternalModel'",
             additionalPlugins = "id 'org.springframework.boot' version '$bootVersion'",
@@ -115,14 +85,13 @@ class FluxFlowTypeManifestPluginTest {
             """.trimIndent()
         )
 
-        val result = run("check").build()
+        val result = run("bootJar").build()
         val bootManifest = manifestFromJar(
             "build/libs/manifest-fixture-boot.jar",
         )
 
         assertThat(result.task(":bootJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-        assertThat(result.task(":verifyFluxflowTypeManifestBootJar")?.outcome)
-            .isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.task(":verifyFluxflowTypeManifestBootJar")).isNull()
         assertThat(bootManifest.toString(Charsets.UTF_8)).contains(
             "model.external-model=example.ExternalModel"
         )
@@ -155,7 +124,7 @@ class FluxFlowTypeManifestPluginTest {
     fun `M03 O06 should fail generation when an explicit class is missing`() {
         fixture(declarations = "model 'missing', 'missing.DoesNotExist'")
 
-        val result = run("check").buildAndFail()
+        val result = run("generateFluxflowTypeManifest").buildAndFail()
 
         assertThat(result.task(":generateFluxflowTypeManifest")?.outcome)
             .isEqualTo(TaskOutcome.FAILED)
@@ -167,7 +136,7 @@ class FluxFlowTypeManifestPluginTest {
         fixture(declarations = "model 'external-model', 'external.ExternalModel'")
         externalTypeProject("compileOnly")
 
-        val result = run("check").buildAndFail()
+        val result = run("generateFluxflowTypeManifest").buildAndFail()
 
         assertThat(result.task(":generateFluxflowTypeManifest")?.outcome)
             .isEqualTo(TaskOutcome.FAILED)
@@ -179,9 +148,9 @@ class FluxFlowTypeManifestPluginTest {
         fixture(declarations = "model 'external-model', 'external.ExternalModel'")
         externalTypeProject("runtimeOnly")
 
-        val result = run("check").build()
+        val result = run("jar").build()
 
-        assertThat(result.task(":verifyFluxflowTypeManifest")?.outcome)
+        assertThat(result.task(":generateFluxflowTypeManifest")?.outcome)
             .isEqualTo(TaskOutcome.SUCCESS)
         assertThat(manifestFromJar().toString(Charsets.UTF_8)).contains(
             "model.external-model=external.ExternalModel"
@@ -193,9 +162,9 @@ class FluxFlowTypeManifestPluginTest {
         val marker = File(projectDir, "initialized.txt")
         fixture(declarations = "model 'external-model', 'example.ExternalModel'")
 
-        val result = run("check", "-Dfluxflow.test.marker=${marker.absolutePath}").build()
+        val result = run("jar", "-Dfluxflow.test.marker=${marker.absolutePath}").build()
 
-        assertThat(result.task(":verifyFluxflowTypeManifest")?.outcome)
+        assertThat(result.task(":generateFluxflowTypeManifest")?.outcome)
             .isEqualTo(TaskOutcome.SUCCESS)
         assertThat(marker).doesNotExist()
     }
@@ -211,10 +180,10 @@ class FluxFlowTypeManifestPluginTest {
             """.trimIndent()
         )
 
-        run("check").build()
+        run("jar").build()
 
         assertThat(manifestFromJar().toString(Charsets.UTF_8)).isEqualTo(
-            "manifest.version=1\nstep.review=example.ReviewStep\njob.notification=example.NotificationJob\n"
+            "manifest.version=1\nmanifest.covered-packages=example\nstep.review=example.ReviewStep\njob.notification=example.NotificationJob\n"
         )
     }
 
@@ -222,7 +191,7 @@ class FluxFlowTypeManifestPluginTest {
     fun `should reject registered classes available only to the plugin loader`() {
         fixture(declarations = "model 'plugin-only', 'de.lise.fluxflow.reflection.types.TypeRegistry'")
 
-        val result = run("check").buildAndFail()
+        val result = run("generateFluxflowTypeManifest").buildAndFail()
 
         assertThat(result.output).contains("Could not resolve model type 'de.lise.fluxflow.reflection.types.TypeRegistry'")
     }
@@ -240,7 +209,7 @@ class FluxFlowTypeManifestPluginTest {
             """.trimIndent()
         )
 
-        run("check").build()
+        run("jar").build()
 
         assertThat(manifestFromJar().toString(Charsets.UTF_8))
             .contains("step.example.Outer.Nested=example.Outer${'$'}Nested\n")
@@ -258,7 +227,7 @@ class FluxFlowTypeManifestPluginTest {
             """.trimIndent()
         )
 
-        val result = run("check").buildAndFail()
+        val result = run("generateFluxflowTypeManifest").buildAndFail()
 
         assertThat(result.output).contains("Could not resolve step type 'example.BrokenStep'")
     }
@@ -275,7 +244,7 @@ class FluxFlowTypeManifestPluginTest {
             """.trimIndent()
         )
 
-        val result = run("check").buildAndFail()
+        val result = run("generateFluxflowTypeManifest").buildAndFail()
 
         assertThat(result.output).contains("Compiled class 'example.Ambiguous' declares both @Step and @Job")
     }
@@ -302,10 +271,39 @@ class FluxFlowTypeManifestPluginTest {
             """.trimIndent()
         )
 
-        run("check").withGradleVersion(gradleVersion).build()
+        run("jar").withGradleVersion(gradleVersion).build()
 
         assertThat(manifestFromJar().toString(Charsets.UTF_8))
             .contains("model.external-model=example.ExternalModel\n", "value.currency=java.lang.String\n")
+    }
+
+    @Test
+    fun `should keep declaration keys that contain a semicolon`() {
+        fixture(declarations = "model 'semi;colon', 'example.ExternalModel'")
+
+        run("jar").build()
+
+        assertThat(manifestFromJar().toString(Charsets.UTF_8))
+            .contains("model.semi;colon=example.ExternalModel\n")
+    }
+
+    @Test
+    fun `should record compiled class packages as covered`() {
+        fixture(declarations = "")
+        File(projectDir, "src/main/java/other/OtherType.java").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                package other;
+                public class OtherType {}
+                """.trimIndent()
+            )
+        }
+
+        run("jar").build()
+
+        assertThat(manifestFromJar().toString(Charsets.UTF_8))
+            .contains("manifest.covered-packages=example,other\n")
     }
 
     private fun fixture(

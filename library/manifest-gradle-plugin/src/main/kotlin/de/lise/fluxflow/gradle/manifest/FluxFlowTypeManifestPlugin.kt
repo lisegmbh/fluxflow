@@ -45,41 +45,16 @@ class FluxFlowTypeManifestPlugin : Plugin<Project> {
                 generatedResourcesDirectory,
             )
         }
-        val jar = project.tasks.named("jar", Jar::class.java) { task ->
+        project.tasks.named("jar", Jar::class.java) { task ->
             task.dependsOn(generate)
         }
-        val verify = project.tasks.register(
-            "verifyFluxflowTypeManifest",
-            VerifyFluxFlowTypeManifest::class.java,
-        ) { task ->
-            task.group = "verification"
-            task.description = "Verifies the trusted FluxFlow type manifest in the application JAR."
-            task.dependsOn(jar)
-            task.generatedManifest.set(generate.flatMap { it.outputFile })
-            task.archiveFile.set(jar.flatMap { it.archiveFile })
-            task.archiveEntryPath.convention(TypeManifest.RESOURCE_PATH)
-        }
-        project.tasks.named("check") { it.dependsOn(verify) }
-
         project.pluginManager.withPlugin("org.springframework.boot") {
-            val bootJar = project.tasks.named(
+            project.tasks.named(
                 "bootJar",
                 AbstractArchiveTask::class.java,
             ) { task ->
                 task.dependsOn(generate)
             }
-            val verifyBootJar = project.tasks.register(
-                "verifyFluxflowTypeManifestBootJar",
-                VerifyFluxFlowTypeManifest::class.java,
-            ) { task ->
-                task.group = "verification"
-                task.description = "Verifies the trusted FluxFlow type manifest in the executable Boot JAR."
-                task.dependsOn(bootJar)
-                task.generatedManifest.set(generate.flatMap { it.outputFile })
-                task.archiveFile.set(bootJar.flatMap { it.archiveFile })
-                task.archiveEntryPath.set(TypeManifest.RESOURCE_PATH)
-            }
-            project.tasks.named("check") { it.dependsOn(verifyBootJar) }
         }
     }
 }

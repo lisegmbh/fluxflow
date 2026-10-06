@@ -8,6 +8,7 @@ import de.lise.fluxflow.reflection.types.TypeManifest
 import de.lise.fluxflow.reflection.types.TypeManifestException
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.springboot.activation.StepKindMapBuilder
 import de.lise.fluxflow.springboot.types.fixtures.defaultapp.DefaultScannedJob
 import de.lise.fluxflow.springboot.types.fixtures.defaultapp.DefaultScannedStep
@@ -361,6 +362,76 @@ class FluxFlowTypeRegistryFactoryTest {
                 .isInstanceOf(TypeManifestException::class.java)
                 .hasMessageContaining("job")
         }
+    }
+
+    @Test
+    fun `should skip annotation scans for packages covered by a manifest`() {
+        val covered = DefaultScannedStep::class.java.packageName
+        val loader = manifestLoader(
+            """
+            manifest.version=1
+            manifest.covered-packages=$covered
+            model.provider-only=java.lang.String
+            """.trimIndent()
+        )
+        loader.use { classLoader ->
+            context(DefaultTypeApplication::class.java).use { context ->
+                context.beanFactory.registerSingleton(
+                    "plainSteps",
+                    FixedContributor(TypeRegistration(TypeRole.STEP, "plain-step", ExplicitUnannotatedModel::class)),
+                )
+
+                val registry = FluxFlowTypeRegistryFactory(context, classLoader).create()
+
+                assertThat(registry.resolve(TypeRole.MODEL, "provider-only")).isEqualTo(String::class)
+                assertThat(registry.resolve(TypeRole.STEP, "plain-step")).isEqualTo(ExplicitUnannotatedModel::class)
+                assertThatThrownBy { registry.resolve(TypeRole.STEP, "scanned-step") }
+                    .isInstanceOf(UnknownTypeException::class.java)
+                assertThatThrownBy { registry.resolve(TypeRole.JOB, "scanned-job") }
+                    .isInstanceOf(UnknownTypeException::class.java)
+            }
+        }
+    }
+
+    @Test
+    fun `should still scan annotated types outside covered packages`() {
+        val covered = ExplicitTypeApplication::class.java.packageName
+        manifestLoader(
+            """
+            manifest.version=1
+            manifest.covered-packages=$covered
+            """.trimIndent()
+        ).use { classLoader ->
+            context(DefaultTypeApplication::class.java).use { context ->
+                val registry = FluxFlowTypeRegistryFactory(context, classLoader).create()
+
+                assertThat(registry.resolve(TypeRole.STEP, "scanned-step")).isEqualTo(DefaultScannedStep::class)
+            }
+        }
+    }
+
+    @Test
+    fun `should scan annotated types when a manifest declares no coverage`() {
+        manifestLoader(
+            """
+            manifest.version=1
+            model.provider-only=java.lang.String
+            """.trimIndent()
+        ).use { classLoader ->
+            context(DefaultTypeApplication::class.java).use { context ->
+                val registry = FluxFlowTypeRegistryFactory(context, classLoader).create()
+
+                assertThat(registry.resolve(TypeRole.STEP, "scanned-step")).isEqualTo(DefaultScannedStep::class)
+                assertThat(registry.resolve(TypeRole.MODEL, "provider-only")).isEqualTo(String::class)
+            }
+        }
+    }
+
+    private fun manifestLoader(content: String): URLClassLoader {
+        val manifest = temporaryDirectory.resolve(TypeManifest.RESOURCE_PATH)
+        Files.createDirectories(manifest.parent)
+        Files.writeString(manifest, "$content\n")
+        return URLClassLoader(arrayOf(temporaryDirectory.toUri().toURL()), javaClass.classLoader)
     }
 
     @Configuration

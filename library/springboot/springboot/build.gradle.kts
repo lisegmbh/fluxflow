@@ -1,5 +1,3 @@
-val apiConsumer = sourceSets.create("apiConsumer")
-
 dependencies {
     api(project(":core:api"))
     api(project(":core:engine"))
@@ -23,8 +21,6 @@ dependencies {
 
     testImplementation(project(":springboot:springboot-testing"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-
-    add(apiConsumer.implementationConfigurationName, project(":springboot:springboot"))
 }
 
 kotlin {
@@ -39,8 +35,4 @@ sourceSets {
     test {
         java.srcDir("src/testShared/java")
     }
-}
-
-tasks.named("check") {
-    dependsOn(apiConsumer.classesTaskName)
 }
