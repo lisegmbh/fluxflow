@@ -71,7 +71,7 @@ subprojects {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion") {
                 bomProperties(
-                    mapOf("kotlin.version" to "2.4.0")
+                    mapOf("kotlin.version" to "2.4.20")
                 )
             }
         }
