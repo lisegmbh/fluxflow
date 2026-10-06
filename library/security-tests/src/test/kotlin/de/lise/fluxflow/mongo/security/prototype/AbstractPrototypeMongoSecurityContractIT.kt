@@ -3,6 +3,7 @@ package de.lise.fluxflow.mongo.security.prototype
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Updates.set
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowRepository
@@ -16,6 +17,8 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.data.mongodb.MongoDatabaseFactory
@@ -681,6 +684,71 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
         assertThat(access.workflows.find(prototypeIdentifier)).isNull()
     }
 
+    @Test
+    fun `prototype type queries honor the configured type key`() {
+        val loader = WitnessClassLoader()
+        val access = prototypeAccess(prototypeRegistry(loader, *allowedPrototypeEntries()), "@type")
+        val subtypeId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val otherId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val subtype = PrototypeWorkflowSubtype("matching-subtype", "custom-key")
+        access.workflows.create(subtype, subtypeId)
+        access.workflows.create(prototypeModel(), otherId)
+        val persisted = requireNotNull(workflowCollection(access.template).find(eq("_id", subtypeId.value)).first())
+        val model = persisted.get("model", Document::class.java)
+        assertThat(model.getString("@type")).isEqualTo(PrototypeWorkflowSubtype::class.java.name)
+        assertThat(model.containsKey("_class")).isFalse()
+        assertThat(access.workflows.find(subtypeId)?.model).isEqualTo(subtype)
+        val results = access.workflows.findAll(FlowQuery.of {
+            where { get(WorkflowData::model).isType(PrototypeWorkflowSubtype::class) }
+        })
+        assertThat(results.items.map { it.id }).containsExactly(subtypeId.value)
+        assertThat(loader.events).isEmpty()
+    }
+    @ParameterizedTest
+    @ValueSource(strings = ["_class", "@type"])
+    fun `prototype subtype queries use only their own registry inventory and aliases`(typeKey: String) {
+        val loader = WitnessClassLoader()
+        val access = prototypeAccess(prototypeRegistry(loader, *allowedPrototypeEntries()), typeKey)
+        val modelId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val subtypeId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val hostId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = prototypeModel()
+        val subtype = PrototypeWorkflowSubtype("registered-subtype", "own-inventory")
+        val hostSubtype = PrototypeHostOnlySubtype("host-only-assignable")
+        hostWorkflowPersistence.create(hostSubtype, hostId)
+        assertThat(hostWorkflowPersistence.find(hostId)?.model).isEqualTo(hostSubtype)
+        access.workflows.create(model, modelId)
+        access.workflows.create(subtype, subtypeId)
+        val collection = workflowCollection(access.template)
+        // Align the host-written discriminator with this isolated context's configured layout.
+        collection.updateOne(eq("_id", hostId.value), set("model.$typeKey", PrototypeHostOnlySubtype::class.java.name))
+        val hostRaw = requireNotNull(collection.find(eq("_id", hostId.value)).first())
+        assertThat(hostRaw.get("model", Document::class.java).getString(typeKey))
+            .isEqualTo(PrototypeHostOnlySubtype::class.java.name)
+        listOf(false, true).forEach { logicalAliases ->
+            if (logicalAliases) {
+                collection.updateOne(eq("_id", modelId.value), set("model.$typeKey", MODEL_TYPE_ALIAS))
+                collection.updateOne(eq("_id", subtypeId.value), set("model.$typeKey", SUBTYPE_ALIAS))
+            }
+            assertThat(access.workflows.find(modelId)?.model).isEqualTo(model)
+            assertThat(access.workflows.find(subtypeId)?.model).isEqualTo(subtype)
+            val interfaceMatches = access.workflows.findAll(FlowQuery.of {
+                where { get(WorkflowData::model).isType(PrototypeWorkflowModelType::class) }
+            })
+            assertThat(interfaceMatches.items.map { it.id }).containsExactlyInAnyOrder(modelId.value, subtypeId.value)
+            val exactMatches = access.workflows.findAll(FlowQuery.of {
+                where { get(WorkflowData::model).isType(PrototypeWorkflowSubtype::class) }
+            })
+            assertThat(exactMatches.items.map { it.id }).containsExactly(subtypeId.value)
+            val hostMatches = access.workflows.findAll(FlowQuery.of {
+                where { get(WorkflowData::model).isType(PrototypeHostOnlySubtype::class) }
+            })
+            assertThat(hostMatches.items).isEmpty()
+        }
+        assertUnknownType(catchFailure { access.workflows.find(hostId) }, TypeRole.MODEL,
+            PrototypeHostOnlySubtype::class.java.name)
+        assertThat(loader.events).isEmpty()
+    }
     private fun prototypeAccess(
         registry: de.lise.fluxflow.reflection.types.TypeRegistry,
         typeKey: String = "_class",

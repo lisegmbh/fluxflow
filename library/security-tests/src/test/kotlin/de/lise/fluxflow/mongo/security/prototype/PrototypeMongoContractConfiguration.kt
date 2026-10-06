@@ -34,6 +34,11 @@ open class PrototypeMongoContractConfiguration {
             HostOnlyWorkflowModel::class.java.name,
             HostOnlyWorkflowModel::class.java.name,
         ),
+        prototypeEntry(
+            TypeRole.MODEL,
+            PrototypeHostOnlySubtype::class.java.name,
+            PrototypeHostOnlySubtype::class.java.name,
+        ),
     )
 
     @Bean
