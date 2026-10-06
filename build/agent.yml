@@ -3,7 +3,7 @@ kind: Pod
 spec:
   containers:
     - name: gradle
-      image: gradle:9.7.1-jdk17
+      image: gradle:9.8.0-jdk17
       securityContext:
         # Match the Docker socket group without changing the inherited build UID.
         runAsGroup: 1000
