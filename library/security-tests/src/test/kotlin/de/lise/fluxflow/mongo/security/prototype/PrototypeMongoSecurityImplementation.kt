@@ -19,9 +19,12 @@ import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter
 import org.springframework.data.mongodb.core.convert.MongoConverter
 import org.springframework.data.mongodb.core.convert.MongoTypeMapper
+import org.springframework.data.mongodb.core.mapping.MongoPersistentEntity
+import org.springframework.data.mongodb.core.mapping.MongoPersistentProperty
 import org.springframework.data.mongodb.repository.support.MongoRepositoryFactory
 import org.springframework.data.projection.EntityProjection
 import org.springframework.data.repository.core.support.RepositoryComposition.RepositoryFragments
+import org.springframework.data.mapping.context.MappingContext
 
 /** Creates the Spring-Data-version-specific, fail-closed type mapper used by the prototype. */
 fun interface PrototypeMongoTypeMapperFactory {
@@ -292,6 +295,28 @@ class GuardedMongoConverter(
 }
 
 /**
+ * Prevents a new MongoTemplate from installing an auto-index event publisher on the shared host
+ * mapping context. All mapping operations still delegate to that context.
+ */
+private class NonIndexingMongoConverter(
+    delegate: MongoConverter,
+) : MongoConverter by delegate {
+    private val mappingContext = NonIndexingMappingContext(delegate.mappingContext)
+
+    override fun getMappingContext():
+        MappingContext<out MongoPersistentEntity<*>, MongoPersistentProperty> = mappingContext
+}
+
+private class NonIndexingMappingContext(
+    delegate: MappingContext<out MongoPersistentEntity<*>, MongoPersistentProperty>,
+) : MappingContext<MongoPersistentEntity<*>, MongoPersistentProperty> by delegate.asMongoMappingContext()
+
+@Suppress("UNCHECKED_CAST")
+private fun MappingContext<out MongoPersistentEntity<*>, MongoPersistentProperty>.asMongoMappingContext():
+    MappingContext<MongoPersistentEntity<*>, MongoPersistentProperty> =
+    this as MappingContext<MongoPersistentEntity<*>, MongoPersistentProperty>
+
+/**
  * Isolated workflow persistence assembled from the host converter as a prototype. It shares the
  * host database factory so Spring-managed Mongo transactions bind to the same resource.
  */
@@ -326,7 +351,7 @@ class PrototypeFluxFlowMongoAccess(
             isolatedConverter,
             MongoDocumentTypePolicy(registry, effectiveTypeKey),
         )
-        template = MongoTemplate(databaseFactory, converter)
+        template = MongoTemplate(databaseFactory, NonIndexingMongoConverter(converter))
         if (hostTemplate.hasReadPreference()) {
             template.setReadPreference(hostTemplate.readPreference)
         }
