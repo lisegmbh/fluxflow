@@ -144,12 +144,13 @@ Map-key handling is never inferred from the host converter: without an explicit 
 uses Spring Data's strict default and rejects dotted keys on its own writes. Configure the same policy
 explicitly when workflow data contains such keys.
 
-The internal converter and template receive the application context, so their callback and mapping-event
-behavior is context-local. The repository factory receives that context's `Environment` and, when exactly
-one is present, its `ProjectionFactory`; multiple `ProjectionFactory` beans fail startup rather than being
-chosen arbitrarily. The host mapping context is shared read-only for mapping metadata. FluxFlow does not
-create, initialize, or alter a second mapping context, publish host mapping events, or trigger host auto-index
-creation. Template-only options remain available through ordered `FluxFlowMongoTemplateCustomizer` beans.
+The internal converter and template receive the application context, so their callbacks and lifecycle events
+follow normal application-context semantics. The repository factory receives that context's `Environment` and,
+when exactly one is present, its `ProjectionFactory`; multiple `ProjectionFactory` beans fail startup rather
+than being chosen arbitrarily. The host mapping context is shared read-only for mapping metadata. FluxFlow
+does not create, initialize, or alter a second mapping context, mutate the host event publisher, or trigger
+auto-index creation. Template-only options remain available through ordered
+`FluxFlowMongoTemplateCustomizer` beans.
 
 Scheduled-job reconciliation uses raw references when the persistence implementation supplies
 `ScheduledJobReferencePersistence`, then restores each job independently. The deprecated
