@@ -208,6 +208,34 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
     }
 
     @Test
+    fun `D09 access derives the persisted type key from the host converter`() {
+        val customTypeKey = "@hostType"
+        val customHostConverter = (hostTemplate.converter as MappingMongoConverter)
+            .with(databaseFactory)
+            .apply {
+                setTypeMapper(DefaultMongoTypeMapper(customTypeKey))
+            }
+        val registry = prototypeRegistry(WitnessClassLoader(), *allowedPrototypeEntries())
+        val access = PrototypeFluxFlowMongoAccess(
+            hostTemplate = MongoTemplate(databaseFactory, customHostConverter),
+            databaseFactory = databaseFactory,
+            registry = registry,
+            typeMapperFactory = typeMapperFactory,
+        )
+        val written = Document()
+
+        access.converter.write(
+            WorkflowDocument("host-type-key", prototypeModel(), PrototypeWorkflowModel::class.java.name),
+            written,
+        )
+
+        val persistedModel = written.get("model", Document::class.java)
+        assertThat(persistedModel.getString(customTypeKey))
+            .isEqualTo(PrototypeWorkflowModel::class.java.name)
+        assertThat(persistedModel.containsKey("_class")).isFalse()
+    }
+
+    @Test
     fun `D07 access creation rejects a host converter with type metadata disabled`() {
         val disabledHostConverter = (hostTemplate.converter as MappingMongoConverter)
             .with(databaseFactory)
