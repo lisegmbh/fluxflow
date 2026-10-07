@@ -123,6 +123,9 @@ abstract class AbstractProductionMongoSecurityContractIT {
     private lateinit var customizerInvocations: MongoCustomizerInvocations
 
     @Autowired
+    private lateinit var converterCallbacks: MongoConverterCallbacks
+
+    @Autowired
     private lateinit var stepDefinitions: StepDefinitionPersistence
 
     @Autowired
@@ -142,6 +145,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
     @BeforeEach
     fun clearMongoCollections() {
         assertThat(witnessLoader.events).isEmpty()
+        converterCallbacks.afterConvertCount.set(0)
         listOf(
             WorkflowDocument::class.java,
             StepDocument::class.java,
@@ -367,6 +371,19 @@ abstract class AbstractProductionMongoSecurityContractIT {
 
             assertThat(workflows.find(identifier)?.model).isEqualTo(model)
         }
+    }
+
+    @Test
+    fun `internal converter applies the explicit map-key and AfterConvert callback contract`() {
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = linkedMapOf("key.with.dot" to "value")
+        workflows.create(model, identifier)
+
+        val persisted = requireNotNull(workflowCollection().find(eq("_id", identifier.value)).first())
+        assertThat(persisted.get("model", Document::class.java))
+            .containsEntry("key~with~dot", "value")
+        assertThat(workflows.find(identifier)?.model).isEqualTo(model)
+        assertThat(converterCallbacks.afterConvertCount.get()).isGreaterThanOrEqualTo(1)
     }
 
     @Test
