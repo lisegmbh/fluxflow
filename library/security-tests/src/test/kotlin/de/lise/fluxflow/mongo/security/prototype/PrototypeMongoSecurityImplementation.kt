@@ -37,15 +37,14 @@ internal class PrototypeMongoAliases(
     trustedRootTypes: Set<Class<*>>,
 ) {
     private val aliases: Map<String, Class<*>>
-    private val writeAliases: Map<Class<*>, String>
+    private val registrations: List<Registration>
 
     init {
-        val registrations = registry.entries
+        registrations = registry.entries
             .filter { it.role == TypeRole.MODEL || it.role == TypeRole.VALUE }
-            .map { Registration(it.key, it.type.java) } +
-                trustedRootTypes.map { Registration(it.name, it) }
+            .map { Registration(it.key, it.type.java, it.role) } +
+                trustedRootTypes.map { Registration(it.name, it, null) }
         aliases = readAliases(registrations)
-        writeAliases = writeAliases(registrations)
     }
 
     fun resolve(value: Any?): Class<*> {
@@ -55,12 +54,53 @@ internal class PrototypeMongoAliases(
             ?: throw IllegalArgumentException("Unregistered Mongo type alias '$value'")
     }
 
-    fun aliasFor(type: Class<*>): String = writeAliases[type]
-        ?: throw IllegalArgumentException(
-            "Unregistered Mongo type '${type.name}' cannot be persisted"
-        )
+    fun aliasFor(type: Class<*>): String =
+        canonicalAlias(TypeRole.MODEL, type)
+            ?: canonicalAlias(TypeRole.VALUE, type)
+            ?: canonicalUnscopedAlias(type)
 
-    private data class Registration(val alias: String, val type: Class<*>)
+    fun aliasFor(role: TypeRole, type: Class<*>): String =
+        canonicalAlias(role, type)
+            ?: throw IllegalArgumentException(
+                "Unregistered Mongo ${role.name.lowercase()} type '${type.name}' cannot be persisted"
+            )
+
+    private data class Registration(
+        val alias: String,
+        val type: Class<*>,
+        val role: TypeRole?,
+    )
+
+    private fun canonicalAlias(role: TypeRole, type: Class<*>): String? {
+        val aliases = registrations
+            .asSequence()
+            .filter { it.role == role && it.type == type }
+            .map { it.alias }
+            .distinct()
+            .toList()
+        if (aliases.isEmpty()) {
+            return null
+        }
+        return aliases.singleOrNull { it == type.name }
+            ?: aliases.singleOrNull()
+            ?: throw TypeManifestException(
+                "Mongo ${role.name.lowercase()} type '${type.name}' has no unique write alias"
+            )
+    }
+
+    private fun canonicalUnscopedAlias(type: Class<*>): String {
+        val aliases = registrations
+            .asSequence()
+            .filter { it.role == null && it.type == type }
+            .map { it.alias }
+            .distinct()
+            .toList()
+        return aliases.singleOrNull { it == type.name }
+            ?: aliases.singleOrNull()
+            ?: throw IllegalArgumentException(
+                "Unregistered Mongo type '${type.name}' cannot be persisted"
+            )
+    }
 
     private companion object {
         fun readAliases(registrations: List<Registration>): Map<String, Class<*>> =
@@ -74,15 +114,6 @@ internal class PrototypeMongoAliases(
                 types.single()
             }
 
-        fun writeAliases(registrations: List<Registration>): Map<Class<*>, String> =
-            registrations.groupBy { it.type }.mapValues { (type, matches) ->
-                val aliases = matches.map { it.alias }.distinct()
-                aliases.singleOrNull { it == type.name }
-                    ?: aliases.singleOrNull()
-                    ?: throw TypeManifestException(
-                        "Mongo type '${type.name}' has no unique write alias"
-                    )
-            }
     }
 }
 
@@ -94,6 +125,8 @@ class MongoDocumentTypePolicy(
     private val registry: TypeRegistry,
     private val typeKey: String = "_class",
 ) {
+    private val aliases = PrototypeMongoAliases(registry, setOf(WorkflowDocument::class.java))
+
     fun validate(targetType: Class<*>, source: Bson) {
         if (targetType != WorkflowDocument::class.java) {
             return
@@ -113,6 +146,64 @@ class MongoDocumentTypePolicy(
         } else {
             validateNested(model, WorkflowDocument::model.name)
         }
+    }
+
+    fun normalizeWriteAliases(targetType: Class<*>, source: Bson) {
+        if (targetType != WorkflowDocument::class.java) {
+            return
+        }
+
+        val workflow = source as? Document
+            ?: throw IllegalArgumentException("A workflow must be represented by a BSON Document")
+        val model = workflow[WorkflowDocument::model.name] ?: return
+        normalizeModel(model, WorkflowDocument::model.name)
+    }
+
+    private fun normalizeModel(value: Any?, path: String) {
+        when (value) {
+            is Map<*, *> -> {
+                if (value.containsKey(typeKey)) {
+                    normalizeAlias(value, TypeRole.MODEL, path)
+                }
+                value.entries
+                    .asSequence()
+                    .filterNot { (key, _) -> key == typeKey }
+                    .forEach { (key, nested) -> normalizeNested(nested, "$path.$key") }
+            }
+
+            else -> normalizeNested(value, path)
+        }
+    }
+
+    private fun normalizeNested(value: Any?, path: String) {
+        when (value) {
+            is Map<*, *> -> {
+                if (value.containsKey(typeKey)) {
+                    normalizeAlias(value, TypeRole.VALUE, path)
+                }
+                value.entries
+                    .asSequence()
+                    .filterNot { (key, _) -> key == typeKey }
+                    .forEach { (key, nested) -> normalizeNested(nested, "$path.$key") }
+            }
+
+            is Iterable<*> -> value.forEachIndexed { index, nested ->
+                normalizeNested(nested, "$path[$index]")
+            }
+
+            is Array<*> -> value.forEachIndexed { index, nested ->
+                normalizeNested(nested, "$path[$index]")
+            }
+        }
+    }
+
+    private fun normalizeAlias(document: Map<*, *>, role: TypeRole, path: String) {
+        val alias = document[typeKey] as? String
+            ?: throw IllegalArgumentException("BSON field '$path.$typeKey' must contain a string")
+        val type = aliases.resolve(alias)
+        (document as? MutableMap<Any?, Any?>)
+            ?.set(typeKey, aliases.aliasFor(role, type))
+            ?: throw IllegalArgumentException("BSON document '$path' must be mutable while writing")
     }
 
     private fun validateNested(value: Any?, path: String) {
@@ -165,6 +256,7 @@ class GuardedMongoConverter(
 
     override fun write(source: Any, sink: Bson) {
         delegate.write(source, sink)
+        policy.normalizeWriteAliases(source.javaClass, sink)
         policy.validate(source.javaClass, sink)
     }
 }
