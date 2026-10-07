@@ -28,6 +28,8 @@ import org.springframework.data.mongodb.MongoTransactionManager
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.mapping.event.AfterLoadEvent
 import org.springframework.data.mongodb.core.query.Query
+import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper
+import org.springframework.data.mongodb.core.convert.MappingMongoConverter
 import org.springframework.transaction.support.TransactionTemplate
 import org.testcontainers.containers.GenericContainer
 import java.util.UUID
@@ -142,6 +144,75 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
         assertThat(loader.events)
             .describedAs("Rejected metadata must not initialize or construct its referenced class")
             .isEmpty()
+    }
+
+    @Test
+    fun `D07 direct converter guards workflow metadata even when the requested result is Any`() {
+        val loader = WitnessClassLoader()
+        val alias = PROTOTYPE_WITNESS_NAME
+        val registry = prototypeRegistry(
+            loader,
+            prototypeEntry(TypeRole.VALUE, alias, PROTOTYPE_WITNESS_NAME),
+        )
+        val converter = prototypeAccess(registry).converter
+
+        val failure = catchFailure {
+            converter.read(
+                Any::class.java,
+                rawWorkflow("any-result-type", "_class", alias),
+            )
+        }
+
+        assertUnknownType(failure, TypeRole.MODEL, alias)
+        assertThat(loader.events)
+            .describedAs("The result type must not let untrusted workflow BSON reach materialization")
+            .isEmpty()
+    }
+
+    @Test
+    fun `D07 custom type keys stay guarded when the requested result is Any`() {
+        val loader = WitnessClassLoader()
+        val alias = PROTOTYPE_WITNESS_NAME
+        val typeKey = "@type"
+        val registry = prototypeRegistry(
+            loader,
+            prototypeEntry(TypeRole.VALUE, alias, PROTOTYPE_WITNESS_NAME),
+        )
+        val converter = prototypeAccess(registry, typeKey).converter
+
+        val failure = catchFailure {
+            converter.read(
+                Any::class.java,
+                rawWorkflow("custom-key-any-result-type", typeKey, alias),
+            )
+        }
+
+        assertUnknownType(failure, TypeRole.MODEL, alias)
+        assertThat(loader.events)
+            .describedAs("The configured discriminator must be guarded before materialization")
+            .isEmpty()
+    }
+
+    @Test
+    fun `D07 access creation rejects a host converter with type metadata disabled`() {
+        val disabledHostConverter = (hostTemplate.converter as MappingMongoConverter)
+            .with(databaseFactory)
+            .apply {
+                setTypeMapper(DefaultMongoTypeMapper(null))
+            }
+        val disabledHostTemplate = MongoTemplate(databaseFactory, disabledHostConverter)
+        val registry = prototypeRegistry(WitnessClassLoader(), *allowedPrototypeEntries())
+
+        assertThatThrownBy {
+            PrototypeFluxFlowMongoAccess(
+                hostTemplate = disabledHostTemplate,
+                databaseFactory = databaseFactory,
+                registry = registry,
+                typeMapperFactory = typeMapperFactory,
+            )
+        }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("type")
     }
 
     @Test
@@ -426,6 +497,38 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
 
         assertThat(loader.events)
             .describedAs("Security must not depend on synchronous Mongo lifecycle listeners")
+            .isEmpty()
+    }
+
+    @Test
+    fun `D09 internal repository and flow query reject an untrusted workflow model before materialization`() {
+        val loader = WitnessClassLoader()
+        val alias = PROTOTYPE_WITNESS_NAME
+        val registry = prototypeRegistry(
+            loader,
+            prototypeEntry(TypeRole.VALUE, alias, PROTOTYPE_WITNESS_NAME),
+        )
+        val access = prototypeAccess(registry)
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        insertRaw(access.template, rawWorkflow(identifier.value, "_class", alias))
+
+        val repositoryFailure = catchFailure {
+            access.workflows.find(identifier)
+        }
+        assertUnknownType(repositoryFailure, TypeRole.MODEL, alias)
+
+        val queryFailure = catchFailure {
+            access.workflows.findAll(
+                FlowQuery.of {
+                    where {
+                        get(WorkflowData::id).isEqual(identifier.value)
+                    }
+                }
+            )
+        }
+        assertUnknownType(queryFailure, TypeRole.MODEL, alias)
+        assertThat(loader.events)
+            .describedAs("Neither internal read path may materialize the untrusted model")
             .isEmpty()
     }
 
