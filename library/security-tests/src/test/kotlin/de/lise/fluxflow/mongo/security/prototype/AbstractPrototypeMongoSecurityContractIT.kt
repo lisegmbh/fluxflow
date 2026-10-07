@@ -170,6 +170,28 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
     }
 
     @Test
+    fun `D07 Any result guards workflow BSON with no modelType before materialization`() {
+        val loader = WitnessClassLoader()
+        val alias = PROTOTYPE_WITNESS_NAME
+        val registry = prototypeRegistry(
+            loader,
+            prototypeEntry(TypeRole.VALUE, alias, PROTOTYPE_WITNESS_NAME),
+        )
+        val converter = prototypeAccess(registry).converter
+        val rawWorkflowWithoutModelType = Document("_id", "any-result-without-model-type")
+            .append("model", Document("_class", alias))
+
+        val failure = catchFailure {
+            converter.read(Any::class.java, rawWorkflowWithoutModelType)
+        }
+
+        assertUnknownType(failure, TypeRole.MODEL, alias)
+        assertThat(loader.events)
+            .describedAs("A missing modelType must not let wrong-role BSON reach materialization")
+            .isEmpty()
+    }
+
+    @Test
     fun `D07 custom type keys stay guarded when the requested result is Any`() {
         val loader = WitnessClassLoader()
         val alias = PROTOTYPE_WITNESS_NAME
