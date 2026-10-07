@@ -16,6 +16,7 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.FluxFlowMongoConverterCustomizer
 import de.lise.fluxflow.mongo.FluxFlowMongoTemplateCustomizer
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeMapperFactory
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeAliases
@@ -1021,7 +1022,9 @@ abstract class AbstractProductionMongoSecurityContractIT {
             applicationContext,
             applicationContext.beanFactory,
             applicationContext.environment,
+            applicationContext.getBeanProvider(FluxFlowMongoConverterCustomizer::class.java),
             applicationContext.getBeanProvider(FluxFlowMongoTemplateCustomizer::class.java),
+            applicationContext.getBeanProvider(org.springframework.data.projection.ProjectionFactory::class.java),
         )
 
     private fun FluxFlowMongoAccess.findWorkflow(id: String): WorkflowDocument? =
