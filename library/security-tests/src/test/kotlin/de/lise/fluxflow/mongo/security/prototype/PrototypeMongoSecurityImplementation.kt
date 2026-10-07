@@ -128,12 +128,15 @@ class MongoDocumentTypePolicy(
     private val aliases = PrototypeMongoAliases(registry, setOf(WorkflowDocument::class.java))
 
     fun validate(targetType: Class<*>, source: Bson) {
-        if (targetType != WorkflowDocument::class.java) {
+        val workflow = source as? Document ?: run {
+            if (targetType == WorkflowDocument::class.java) {
+                throw IllegalArgumentException("A workflow must be represented by a BSON Document")
+            }
             return
         }
-
-        val workflow = source as? Document
-            ?: throw IllegalArgumentException("A workflow must be represented by a BSON Document")
+        if (targetType != WorkflowDocument::class.java && !workflow.isWorkflowDocument()) {
+            return
+        }
         val model = workflow[WorkflowDocument::model.name] ?: return
         if (model is Map<*, *>) {
             if (model.containsKey(typeKey)) {
@@ -237,6 +240,9 @@ class MongoDocumentTypePolicy(
             ?: throw IllegalArgumentException("BSON field '$path.$typeKey' must contain a string")
         return registry.resolve(role, alias).java
     }
+
+    private fun Document.isWorkflowDocument(): Boolean =
+        containsKey(WorkflowDocument::model.name) && containsKey("modelType")
 }
 
 /** MongoConverter decorator that keeps the security check on the synchronous conversion path. */
@@ -281,6 +287,7 @@ class PrototypeFluxFlowMongoAccess(
             ?: throw IllegalArgumentException(
                 "Prototype access requires a MappingMongoConverter host prototype"
             )
+        requireHostTypeMetadata(hostConverter)
         val isolatedConverter = hostConverter.with(databaseFactory).apply {
             setTypeMapper(
                 typeMapperFactory.create(
@@ -313,5 +320,13 @@ class PrototypeFluxFlowMongoAccess(
             ),
             configuration.workflowDocumentMapper(),
         )
+    }
+
+    private fun requireHostTypeMetadata(hostConverter: MappingMongoConverter) {
+        val probe = Document()
+        hostConverter.typeMapper.writeType(WorkflowDocument::class.java, probe)
+        require(probe.isNotEmpty()) {
+            "Prototype access requires a host Mongo converter with type metadata enabled"
+        }
     }
 }
