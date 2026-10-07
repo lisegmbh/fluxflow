@@ -241,6 +241,41 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
     }
 
     @Test
+    fun `D08 writes the canonical alias for each role of the same type`() {
+        val registry = prototypeRegistry(
+            WitnessClassLoader(),
+            prototypeEntry(
+                TypeRole.MODEL,
+                DUAL_ROLE_MODEL_ALIAS,
+                PrototypeDualRoleValue::class.java.name,
+            ),
+            prototypeEntry(
+                TypeRole.VALUE,
+                DUAL_ROLE_VALUE_ALIAS,
+                PrototypeDualRoleValue::class.java.name,
+            ),
+        )
+        val document = Document()
+
+        prototypeAccess(registry).converter.write(
+            WorkflowDocument(
+                "dual-role-write",
+                PrototypeDualRoleValue(
+                    "model-value",
+                    PrototypeDualRoleValue("nested-value"),
+                ),
+                PrototypeDualRoleValue::class.java.name,
+            ),
+            document,
+        )
+
+        val persistedModel = document.get("model", Document::class.java)
+        assertThat(persistedModel.getString("_class")).isEqualTo(DUAL_ROLE_MODEL_ALIAS)
+        assertThat(persistedModel.get("nested", Document::class.java).getString("_class"))
+            .isEqualTo(DUAL_ROLE_VALUE_ALIAS)
+    }
+
+    @Test
     fun `D08 unrelated historical aliases do not prevent prototype construction`() {
         val registry = registryWithAmbiguousValueWriteAliases()
 
@@ -258,6 +293,45 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
         }
             .isInstanceOf(TypeManifestException::class.java)
             .hasMessageContaining("has no unique write alias")
+    }
+
+    @Test
+    fun `D08 historical value aliases remain readable but are not emitted on writes`() {
+        val registry = prototypeRegistry(
+            WitnessClassLoader(),
+            prototypeEntry(
+                TypeRole.VALUE,
+                PrototypeWorkflowValue::class.java.name,
+                PrototypeWorkflowValue::class.java.name,
+            ),
+            prototypeEntry(
+                TypeRole.VALUE,
+                LEGACY_VALUE_ALIAS,
+                PrototypeWorkflowValue::class.java.name,
+            ),
+            prototypeEntry(
+                TypeRole.VALUE,
+                RENAMED_VALUE_ALIAS,
+                PrototypeWorkflowValue::class.java.name,
+            ),
+        )
+        val converter = prototypeAccess(registry).converter
+
+        listOf(LEGACY_VALUE_ALIAS, RENAMED_VALUE_ALIAS).forEach { alias ->
+            assertThat(
+                converter.read(
+                    PrototypeWorkflowValue::class.java,
+                    Document("_class", alias).append("value", alias),
+                ),
+            ).isEqualTo(PrototypeWorkflowValue(alias))
+        }
+
+        val written = Document()
+        converter.write(PrototypeWorkflowValue("canonical-write"), written)
+
+        assertThat(written.getString("_class"))
+            .isEqualTo(PrototypeWorkflowValue::class.java.name)
+            .isNotIn(LEGACY_VALUE_ALIAS, RENAMED_VALUE_ALIAS)
     }
 
     @Test

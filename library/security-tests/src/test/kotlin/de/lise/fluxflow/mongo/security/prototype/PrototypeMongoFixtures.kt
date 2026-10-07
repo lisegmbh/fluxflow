@@ -70,6 +70,11 @@ internal data class PrototypeWorkflowValue(
     val value: String,
 )
 
+internal data class PrototypeDualRoleValue(
+    val value: String,
+    val nested: PrototypeDualRoleValue? = null,
+)
+
 internal data class PrototypeConvertedValue(
     val value: String,
 )
