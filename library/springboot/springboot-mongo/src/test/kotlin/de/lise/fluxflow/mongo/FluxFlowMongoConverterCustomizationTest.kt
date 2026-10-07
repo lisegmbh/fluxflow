@@ -41,5 +41,5 @@ class FluxFlowMongoConverterCustomizationTest {
         afterPropertiesSet()
     }
 
-    private data class MapKeyContainer(val entries: Map<String, String>)
+    data class MapKeyContainer(val entries: Map<String, String>)
 }
