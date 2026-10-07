@@ -287,8 +287,8 @@ class PrototypeFluxFlowMongoAccess(
             ?: throw IllegalArgumentException(
                 "Prototype access requires a MappingMongoConverter host prototype"
             )
-        val hostTypeKey = hostTypeKey(hostConverter)
-        val effectiveTypeKey = typeKey ?: hostTypeKey
+        val resolvedHostTypeKey = hostTypeKey(hostConverter)
+        val effectiveTypeKey = typeKey ?: resolvedHostTypeKey
         val isolatedConverter = hostConverter.with(databaseFactory).apply {
             setTypeMapper(
                 typeMapperFactory.create(
