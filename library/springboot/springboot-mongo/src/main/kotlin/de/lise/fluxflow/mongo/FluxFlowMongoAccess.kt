@@ -88,15 +88,15 @@ class FluxFlowMongoAccess internal constructor(
             setTypeMapper(typeMapperFactory.create(aliases, typeKey))
             setApplicationContext(applicationContext)
         }
-        converterCustomizers.orderedStream().forEach {
-            it.customize(FluxFlowMongoConverterCustomization(isolatedConverter))
-        }
+        val converterCustomization = FluxFlowMongoConverterCustomization(isolatedConverter)
+        converterCustomizers.orderedStream().forEach { it.customize(converterCustomization) }
         converter = GuardedMongoConverter(
             isolatedConverter,
             MongoDocumentTypePolicy(aliases, typeKey, fieldNames = MongoFieldNames(hostConverter.mappingContext)),
         )
         template = MongoTemplate(databaseFactory, converter).apply {
             setApplicationContext(applicationContext)
+            converterCustomization.entityCallbacks?.let { setEntityCallbacks(it) }
             if (hostTemplate.hasReadPreference()) {
                 setReadPreference(hostTemplate.readPreference)
             }
