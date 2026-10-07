@@ -13,6 +13,7 @@ import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.reflection.types.TypeRole
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.springframework.data.annotation.TypeAlias
 import org.springframework.data.mongodb.MongoDatabaseFactory
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter
@@ -45,6 +46,7 @@ internal class PrototypeMongoAliases(
             .map { Registration(it.key, it.type.java, it.role) } +
                 trustedRootTypes.map { Registration(it.name, it, null) }
         aliases = readAliases(registrations)
+        validateTypeAliases(registrations)
     }
 
     fun resolve(value: Any?): Class<*> {
@@ -103,6 +105,28 @@ internal class PrototypeMongoAliases(
     }
 
     private companion object {
+        fun validateTypeAliases(registrations: List<Registration>) {
+            registrations
+                .asSequence()
+                .filter { it.role != null }
+                .distinctBy { it.role to it.type }
+                .forEach { registration ->
+                    val alias = registration.type.getAnnotation(TypeAlias::class.java)?.value
+                        ?: return@forEach
+                    if (registrations.none {
+                            it.role == registration.role &&
+                                it.type == registration.type &&
+                                it.alias == alias
+                        }
+                    ) {
+                        throw TypeManifestException(
+                            "Mongo @TypeAlias '$alias' for '${registration.type.name}' must be registered " +
+                                "identically in the type manifest"
+                        )
+                    }
+                }
+        }
+
         fun readAliases(registrations: List<Registration>): Map<String, Class<*>> =
             registrations.groupBy { it.alias }.mapValues { (alias, matches) ->
                 val types = matches.map { it.type }.distinct()

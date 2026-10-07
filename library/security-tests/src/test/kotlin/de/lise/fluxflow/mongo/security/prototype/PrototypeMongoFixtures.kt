@@ -8,6 +8,7 @@ import de.lise.fluxflow.reflection.types.UnknownTypeException
 import org.assertj.core.api.Assertions.assertThat
 import org.bson.Document
 import org.springframework.data.annotation.Id
+import org.springframework.data.annotation.TypeAlias
 import org.springframework.core.convert.converter.Converter
 import org.springframework.data.convert.ReadingConverter
 import org.springframework.data.convert.WritingConverter
@@ -33,6 +34,10 @@ internal const val DUAL_ROLE_VALUE_ALIAS = "dual-role-value"
 internal const val LEGACY_VALUE_ALIAS = "legacy-workflow-value"
 
 internal const val RENAMED_VALUE_ALIAS = "renamed-workflow-value"
+
+internal const val TYPE_ALIAS_MANIFEST_ALIAS = "manifest-type-alias"
+
+internal const val UNREGISTERED_TYPE_ALIAS = "unregistered-type-alias"
 
 internal sealed interface PrototypeWorkflowModelType {
     val name: String
@@ -67,6 +72,16 @@ internal data class PrototypeHostDocument(
 internal interface PrototypeHostRepository : MongoRepository<PrototypeHostDocument, String>
 
 internal data class PrototypeWorkflowValue(
+    val value: String,
+)
+
+@TypeAlias(TYPE_ALIAS_MANIFEST_ALIAS)
+internal data class TypeAliasedWorkflowModel(
+    val value: String,
+)
+
+@TypeAlias(UNREGISTERED_TYPE_ALIAS)
+internal data class UnregisteredTypeAliasedWorkflowModel(
     val value: String,
 )
 

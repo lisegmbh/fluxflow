@@ -448,6 +448,48 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
     }
 
     @Test
+    fun `D08 TypeAlias round-trips only when the identical alias is registered in the manifest`() {
+        val registry = prototypeRegistry(
+            WitnessClassLoader(),
+            prototypeEntry(
+                TypeRole.MODEL,
+                TYPE_ALIAS_MANIFEST_ALIAS,
+                TypeAliasedWorkflowModel::class.java.name,
+            ),
+        )
+        val access = prototypeAccess(registry)
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = TypeAliasedWorkflowModel("manifest-controlled")
+
+        access.workflows.create(model, identifier)
+
+        val persisted = requireNotNull(
+            workflowCollection(access.template).find(eq("_id", identifier.value)).first(),
+        )
+        assertThat(persisted.get("model", Document::class.java).getString("_class"))
+            .isEqualTo(TYPE_ALIAS_MANIFEST_ALIAS)
+        assertThat(access.workflows.find(identifier)?.model).isEqualTo(model)
+    }
+
+    @Test
+    fun `D08 TypeAlias not registered identically in the manifest rejects prototype construction`() {
+        val registry = prototypeRegistry(
+            WitnessClassLoader(),
+            prototypeEntry(
+                TypeRole.MODEL,
+                TypeAliasedWorkflowModel::class.java.name,
+                UnregisteredTypeAliasedWorkflowModel::class.java.name,
+            ),
+        )
+        assertThatThrownBy {
+            prototypeAccess(registry)
+        }
+            .isInstanceOf(TypeManifestException::class.java)
+            .hasMessageContaining("@TypeAlias")
+            .hasMessageContaining(UNREGISTERED_TYPE_ALIAS)
+    }
+
+    @Test
     fun `D09 workflow reads stay guarded when lifecycle events are disabled`() {
         val loader = WitnessClassLoader()
         val registry = prototypeRegistry(
