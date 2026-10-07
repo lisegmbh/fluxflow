@@ -75,6 +75,8 @@ class SecurityTestsTest {
             .isEqualTo(1)
         assertThat(testCount("securityTest", "de.lise.fluxflow.mongo.security.prototype.PrototypeTest"))
             .isEqualTo(1)
+        assertThat(testReport("test", "de.lise.fluxflow.mongo.security.baseline.BaselineTest")).doesNotExist()
+        assertThat(testReport("test", "de.lise.fluxflow.mongo.security.prototype.PrototypeTest")).doesNotExist()
         assertThat(testReport("securityTest", "de.lise.fluxflow.RegularTest")).doesNotExist()
     }
 
