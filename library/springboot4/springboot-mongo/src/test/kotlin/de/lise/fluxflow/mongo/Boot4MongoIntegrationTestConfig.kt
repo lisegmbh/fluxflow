@@ -18,7 +18,7 @@ open class Boot4MongoIntegrationTestConfig {
     @ServiceConnection
     open fun mongoDbContainer(): MongoDBContainer? {
         return if (DockerClientFactory.instance().isDockerAvailable) {
-            MongoDBContainer("mongo").withReplicaSet()
+            MongoDBContainer("mongo:8.0.12").withReplicaSet()
         } else {
             null
         }

@@ -1,6 +1,5 @@
 package de.lise.fluxflow.mongo.security.prototype
 
-import com.mongodb.ReadPreference
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import org.springframework.boot.test.context.TestConfiguration
@@ -30,7 +29,6 @@ open class PrototypeMongoContractConfiguration {
         @Qualifier("prototypeTypeRegistry") registry: TypeRegistry,
         typeMapperFactory: PrototypeMongoTypeMapperFactory,
     ): PrototypeFluxFlowMongoAccess {
-        hostTemplate.setReadPreference(ReadPreference.secondaryPreferred())
         return PrototypeFluxFlowMongoAccess(
             hostTemplate,
             databaseFactory,
