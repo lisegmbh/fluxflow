@@ -276,7 +276,7 @@ class PrototypeFluxFlowMongoAccess(
     databaseFactory: MongoDatabaseFactory,
     registry: TypeRegistry,
     typeMapperFactory: PrototypeMongoTypeMapperFactory,
-    typeKey: String = "_class",
+    typeKey: String? = null,
 ) {
     val converter: MongoConverter
     val template: MongoTemplate
@@ -287,19 +287,20 @@ class PrototypeFluxFlowMongoAccess(
             ?: throw IllegalArgumentException(
                 "Prototype access requires a MappingMongoConverter host prototype"
             )
-        requireHostTypeMetadata(hostConverter)
+        val hostTypeKey = hostTypeKey(hostConverter)
+        val effectiveTypeKey = typeKey ?: hostTypeKey
         val isolatedConverter = hostConverter.with(databaseFactory).apply {
             setTypeMapper(
                 typeMapperFactory.create(
                     registry,
-                    typeKey,
+                    effectiveTypeKey,
                     setOf(WorkflowDocument::class.java),
                 )
             )
         }
         converter = GuardedMongoConverter(
             isolatedConverter,
-            MongoDocumentTypePolicy(registry, typeKey),
+            MongoDocumentTypePolicy(registry, effectiveTypeKey),
         )
         template = MongoTemplate(databaseFactory, converter)
         if (hostTemplate.hasReadPreference()) {
@@ -322,11 +323,11 @@ class PrototypeFluxFlowMongoAccess(
         )
     }
 
-    private fun requireHostTypeMetadata(hostConverter: MappingMongoConverter) {
+    private fun hostTypeKey(hostConverter: MappingMongoConverter): String {
         val probe = Document()
         hostConverter.typeMapper.writeType(WorkflowDocument::class.java, probe)
-        require(probe.isNotEmpty()) {
+        return probe.keys.singleOrNull() ?: throw IllegalArgumentException(
             "Prototype access requires a host Mongo converter with type metadata enabled"
-        }
+        )
     }
 }
