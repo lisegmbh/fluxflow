@@ -70,16 +70,19 @@ Fluxflow repository uses the restricted converter.
 This boundary was selected over lifecycle listeners because converter `read` and
 `project` are synchronous materialization points. Listeners can be disabled, can run
 asynchronously, and do not protect direct converter calls. The prototype proves rejection
-through the isolated converter and its version adapter with lifecycle events disabled,
-with an asynchronous event multicaster, and when a listener swallows its own rejection.
+through the isolated converter and its version adapter with lifecycle events disabled, without
+installing an application context on the internal template or changing the host mapping context.
 
 The Mongo type mapper is built only from `TypeRegistry` entries with role `MODEL` or
 `VALUE`, plus the trusted `WorkflowDocument` root. The guard assigns the top-level
 `model.<type-key>` discriminator to `MODEL` and discriminators recursively nested below
 the model to `VALUE`. Unknown, empty, non-string, wrong-role, or conflicting aliases fail
 closed before Spring Data can resolve a class. The persisted `modelType` field is not a
-trust anchor. Existing FQCN registrations and logical aliases are both accepted, and no
-BSON rewriting is used.
+trust anchor. Existing FQCN registrations and logical aliases are both accepted. On writes,
+the guard normalizes each discriminator to the canonical alias for its structural role: an
+explicit FQCN registration wins, otherwise the role must have exactly one alias. Historical
+aliases remain read-compatible but are not emitted; a missing canonical alias fails only when
+that type is written.
 
 The shared contract runs against Spring Data MongoDB 4.x and 5.x through two small
 `TypeInformationMapper` adapters. Its eight tests per compatibility line cover direct
@@ -93,10 +96,12 @@ runtime `TypeRegistry`, replace R03's characterization with a permanent rejectio
 regression, and verify the remaining D01-D13/R03 production cases. It must preserve the
 host converter's mapping context and custom conversions, keep Fluxflow's internal
 template out of the host bean graph, and construct the existing repository fragments
-with that template. The prototype copies the host read preference through Spring Data's
-public API. Other mutable `MongoTemplate` settings do not all have public getters, so PR05
-must define an explicit internal-template customization contract and add behavioral tests
-for every supported setting instead of attempting reflective state copying.
+with that template. The prototype derives its type-key from the host converter and rejects a
+host that disables type metadata. It copies the host read preference through Spring Data's public
+API. `MappingMongoConverter.with` does not expose every mutable setting (including map-key
+handling, callbacks, projections, and environment wiring), so PR05 must define an explicit
+internal-template customization contract and add behavioral tests for every supported setting
+instead of attempting reflective state copying.
 
 ## Build gate tests
 
