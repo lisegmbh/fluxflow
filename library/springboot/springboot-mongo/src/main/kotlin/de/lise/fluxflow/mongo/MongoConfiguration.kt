@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.core.env.Environment
 import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.projection.ProjectionFactory
 
 @Configuration
 @ConditionalOnFluxFlowMongo
@@ -53,7 +54,9 @@ open class MongoConfiguration {
         applicationContext: ApplicationContext,
         factory: BeanFactory,
         environment: Environment,
-        customizers: ObjectProvider<FluxFlowMongoTemplateCustomizer>,
+        converterCustomizers: ObjectProvider<FluxFlowMongoConverterCustomizer>,
+        templateCustomizers: ObjectProvider<FluxFlowMongoTemplateCustomizer>,
+        projectionFactories: ObjectProvider<ProjectionFactory>,
     ): FluxFlowMongoAccess = FluxFlowMongoAccess(
         hostTemplate,
         registry,
@@ -61,7 +64,9 @@ open class MongoConfiguration {
         applicationContext,
         factory,
         environment,
-        customizers,
+        converterCustomizers,
+        templateCustomizers,
+        projectionFactories,
     )
 
     @Bean

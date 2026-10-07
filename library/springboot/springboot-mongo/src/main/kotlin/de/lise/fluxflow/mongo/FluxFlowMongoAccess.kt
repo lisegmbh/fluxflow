@@ -26,7 +26,9 @@ import org.springframework.core.env.Environment
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter
 import org.springframework.data.mongodb.core.convert.MongoConverter
+import org.springframework.data.projection.ProjectionFactory
 import org.springframework.data.mongodb.repository.support.MongoRepositoryFactory
+import kotlin.streams.toList
 import org.springframework.data.repository.core.support.RepositoryComposition.RepositoryFragments
 
 /**
@@ -42,7 +44,9 @@ class FluxFlowMongoAccess internal constructor(
     applicationContext: ApplicationContext,
     beanFactory: BeanFactory,
     environment: Environment,
-    customizers: ObjectProvider<FluxFlowMongoTemplateCustomizer>,
+    converterCustomizers: ObjectProvider<FluxFlowMongoConverterCustomizer>,
+    templateCustomizers: ObjectProvider<FluxFlowMongoTemplateCustomizer>,
+    projectionFactories: ObjectProvider<ProjectionFactory>,
 ) {
     internal val converter: MongoConverter
     internal val template: MongoTemplate
@@ -82,6 +86,10 @@ class FluxFlowMongoAccess internal constructor(
         val databaseFactory = hostTemplate.mongoDatabaseFactory
         val isolatedConverter = hostConverter.with(databaseFactory).apply {
             setTypeMapper(typeMapperFactory.create(aliases, typeKey))
+            setApplicationContext(applicationContext)
+        }
+        converterCustomizers.orderedStream().forEach {
+            it.customize(FluxFlowMongoConverterCustomization(isolatedConverter))
         }
         converter = GuardedMongoConverter(
             isolatedConverter,
@@ -92,9 +100,13 @@ class FluxFlowMongoAccess internal constructor(
             if (hostTemplate.hasReadPreference()) {
                 setReadPreference(hostTemplate.readPreference)
             }
-            customizers.orderedStream().forEach { it.customize(this) }
+            templateCustomizers.orderedStream().forEach { it.customize(this) }
         }
-        repositoryFactory = MongoRepositoryFactory(template).apply {
+        val factories = projectionFactories.orderedStream().toList()
+        require(factories.size <= 1) {
+            "FluxFlow Mongo persistence requires at most one ProjectionFactory bean"
+        }
+        repositoryFactory = FluxFlowMongoRepositoryFactory(template, factories.singleOrNull()).apply {
             setBeanClassLoader(applicationContext.classLoader ?: FluxFlowMongoAccess::class.java.classLoader)
             setBeanFactory(beanFactory)
             setEnvironment(environment)
@@ -105,4 +117,13 @@ class FluxFlowMongoAccess internal constructor(
 
     internal fun <T : Any> repository(type: Class<T>, fragment: Any): T =
         repositoryFactory.getRepository(type, RepositoryFragments.just(fragment))
+}
+
+/** Supplies an explicit application projection factory without exposing the repository factory. */
+private class FluxFlowMongoRepositoryFactory(
+    template: MongoTemplate,
+    private val projectionFactory: ProjectionFactory?,
+) : MongoRepositoryFactory(template) {
+    override fun getProjectionFactory(classLoader: ClassLoader?, beanFactory: BeanFactory?): ProjectionFactory =
+        projectionFactory ?: super.getProjectionFactory(classLoader, beanFactory)
 }

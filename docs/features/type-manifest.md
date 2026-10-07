@@ -127,6 +127,30 @@ accept registered logical MODEL and VALUE aliases as well as their JVM binary na
 projection of a class registered in both roles accepts either declared alias at its root;
 nested values still require VALUE registration and full workflow models require MODEL registration.
 
+### Internal Mongo customization contract
+
+FluxFlow constructs a non-bean `MongoTemplate` for its own persistence. Its converter keeps the
+host `MappingContext` and custom conversions, but it is **not** a general-purpose clone of the host
+`MappingMongoConverter`: its type mapper is replaced by the mandatory guarded mapper. The configured
+host type key is discovered behaviorally and retained. Spring Data `@TypeAlias` values are not an
+authorization source; a MODEL or VALUE alias is accepted only when the immutable FluxFlow manifest
+registers that exact alias (the JVM binary name remains read-compatible when registered).
+
+Applications may provide ordered `FluxFlowMongoConverterCustomizer` beans. They can explicitly set
+map-key dot replacement, preserve dotted map keys, or replace `EntityCallbacks` (including
+`AfterConvertCallback`) for the internal converter. The customizer intentionally cannot access the
+converter, mapping context, or type mapper. Therefore it cannot weaken the synchronous document guard.
+Map-key handling is never inferred from the host converter: without an explicit customizer, FluxFlow
+uses Spring Data's strict default and rejects dotted keys on its own writes. Configure the same policy
+explicitly when workflow data contains such keys.
+
+The internal converter and template receive the application context, so their callback and mapping-event
+behavior is context-local. The repository factory receives that context's `Environment` and, when exactly
+one is present, its `ProjectionFactory`; multiple `ProjectionFactory` beans fail startup rather than being
+chosen arbitrarily. The host mapping context is shared read-only for mapping metadata. FluxFlow does not
+create, initialize, or alter a second mapping context, publish host mapping events, or trigger host auto-index
+creation. Template-only options remain available through ordered `FluxFlowMongoTemplateCustomizer` beans.
+
 Scheduled-job reconciliation uses raw references when the persistence implementation supplies
 `ScheduledJobReferencePersistence`, then restores each job independently. The deprecated
 two-argument `ReconcileScheduledJobsBootstrapAction(JobService, SchedulingService)` constructor
