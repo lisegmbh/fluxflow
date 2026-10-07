@@ -207,6 +207,60 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
     }
 
     @Test
+    fun `D08 same type may use distinct MODEL and VALUE aliases`() {
+        val registry = prototypeRegistry(
+            WitnessClassLoader(),
+            prototypeEntry(
+                TypeRole.MODEL,
+                DUAL_ROLE_MODEL_ALIAS,
+                PrototypeWorkflowValue::class.java.name,
+            ),
+            prototypeEntry(
+                TypeRole.VALUE,
+                DUAL_ROLE_VALUE_ALIAS,
+                PrototypeWorkflowValue::class.java.name,
+            ),
+        )
+        val converter = prototypeAccess(registry).converter
+
+        val document = converter.read(
+            WorkflowDocument::class.java,
+            rawWorkflow(
+                id = "dual-role-aliases",
+                typeKey = "_class",
+                modelType = DUAL_ROLE_MODEL_ALIAS,
+                modelFields = mapOf(
+                    "value" to "model-value",
+                    "nested" to Document("_class", DUAL_ROLE_VALUE_ALIAS)
+                        .append("value", "nested-value"),
+                ),
+            ),
+        )
+
+        assertThat(document.model).isEqualTo(PrototypeWorkflowValue("model-value"))
+    }
+
+    @Test
+    fun `D08 unrelated historical aliases do not prevent prototype construction`() {
+        val registry = registryWithAmbiguousValueWriteAliases()
+
+        val access = prototypeAccess(registry)
+
+        assertThat(access.converter).isNotNull()
+    }
+
+    @Test
+    fun `D08 ambiguous write aliases fail only when the affected type is written`() {
+        val access = prototypeAccess(registryWithAmbiguousValueWriteAliases())
+
+        assertThatThrownBy {
+            access.converter.write(PrototypeWorkflowValue("ambiguous-write"), Document())
+        }
+            .isInstanceOf(TypeManifestException::class.java)
+            .hasMessageContaining("has no unique write alias")
+    }
+
+    @Test
     fun `D09 workflow reads stay guarded when lifecycle events are disabled or asynchronous`() {
         val loader = WitnessClassLoader()
         val registry = prototypeRegistry(
@@ -445,6 +499,25 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
         registry = registry,
         typeMapperFactory = typeMapperFactory,
         typeKey = typeKey,
+    )
+
+    private fun registryWithAmbiguousValueWriteAliases() = prototypeRegistry(
+        WitnessClassLoader(),
+        prototypeEntry(
+            TypeRole.MODEL,
+            PrototypeWorkflowModel::class.java.name,
+            PrototypeWorkflowModel::class.java.name,
+        ),
+        prototypeEntry(
+            TypeRole.VALUE,
+            LEGACY_VALUE_ALIAS,
+            PrototypeWorkflowValue::class.java.name,
+        ),
+        prototypeEntry(
+            TypeRole.VALUE,
+            RENAMED_VALUE_ALIAS,
+            PrototypeWorkflowValue::class.java.name,
+        ),
     )
 
     private fun insertRaw(template: MongoTemplate, document: Document) {

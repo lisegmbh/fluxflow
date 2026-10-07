@@ -26,6 +26,14 @@ internal const val VALUE_TYPE_ALIAS = "workflow-value"
 
 internal const val SUBTYPE_ALIAS = "workflow-subtype"
 
+internal const val DUAL_ROLE_MODEL_ALIAS = "dual-role-model"
+
+internal const val DUAL_ROLE_VALUE_ALIAS = "dual-role-value"
+
+internal const val LEGACY_VALUE_ALIAS = "legacy-workflow-value"
+
+internal const val RENAMED_VALUE_ALIAS = "renamed-workflow-value"
+
 internal sealed interface PrototypeWorkflowModelType {
     val name: String
 }
