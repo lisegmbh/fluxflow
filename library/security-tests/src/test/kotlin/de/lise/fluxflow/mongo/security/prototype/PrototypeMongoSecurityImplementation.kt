@@ -242,7 +242,7 @@ class MongoDocumentTypePolicy(
     }
 
     private fun Document.isWorkflowDocument(): Boolean =
-        containsKey(WorkflowDocument::model.name) && containsKey("modelType")
+        containsKey(WorkflowDocument::model.name)
 }
 
 /** MongoConverter decorator that keeps the security check on the synchronous conversion path. */
