@@ -2,6 +2,8 @@ package de.lise.fluxflow.mongo.security.production
 
 import com.mongodb.ReadPreference
 import de.lise.fluxflow.mongo.FluxFlowMongoTemplateCustomizer
+import de.lise.fluxflow.mongo.FluxFlowMongoConverterCustomizer
+import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.fixtures.SecurityConvertedValueReader
 import de.lise.fluxflow.mongo.security.fixtures.SecurityConvertedValueWriter
@@ -20,6 +22,8 @@ import org.springframework.data.mongodb.core.convert.MappingMongoConverter
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
+import org.springframework.data.mapping.callback.EntityCallbacks
+import org.springframework.data.mongodb.core.mapping.event.AfterConvertCallback
 import java.util.concurrent.CopyOnWriteArrayList
 
 @TestConfiguration
@@ -45,6 +49,24 @@ open class ProductionMongoSecurityConfiguration {
     ): FluxFlowMongoTemplateCustomizer = FluxFlowMongoTemplateCustomizer {
         invocations.values += it to "second"
         it.setReadPreference(ReadPreference.nearest())
+    }
+
+    @Bean
+    open fun productionMongoConverterCallbacks(): MongoConverterCallbacks = MongoConverterCallbacks()
+
+    @Bean
+    open fun productionMongoConverterCustomizer(
+        callbacks: MongoConverterCallbacks,
+    ): FluxFlowMongoConverterCustomizer = FluxFlowMongoConverterCustomizer { configuration ->
+        configuration.setMapKeyDotReplacement("~")
+        configuration.setEntityCallbacks(
+            EntityCallbacks.create(
+                AfterConvertCallback<WorkflowDocument> { entity, _, _ ->
+                    callbacks.afterConvertCount.incrementAndGet()
+                    entity
+                },
+            )
+        )
     }
 
     @Bean("productionWitnessClassLoader")
@@ -95,4 +117,8 @@ open class ProductionMongoSecurityConfiguration {
 
 class MongoCustomizerInvocations {
     val values = CopyOnWriteArrayList<Pair<MongoTemplate, String>>()
+}
+
+class MongoConverterCallbacks {
+    val afterConvertCount = java.util.concurrent.atomic.AtomicInteger()
 }
