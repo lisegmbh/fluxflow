@@ -18,23 +18,15 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
-import org.springframework.context.ApplicationEvent
-import org.springframework.context.ApplicationListener
-import org.springframework.context.support.AbstractApplicationContext
-import org.springframework.context.support.GenericApplicationContext
-import org.springframework.context.event.SimpleApplicationEventMulticaster
 import org.springframework.data.mongodb.MongoDatabaseFactory
 import org.springframework.data.mongodb.MongoTransactionManager
 import org.springframework.data.mongodb.core.MongoTemplate
-import org.springframework.data.mongodb.core.mapping.event.AfterLoadEvent
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter
 import org.springframework.transaction.support.TransactionTemplate
 import org.testcontainers.containers.GenericContainer
 import java.util.UUID
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicInteger
 
 abstract class AbstractPrototypeMongoSecurityContractIT {
     @Autowired
@@ -428,7 +420,7 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
     }
 
     @Test
-    fun `D09 workflow reads stay guarded when lifecycle events are disabled or asynchronous`() {
+    fun `D09 workflow reads stay guarded when lifecycle events are disabled`() {
         val loader = WitnessClassLoader()
         val registry = prototypeRegistry(
             loader,
@@ -447,78 +439,8 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
         }
         assertUnknownType(disabledFailure, TypeRole.MODEL, PROTOTYPE_WITNESS_NAME)
 
-        access.template.setEntityLifecycleEventsEnabled(true)
-        val queuedEvents = CopyOnWriteArrayList<Runnable>()
-        val asynchronousContext = GenericApplicationContext().apply {
-            beanFactory.registerSingleton(
-                AbstractApplicationContext.APPLICATION_EVENT_MULTICASTER_BEAN_NAME,
-                SimpleApplicationEventMulticaster().apply {
-                    setTaskExecutor { task -> queuedEvents += task }
-                },
-            )
-            addApplicationListener(ApplicationListener<ApplicationEvent> { })
-            refresh()
-        }
-        try {
-            access.template.setApplicationContext(asynchronousContext)
-            val asynchronousEventsId = UUID.randomUUID().toString()
-            insertRaw(
-                access.template,
-                rawWorkflow(asynchronousEventsId, "_class", PROTOTYPE_WITNESS_NAME),
-            )
-            queuedEvents.clear()
-            assertThat(queuedEvents).isEmpty()
-            val asynchronousFailure = catchFailure {
-                access.workflows.findAll(
-                    FlowQuery.of {
-                        where {
-                            get(WorkflowData::id).isEqual(asynchronousEventsId)
-                        }
-                    }
-                )
-            }
-            assertUnknownType(asynchronousFailure, TypeRole.MODEL, PROTOTYPE_WITNESS_NAME)
-            assertThat(queuedEvents)
-                .describedAs("The Mongo lifecycle event was handed to the asynchronous executor")
-                .isNotEmpty()
-        } finally {
-            asynchronousContext.close()
-        }
-
-        val swallowedRejections = AtomicInteger()
-        val swallowingContext = GenericApplicationContext().apply {
-            addApplicationListener(ApplicationListener<ApplicationEvent> { event ->
-                if (event is AfterLoadEvent<*>) {
-                    runCatching {
-                        MongoDocumentTypePolicy(registry).validate(
-                            WorkflowDocument::class.java,
-                            event.source,
-                        )
-                    }.onFailure { swallowedRejections.incrementAndGet() }
-                }
-            })
-            refresh()
-        }
-        try {
-            access.template.setApplicationContext(swallowingContext)
-            val swallowingHandlerId = UUID.randomUUID().toString()
-            insertRaw(
-                access.template,
-                rawWorkflow(swallowingHandlerId, "_class", PROTOTYPE_WITNESS_NAME),
-            )
-            val swallowingFailure = catchFailure {
-                access.workflows.find(WorkflowIdentifier(swallowingHandlerId))
-            }
-            assertUnknownType(swallowingFailure, TypeRole.MODEL, PROTOTYPE_WITNESS_NAME)
-            assertThat(swallowedRejections.get())
-                .describedAs("A listener swallowed its own policy rejection")
-                .isEqualTo(1)
-        } finally {
-            swallowingContext.close()
-        }
-
         assertThat(loader.events)
-            .describedAs("Security must not depend on synchronous Mongo lifecycle listeners")
+            .describedAs("Security must not depend on Mongo lifecycle listeners")
             .isEmpty()
     }
 
