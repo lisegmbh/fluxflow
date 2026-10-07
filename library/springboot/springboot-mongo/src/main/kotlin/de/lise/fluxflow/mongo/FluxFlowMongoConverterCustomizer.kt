@@ -17,6 +17,9 @@ fun interface FluxFlowMongoConverterCustomizer {
 class FluxFlowMongoConverterCustomization internal constructor(
     private val converter: MappingMongoConverter,
 ) {
+    internal var entityCallbacks: EntityCallbacks? = null
+        private set
+
     /** Replaces dots in map keys before they are persisted; `null` restores Spring Data's rejection. */
     fun setMapKeyDotReplacement(replacement: String?) {
         converter.setMapKeyDotReplacement(replacement)
@@ -27,8 +30,9 @@ class FluxFlowMongoConverterCustomization internal constructor(
         converter.preserveMapKeys(true)
     }
 
-    /** Replaces the callbacks invoked by the internal converter, including `AfterConvertCallback`. */
+    /** Replaces callbacks on the internal converter and template, including `AfterConvertCallback`. */
     fun setEntityCallbacks(callbacks: EntityCallbacks) {
         converter.setEntityCallbacks(callbacks)
+        entityCallbacks = callbacks
     }
 }
