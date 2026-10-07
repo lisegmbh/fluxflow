@@ -29,6 +29,7 @@ import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.mapping.event.AfterLoadEvent
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.transaction.support.TransactionTemplate
+import org.testcontainers.containers.GenericContainer
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -64,6 +65,16 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
             hostTemplate.createCollection(WorkflowDocument::class.java)
         }
         hostTemplate.remove(Query(), WorkflowDocument::class.java)
+    }
+
+    @Test
+    fun `D00 security fixture pins the Mongo image`() {
+        val containers = applicationContext.getBeansOfType(GenericContainer::class.java).values
+
+        assertThat(containers)
+            .describedAs("The security suite must use exactly one explicitly pinned Mongo fixture")
+            .hasSize(1)
+        assertThat(containers.single().dockerImageName).isEqualTo("mongo:8.0.12")
     }
 
     @Test
@@ -370,12 +381,14 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
         assertThat(applicationContext.getBean(WorkflowRepository::class.java)).isSameAs(repositoryBean)
         assertThat(applicationContext.getBean(WorkflowPersistence::class.java)).isSameAs(persistenceBean)
         assertThat(hostTemplate.converter).isSameAs(hostConverter)
+        assertThat(hostTemplate.hasReadPreference())
+            .describedAs("Constructing the prototype must not configure the host template")
+            .isFalse()
         assertThat(access.converter.mappingContext).isSameAs(hostConverter.mappingContext)
         assertThat(access.template).isNotSameAs(hostTemplate)
         assertThat(access.converter).isNotSameAs(hostConverter)
         assertThat(access.workflows).isNotSameAs(hostWorkflowPersistence)
-        assertThat(access.template.hasReadPreference()).isTrue()
-        assertThat(access.template.readPreference).isEqualTo(hostTemplate.readPreference)
+        assertThat(access.template.hasReadPreference()).isFalse()
 
         val hostIdentifier = WorkflowIdentifier(UUID.randomUUID().toString())
         val hostOnlyModel = HostOnlyWorkflowModel("host remains permissive")

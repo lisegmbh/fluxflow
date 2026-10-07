@@ -8,6 +8,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 class SecurityTestsTest {
     @TempDir
@@ -26,7 +27,7 @@ class SecurityTestsTest {
     }
 
     @Test
-    fun `security gate should include prototype security tests`() {
+    fun `security test suite should include prototype security tests`() {
         fixture(
             "securityTests.requiredClasses = ['de.lise.fluxflow.mongo.security.prototype.PrototypeTest']"
         )
@@ -45,13 +46,46 @@ class SecurityTestsTest {
     }
 
     @Test
+    fun `regular test excludes security test suites`() {
+        fixture()
+        baseline("@Test void baseline() {}")
+        securitySource("prototype", "PrototypeTest", "@Test void prototype() {}")
+        regularSource("RegularTest", "@Test void regular() {}")
+
+        val result = runner("test").build()
+
+        assertThat(result.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(testReport("test", "de.lise.fluxflow.RegularTest")).exists()
+        assertThat(testReport("test", "de.lise.fluxflow.mongo.security.baseline.BaselineTest")).doesNotExist()
+        assertThat(testReport("test", "de.lise.fluxflow.mongo.security.prototype.PrototypeTest")).doesNotExist()
+    }
+
+    @Test
+    fun `check executes each security test suite once`() {
+        fixture()
+        baseline("@Test void baseline() {}")
+        securitySource("prototype", "PrototypeTest", "@Test void prototype() {}")
+        regularSource("RegularTest", "@Test void regular() {}")
+
+        val result = runner("check").build()
+
+        assertThat(result.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(testCount("securityTest", "de.lise.fluxflow.mongo.security.baseline.BaselineTest"))
+            .isEqualTo(1)
+        assertThat(testCount("securityTest", "de.lise.fluxflow.mongo.security.prototype.PrototypeTest"))
+            .isEqualTo(1)
+        assertThat(testReport("securityTest", "de.lise.fluxflow.RegularTest")).doesNotExist()
+    }
+
+    @Test
     fun `security gate should reject skipped tests`() {
         fixture()
         baseline("@Test @Disabled void skipped() {} @Test void passing() {}")
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline must execute without skipped tests")
+        assertThat(result.output).contains("Security test suite must execute without skipped tests")
     }
 
     @Test
@@ -60,7 +94,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline classes are missing")
+        assertThat(result.output).contains("Security test suite classes are missing")
     }
 
     @Test
@@ -70,7 +104,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest", "--tests", "MissingTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline does not allow test filters")
+        assertThat(result.output).contains("Security test suite does not allow test filters")
     }
 
     @Test
@@ -80,7 +114,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline classes are missing")
+        assertThat(result.output).contains("Security test suite classes are missing")
     }
 
     @Test
@@ -91,7 +125,7 @@ class SecurityTestsTest {
         val result = runner("securityTest").buildAndFail()
 
         assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.FAILED)
-        assertThat(result.output).contains("Security baseline must execute without failed tests")
+        assertThat(result.output).contains("Security test suite must execute without failed tests")
     }
 
     @Test
@@ -105,7 +139,7 @@ class SecurityTestsTest {
         val result = runner("securityTest").buildAndFail()
 
         assertThat(result.task(":securityTest")?.outcome).isEqualTo(TaskOutcome.FAILED)
-        assertThat(result.output).contains("Security baseline must execute without failed tests")
+        assertThat(result.output).contains("Security test suite must execute without failed tests")
     }
 
     @Test
@@ -115,7 +149,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline XML report is required")
+        assertThat(result.output).contains("Security test suite XML report is required")
     }
 
     @Test
@@ -141,7 +175,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Required security baseline classes were not selected", "MongoBaselineTest")
+        assertThat(result.output).contains("Required security test suite classes were not selected", "MongoBaselineTest")
     }
 
     @Test
@@ -157,7 +191,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest", "--tests", "*BaselineTest.baseline").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline does not allow test filters")
+        assertThat(result.output).contains("Security test suite does not allow test filters")
     }
 
     @Test
@@ -167,7 +201,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline must execute without failed tests")
+        assertThat(result.output).contains("Security test suite must execute without failed tests")
     }
 
     @Test
@@ -177,7 +211,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline must execute at least one test")
+        assertThat(result.output).contains("Security test suite must execute at least one test")
     }
 
     @Test
@@ -203,7 +237,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest", "--tests", "*BaselineTest.first").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline does not allow test filters")
+        assertThat(result.output).contains("Security test suite does not allow test filters")
     }
 
     @ParameterizedTest
@@ -222,7 +256,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Security baseline does not allow test filters")
+        assertThat(result.output).contains("Security test suite does not allow test filters")
     }
 
     @Test
@@ -239,7 +273,7 @@ class SecurityTestsTest {
 
         val result = runner("securityTest").buildAndFail()
 
-        assertThat(result.output).contains("Required security baseline classes were not selected", "MongoBaselineTest")
+        assertThat(result.output).contains("Required security test suite classes were not selected", "MongoBaselineTest")
     }
 
     private fun fixture(extra: String = "") {
@@ -277,6 +311,31 @@ class SecurityTestsTest {
             """.trimIndent()
         )
     }
+
+    private fun regularSource(className: String, body: String) {
+        val source = File(projectDir, "src/test/java/de/lise/fluxflow/$className.java")
+        source.parentFile.mkdirs()
+        source.writeText(
+            """
+            package de.lise.fluxflow;
+            import org.junit.jupiter.api.*;
+            public class $className { $body }
+            """.trimIndent()
+        )
+    }
+
+    private fun testReport(taskName: String, className: String): File = File(
+        projectDir,
+        "build/test-results/$taskName/TEST-$className.xml",
+    )
+
+    private fun testCount(taskName: String, className: String): Int =
+        DocumentBuilderFactory.newInstance()
+            .newDocumentBuilder()
+            .parse(testReport(taskName, className))
+            .documentElement
+            .getAttribute("tests")
+            .toInt()
 
     private fun runner(vararg arguments: String) = GradleRunner.create()
         .withProjectDir(projectDir)
