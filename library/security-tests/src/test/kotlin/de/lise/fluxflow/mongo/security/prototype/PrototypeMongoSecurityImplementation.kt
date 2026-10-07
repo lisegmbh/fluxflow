@@ -41,14 +41,17 @@ internal class PrototypeMongoAliases(
     trustedRootTypes: Set<Class<*>>,
 ) {
     private val aliases: Map<String, Class<*>>
-    private val registrations: List<Registration>
+    private val roleAliases: Map<Pair<TypeRole, Class<*>>, List<String>>
+    private val unscopedAliases: Map<Class<*>, List<String>>
 
     init {
-        registrations = registry.entries
+        val registrations = registry.entries
             .filter { it.role == TypeRole.MODEL || it.role == TypeRole.VALUE }
             .map { Registration(it.key, it.type.java, it.role) } +
                 trustedRootTypes.map { Registration(it.name, it, null) }
         aliases = readAliases(registrations)
+        roleAliases = aliasesByRoleAndType(registrations)
+        unscopedAliases = aliasesByUnscopedType(registrations)
         validateTypeAliases(registrations)
     }
 
@@ -77,15 +80,7 @@ internal class PrototypeMongoAliases(
     )
 
     private fun canonicalAlias(role: TypeRole, type: Class<*>): String? {
-        val aliases = registrations
-            .asSequence()
-            .filter { it.role == role && it.type == type }
-            .map { it.alias }
-            .distinct()
-            .toList()
-        if (aliases.isEmpty()) {
-            return null
-        }
+        val aliases = roleAliases[role to type] ?: return null
         return aliases.singleOrNull { it == type.name }
             ?: aliases.singleOrNull()
             ?: throw TypeManifestException(
@@ -94,12 +89,7 @@ internal class PrototypeMongoAliases(
     }
 
     private fun canonicalUnscopedAlias(type: Class<*>): String {
-        val aliases = registrations
-            .asSequence()
-            .filter { it.role == null && it.type == type }
-            .map { it.alias }
-            .distinct()
-            .toList()
+        val aliases = unscopedAliases[type].orEmpty()
         return aliases.singleOrNull { it == type.name }
             ?: aliases.singleOrNull()
             ?: throw IllegalArgumentException(
@@ -141,6 +131,22 @@ internal class PrototypeMongoAliases(
                 types.single()
             }
 
+        fun aliasesByRoleAndType(
+            registrations: List<Registration>,
+        ): Map<Pair<TypeRole, Class<*>>, List<String>> =
+            registrations
+                .asSequence()
+                .filter { it.role != null }
+                .groupBy { requireNotNull(it.role) to it.type }
+                .mapValues { (_, matches) -> matches.map(Registration::alias).distinct() }
+
+        fun aliasesByUnscopedType(registrations: List<Registration>): Map<Class<*>, List<String>> =
+            registrations
+                .asSequence()
+                .filter { it.role == null }
+                .groupBy(Registration::type)
+                .mapValues { (_, matches) -> matches.map(Registration::alias).distinct() }
+
     }
 }
 
@@ -167,14 +173,14 @@ class MongoDocumentTypePolicy(
         val model = workflow[WorkflowDocument::model.name] ?: return
         if (model is Map<*, *>) {
             if (model.containsKey(typeKey)) {
-                resolve(model, TypeRole.MODEL, WorkflowDocument::model.name)
+                resolve(model, TypeRole.MODEL) { WorkflowDocument::model.name }
             }
             model.entries
                 .asSequence()
                 .filterNot { (key, _) -> key == typeKey }
-                .forEach { (key, value) -> validateNested(value, "model.$key") }
+                .forEach { (key, value) -> validateNested(value) { "model.$key" } }
         } else {
-            validateNested(model, WorkflowDocument::model.name)
+            validateNested(model) { WorkflowDocument::model.name }
         }
     }
 
@@ -186,10 +192,10 @@ class MongoDocumentTypePolicy(
         val workflow = source as? Document
             ?: throw IllegalArgumentException("A workflow must be represented by a BSON Document")
         val model = workflow[WorkflowDocument::model.name] ?: return
-        normalizeModel(model, WorkflowDocument::model.name)
+        normalizeModel(model) { WorkflowDocument::model.name }
     }
 
-    private fun normalizeModel(value: Any?, path: String) {
+    private fun normalizeModel(value: Any?, path: () -> String) {
         when (value) {
             is Map<*, *> -> {
                 if (value.containsKey(typeKey)) {
@@ -198,14 +204,14 @@ class MongoDocumentTypePolicy(
                 value.entries
                     .asSequence()
                     .filterNot { (key, _) -> key == typeKey }
-                    .forEach { (key, nested) -> normalizeNested(nested, "$path.$key") }
+                    .forEach { (key, nested) -> normalizeNested(nested) { "${path()}.$key" } }
             }
 
             else -> normalizeNested(value, path)
         }
     }
 
-    private fun normalizeNested(value: Any?, path: String) {
+    private fun normalizeNested(value: Any?, path: () -> String) {
         when (value) {
             is Map<*, *> -> {
                 if (value.containsKey(typeKey)) {
@@ -214,29 +220,29 @@ class MongoDocumentTypePolicy(
                 value.entries
                     .asSequence()
                     .filterNot { (key, _) -> key == typeKey }
-                    .forEach { (key, nested) -> normalizeNested(nested, "$path.$key") }
+                    .forEach { (key, nested) -> normalizeNested(nested) { "${path()}.$key" } }
             }
 
             is Iterable<*> -> value.forEachIndexed { index, nested ->
-                normalizeNested(nested, "$path[$index]")
+                normalizeNested(nested) { "${path()}[$index]" }
             }
 
             is Array<*> -> value.forEachIndexed { index, nested ->
-                normalizeNested(nested, "$path[$index]")
+                normalizeNested(nested) { "${path()}[$index]" }
             }
         }
     }
 
-    private fun normalizeAlias(document: Map<*, *>, role: TypeRole, path: String) {
+    private fun normalizeAlias(document: Map<*, *>, role: TypeRole, path: () -> String) {
         val alias = document[typeKey] as? String
-            ?: throw IllegalArgumentException("BSON field '$path.$typeKey' must contain a string")
+            ?: throw IllegalArgumentException("BSON field '${path()}.$typeKey' must contain a string")
         val type = aliases.resolve(alias)
         (document as? MutableMap<Any?, Any?>)
             ?.set(typeKey, aliases.aliasFor(role, type))
-            ?: throw IllegalArgumentException("BSON document '$path' must be mutable while writing")
+            ?: throw IllegalArgumentException("BSON document '${path()}' must be mutable while writing")
     }
 
-    private fun validateNested(value: Any?, path: String) {
+    private fun validateNested(value: Any?, path: () -> String) {
         when (value) {
             is Map<*, *> -> {
                 if (value.containsKey(typeKey)) {
@@ -245,26 +251,26 @@ class MongoDocumentTypePolicy(
                 value.entries
                     .asSequence()
                     .filterNot { (key, _) -> key == typeKey }
-                    .forEach { (key, nested) -> validateNested(nested, "$path.$key") }
+                    .forEach { (key, nested) -> validateNested(nested) { "${path()}.$key" } }
             }
 
             is Iterable<*> -> value.forEachIndexed { index, nested ->
-                validateNested(nested, "$path[$index]")
+                validateNested(nested) { "${path()}[$index]" }
             }
 
             is Array<*> -> value.forEachIndexed { index, nested ->
-                validateNested(nested, "$path[$index]")
+                validateNested(nested) { "${path()}[$index]" }
             }
         }
     }
 
-    private fun resolve(document: Map<*, *>, role: TypeRole, path: String): Class<*> {
+    private fun resolve(document: Map<*, *>, role: TypeRole, path: () -> String): Class<*> {
         if (!document.containsKey(typeKey)) {
-            throw IllegalArgumentException("BSON document '$path' must contain '$typeKey'")
+            throw IllegalArgumentException("BSON document '${path()}' must contain '$typeKey'")
         }
         val value = document[typeKey]
         val alias = value as? String
-            ?: throw IllegalArgumentException("BSON field '$path.$typeKey' must contain a string")
+            ?: throw IllegalArgumentException("BSON field '${path()}.$typeKey' must contain a string")
         return registry.resolve(role, alias).java
     }
 
@@ -290,7 +296,6 @@ class GuardedMongoConverter(
     override fun write(source: Any, sink: Bson) {
         delegate.write(source, sink)
         policy.normalizeWriteAliases(source.javaClass, sink)
-        policy.validate(source.javaClass, sink)
     }
 }
 
