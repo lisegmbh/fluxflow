@@ -1,11 +1,13 @@
-# Security baseline tests
+# Security tests
 
 This source directory is shared by the Spring Boot 3 and Spring Boot 4 Mongo test
 modules. It is not a published module. PR01 added the reproducible characterization
 harness. PR03 converts the step and job scenarios into permanent rejection regressions;
-the Mongo model scenario remains a characterization until its dedicated fix.
+the Mongo model scenario remains a characterization until its dedicated fix. PR04 adds
+an integration-tested Mongo conversion-boundary prototype and records the implementation
+decision for that fix. The prototype is test-only; production wiring follows in PR05.
 
-## Run the mandatory baseline
+## Run the mandatory security suite
 
 From `library`, with JDK 17 and a working Docker-compatible container runtime:
 
@@ -14,7 +16,7 @@ From `library`, with JDK 17 and a working Docker-compatible container runtime:
 ```
 
 Both module `check` tasks also run `securityTest`. The gate requires the complete
-baseline suite, rejects skips and missing test/report output, and executes again
+security suite, rejects skips and missing test/report output, and executes again
 even when source files have not changed. A container startup failure is a failure,
 not a reason to disable tests. No production Mongo URI or data is used.
 
@@ -51,6 +53,55 @@ resolved runtime dependencies, test counts, failures and skips with the review.
 The complete report set must contain the required suites in both compatibility
 lines. Green R01/R02 reports prove that activation rejects the report witnesses;
 R03 remains open until its own rejection regression is green.
+
+## PR04 Mongo conversion-boundary decision
+
+The selected production direction is an internal Fluxflow Mongo access object with its
+own `MappingMongoConverter` and `MongoTemplate`. It clones the application's configured
+mapping converter through Spring Data's public `with(MongoDatabaseFactory)` API, replaces
+only the type mapper, and keeps the same `MongoDatabaseFactory`. Fluxflow constructs its
+workflow repository and query fragment from this internal template. The template is held
+inside the access object instead of being exposed as an application `MongoTemplate` bean,
+so application repositories and Boot's conditional bean graph remain unchanged. The
+prototype access object itself is created during the real Boot AutoConfiguration context;
+an application-style repository remains bound to the host converter while the internal
+Fluxflow repository uses the restricted converter.
+
+This boundary was selected over lifecycle listeners because converter `read` and
+`project` are synchronous materialization points. Listeners can be disabled, can run
+asynchronously, and do not protect direct converter calls. The prototype proves rejection
+through the isolated converter and its version adapter with lifecycle events disabled, without
+installing an application context on the internal template or changing the host mapping context.
+
+The Mongo type mapper is built only from `TypeRegistry` entries with role `MODEL` or
+`VALUE`, plus the trusted `WorkflowDocument` root. The guard assigns the top-level
+`model.<type-key>` discriminator to `MODEL` and discriminators recursively nested below
+the model to `VALUE`. Unknown, empty, non-string, wrong-role, or conflicting aliases fail
+closed before Spring Data can resolve a class. The persisted `modelType` field is not a
+trust anchor. Existing FQCN registrations and logical aliases are both accepted. On writes,
+the guard normalizes each discriminator to the canonical alias for its structural role: an
+explicit FQCN registration wins, otherwise the role must have exactly one alias. Historical
+aliases remain read-compatible but are not emitted; a missing canonical alias fails only when
+that type is written.
+
+The shared contract runs against Spring Data MongoDB 4.x and 5.x through two small
+`TypeInformationMapper` adapters. Its eight tests per compatibility line cover direct
+converter reads, repository and aggregation reads, nested lists/maps/nulls, scalar and
+container models, custom type keys, custom conversions, alias conflicts, unchanged host
+beans, and shared transaction rollback. The mandatory `securityTest` task requires both
+prototype suites and fails if either is missing, skipped, or failing.
+
+PR05 will move the proven boundary into production, source its registrations from the
+runtime `TypeRegistry`, replace R03's characterization with a permanent rejection
+regression, and verify the remaining D01-D13/R03 production cases. It must preserve the
+host converter's mapping context and custom conversions, keep Fluxflow's internal
+template out of the host bean graph, and construct the existing repository fragments
+with that template. The prototype derives its type-key from the host converter and rejects a
+host that disables type metadata. It copies the host read preference through Spring Data's public
+API. `MappingMongoConverter.with` does not expose every mutable setting (including map-key
+handling, callbacks, projections, and environment wiring), so PR05 must define an explicit
+internal-template customization contract and add behavioral tests for every supported setting
+instead of attempting reflective state copying.
 
 ## Build gate tests
 

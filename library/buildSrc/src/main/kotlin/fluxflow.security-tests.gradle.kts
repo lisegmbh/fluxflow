@@ -12,12 +12,15 @@ plugins {
 }
 
 val testSources = extensions.getByType<SourceSetContainer>().named("test")
-val baselinePattern = "de/lise/fluxflow/mongo/security/baseline/**"
+val securityTestPatterns = listOf(
+    "de/lise/fluxflow/mongo/security/baseline/**",
+    "de/lise/fluxflow/mongo/security/prototype/**",
+)
 val securityRequirements = extensions.create<SecurityTestRequirements>("securityTests")
 securityRequirements.requiredClasses.convention(emptyList())
 
 // Test actions do not run for NO-SOURCE, so this prerequisite validates the
-// compiled baseline before Gradle can skip the Test task.
+// compiled security test suite before Gradle can skip the Test task.
 val verifySecurityTestClasses = tasks.register("verifySecurityTestClasses") {
     dependsOn(tasks.named("testClasses"))
     doLast {
@@ -26,28 +29,28 @@ val verifySecurityTestClasses = tasks.register("verifySecurityTestClasses") {
         if (securityTask.filter.includePatterns.isNotEmpty() || securityTask.filter.excludePatterns.isNotEmpty() ||
             platformOptions?.includeTags?.isNotEmpty() == true || platformOptions?.excludeTags?.isNotEmpty() == true
         ) {
-            throw GradleException("Security baseline does not allow test filters; run the regular test task for diagnostics.")
+            throw GradleException("Security test suite does not allow test filters; run the regular test task for diagnostics.")
         }
         val classes = securityTask.candidateClassFiles
         if (classes.isEmpty) {
-            throw GradleException("Security baseline classes are missing.")
+            throw GradleException("Security test suite classes are missing.")
         }
         val missingClasses = securityRequirements.requiredClasses.get().filter { className ->
             classes.none { it.invariantSeparatorsPath.endsWith("/${className.replace('.', '/')}.class") }
         }
         if (missingClasses.isNotEmpty()) {
-            throw GradleException("Required security baseline classes were not selected: ${missingClasses.joinToString()}.")
+            throw GradleException("Required security test suite classes were not selected: ${missingClasses.joinToString()}.")
         }
     }
 }
 
 val securityTest = tasks.register<MandatorySecurityTest>("securityTest") {
-    description = "Runs the mandatory security baseline tests."
+    description = "Runs the mandatory security test suite."
     group = "verification"
     dependsOn(verifySecurityTestClasses)
     testClassesDirs = testSources.get().output.classesDirs
     classpath = testSources.get().runtimeClasspath
-    include(baselinePattern)
+    include(securityTestPatterns)
     useJUnitPlatform()
     testLogging {
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -59,14 +62,14 @@ val securityTest = tasks.register<MandatorySecurityTest>("securityTest") {
     outputs.cacheIf { false }
     doFirst {
         if (!reports.junitXml.required.get()) {
-            throw GradleException("Security baseline XML report is required.")
+            throw GradleException("Security test suite XML report is required.")
         }
     }
     doLast {
         val reportsPresent = reports.junitXml.outputLocation.get().asFile
             .listFiles { file -> file.name.startsWith("TEST-") && file.extension == "xml" }
         if (reportsPresent.isNullOrEmpty()) {
-            throw GradleException("Security baseline XML report is required.")
+            throw GradleException("Security test suite XML report is required.")
         }
     }
     addTestListener(object : TestListener {
@@ -80,22 +83,26 @@ val securityTest = tasks.register<MandatorySecurityTest>("securityTest") {
 
         override fun afterSuite(suite: TestDescriptor, result: TestResult) {
             if (suite.parent == null && result.skippedTestCount > 0) {
-                throw GradleException("Security baseline must execute without skipped tests.")
+                throw GradleException("Security test suite must execute without skipped tests.")
             }
             if (suite.parent == null) {
                 if (result.testCount == 0L) {
-                    throw GradleException("Security baseline must execute at least one test.")
+                    throw GradleException("Security test suite must execute at least one test.")
                 }
                 if (result.failedTestCount > 0) {
-                    throw GradleException("Security baseline must execute without failed tests.")
+                    throw GradleException("Security test suite must execute without failed tests.")
                 }
                 val missingClasses = securityRequirements.requiredClasses.get() - executedClasses
                 if (missingClasses.isNotEmpty()) {
-                    throw GradleException("Required security baseline classes did not execute: ${missingClasses.joinToString()}.")
+                    throw GradleException("Required security test suite classes did not execute: ${missingClasses.joinToString()}.")
                 }
             }
         }
     })
+}
+
+tasks.named<Test>("test") {
+    exclude(*securityTestPatterns.toTypedArray())
 }
 
 tasks.named("check") {

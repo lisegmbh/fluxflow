@@ -7,7 +7,7 @@ import org.gradle.api.tasks.testing.Test
 abstract class MandatorySecurityTest : Test() {
     override fun setTestNameIncludePatterns(testNamePattern: List<String>): Test {
         if (testNamePattern.isNotEmpty()) {
-            throw GradleException("Security baseline does not allow test filters; run the regular test task for diagnostics.")
+            throw GradleException("Security test suite does not allow test filters; run the regular test task for diagnostics.")
         }
         return super.setTestNameIncludePatterns(testNamePattern)
     }
