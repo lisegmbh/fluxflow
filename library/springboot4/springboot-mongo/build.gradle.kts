@@ -8,8 +8,21 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
     requiredClasses.set(listOf(
         "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
-        "de.lise.fluxflow.mongo.security.baseline.WorkflowModelBaselineTest",
+        "de.lise.fluxflow.mongo.security.consumer.Boot4MongoConsumerContractIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoSecurityIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoMappedFieldsIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoPathFieldsIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoNumericIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoJavaTimeIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoNativeJavaTimeIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoMigrationCopyIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoCustomTypeKeyIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoReconciliationIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoSecurityIT",
+        "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoHostTemplateIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoTypeAuditIT",
+        "de.lise.fluxflow.mongo.security.production.ValueTypeConverterSecurityTest",
+        "de.lise.fluxflow.mongo.security.production.ValueTypeConverterJavaCompatibilityTest",
     ))
 }
 
@@ -18,10 +31,6 @@ kotlin.sourceSets.named("test") {
 }
 sourceSets.named("test") {
     java.srcDir("../../security-tests/src/test/java")
-}
-
-tasks.withType<Test>().configureEach {
-    systemProperty("fluxflow.security.expectRejection", providers.gradleProperty("securityExpectRejection").orElse("false").get())
 }
 
 dependencyManagement {
@@ -61,6 +70,12 @@ dependencies {
     testImplementation(project(":springboot4:springboot"))
     testImplementation(project(":springboot4:springboot-testing"))
     testImplementation(project(":core:engine"))
+    testImplementation(project(":core:scheduling"))
     testImplementation(project(":core:stereotyped"))
     testImplementation(project(":core:validation"))
+}
+
+// Exercise host JSR-310 and native UTC codecs under a deterministic non-UTC process timezone.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.timezone", "Europe/Berlin")
 }

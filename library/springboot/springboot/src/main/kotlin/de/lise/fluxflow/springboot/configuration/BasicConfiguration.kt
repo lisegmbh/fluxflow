@@ -8,9 +8,11 @@ import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQueryab
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
+import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
 import de.lise.fluxflow.api.job.query.JobQueryable
+import de.lise.fluxflow.api.job.query.JobQueryable.Companion.status
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
@@ -45,6 +47,8 @@ import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersi
 import de.lise.fluxflow.persistence.continuation.history.flowquery.ContinuationRecordQueryableToDataMapper
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.job.ScheduledJobReference
+import de.lise.fluxflow.persistence.job.ScheduledJobReferencePersistence
 import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataReplacer
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
@@ -87,8 +91,8 @@ import de.lise.fluxflow.stereotyped.workflow.action.WorkflowActionFunctionResolv
 import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -763,6 +767,14 @@ open class BasicConfiguration {
         )
     }
 
+    /** Compatibility factory for callers supplying only bulk job access. */
+    @Deprecated("Override the four-argument factory to customize the production reconciliation bean")
+    @Suppress("DEPRECATION")
+    open fun startupJobReconciliation(
+        jobService: JobService,
+        schedulingService: SchedulingService,
+    ): BootstrapAction = ReconcileScheduledJobsBootstrapAction(jobService, schedulingService)
+
     @Bean
     @Order(105)
     @ConditionalOnProperty(
@@ -773,10 +785,29 @@ open class BasicConfiguration {
     open fun startupJobReconciliation(
         jobService: JobService,
         schedulingService: SchedulingService,
+        scheduledJobReferencePersistence: ObjectProvider<ScheduledJobReferencePersistence>,
+        workflowService: WorkflowService,
     ): BootstrapAction {
+        val referencePersistence = scheduledJobReferencePersistence.getIfAvailable {
+            ScheduledJobReferencePersistence {
+                jobService.findAll {
+                    where {
+                        status.isEqual(JobStatus.Scheduled)
+                    }
+                }.items.map { job ->
+                    ScheduledJobReference(
+                        job.workflow.identifier,
+                        job.identifier,
+                    )
+                }
+            }
+        }
+
         return ReconcileScheduledJobsBootstrapAction(
             jobService,
-            schedulingService
+            schedulingService,
+            referencePersistence,
+            workflowService,
         )
     }
 }

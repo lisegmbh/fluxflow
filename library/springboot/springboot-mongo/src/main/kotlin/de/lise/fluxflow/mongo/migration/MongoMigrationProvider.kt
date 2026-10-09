@@ -7,15 +7,19 @@ import de.lise.fluxflow.migration.common.TypeRenameMigration
 import de.lise.fluxflow.mongo.migration.common.MongoExecutableTypeRenameMigration
 import org.springframework.data.mongodb.core.MongoTemplate
 
-class MongoMigrationProvider(
-    private val mongoTemplate: MongoTemplate
+class MongoMigrationProvider internal constructor(
+    private val mongoTemplate: MongoTemplate,
+    private val typeKey: String,
 ) : MigrationProvider {
+    constructor(mongoTemplate: MongoTemplate) : this(mongoTemplate, "_class")
+
     override fun provide(migration: Migration): ExecutableMigration? {
         return when(migration) {
             is TypeRenameMigration -> MongoExecutableTypeRenameMigration(
                 migration,
                 false,
                 mongoTemplate,
+                typeKey,
             )
             else -> null
         }

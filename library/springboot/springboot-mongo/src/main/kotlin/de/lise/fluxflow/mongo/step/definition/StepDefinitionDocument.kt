@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.step.definition
 
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document
@@ -29,6 +30,15 @@ data class StepDefinitionDocument(
             version,
             metadata.toTypeSafeData(),
             data.map { it.toDataDefinitionData() }
+        )
+    }
+
+    fun toStepDefinitionData(valueTypes: ValueTypeConverter): StepDefinitionData {
+        return StepDefinitionData(
+            kind,
+            version,
+            metadata.toTypeSafeData(valueTypes),
+            data.map { it.toDataDefinitionData(valueTypes) },
         )
     }
 }

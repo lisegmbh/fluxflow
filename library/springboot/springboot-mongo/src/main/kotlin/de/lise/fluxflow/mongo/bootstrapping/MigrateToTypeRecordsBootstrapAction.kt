@@ -2,7 +2,9 @@ package de.lise.fluxflow.mongo.bootstrapping
 
 import com.mongodb.client.model.Filters
 import de.lise.fluxflow.migration.MigrationError
+import de.lise.fluxflow.mongo.MongoFieldNames
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.step.StepDocument
@@ -18,7 +20,24 @@ class MigrateToTypeRecordsBootstrapAction(
     private val jobRepository: JobRepository,
     private val mongoConverter: MongoConverter,
     mongoTemplate: MongoTemplate,
+    private val valueTypes: ValueTypeConverter,
 ) : MongoBootstrapAction(mongoTemplate) {
+    private val fieldNames = MongoFieldNames(mongoConverter.mappingContext)
+
+    constructor(
+        failureAction: PartialFailureAction,
+        stepRepository: StepRepository,
+        jobRepository: JobRepository,
+        mongoConverter: MongoConverter,
+        mongoTemplate: MongoTemplate,
+    ) : this(
+        failureAction,
+        stepRepository,
+        jobRepository,
+        mongoConverter,
+        mongoTemplate,
+        ValueTypeConverter.builtInsOnly(),
+    )
 
     private data class MigrationFailure(
         val documentType: String,
@@ -60,31 +79,28 @@ class MigrateToTypeRecordsBootstrapAction(
         migrationFailures: MutableList<MigrationFailure>
     ) {
         val stepCollection = ensureCollection<StepDocument>()
-        val cursor = stepCollection.find(
+        stepCollection.find(
             Filters.or(
-                Filters.not(Filters.exists("dataEntries")),
-                Filters.not(Filters.exists("metadataEntries"))
+                Filters.not(Filters.exists(fieldNames.fieldName(StepDocument::class.java, "dataEntries"))),
+                Filters.not(Filters.exists(fieldNames.fieldName(StepDocument::class.java, "metadataEntries")))
             ),
-        ).cursor()
-
-        while (cursor.hasNext()) {
-            val doc = cursor.next()
-            val stepDocument = try {
-                mongoConverter.read(StepDocument::class.java, doc)
-            } catch (e: Exception) {
-                handleTypeActivationException("workflow", doc, e)?.let { failure ->
-                    migrationFailures.add(failure)
+        ).cursor().use { cursor ->
+            while (cursor.hasNext()) {
+                val doc = cursor.next()
+                val migratedDocument = try {
+                    val stepDocument = mongoConverter.read(StepDocument::class.java, doc)
+                    val stepData = stepDocument.toStepData(valueTypes)
+                    stepDocument.copy(
+                        dataEntries = TypedRecords.fromData(stepData.data),
+                        metadataEntries = TypedRecords.fromData(stepData.metadata),
+                    ).also { it.toStepData(valueTypes) }
+                } catch (e: Exception) {
+                    handleTypeActivationException(StepDocument::class.java, doc, e)?.let { failure ->
+                        migrationFailures.add(failure)
+                    }
+                    null
                 }
-                null
-            }
-            stepDocument?.let {
-                val stepData = it.toStepData()
-                it.copy(
-                    dataEntries = TypedRecords.fromData(stepData.data),
-                    metadataEntries = TypedRecords.fromData(stepData.metadata)
-                )
-            }?.let {
-                buffer.push(it)
+                migratedDocument?.let { buffer.push(it) }
             }
         }
     }
@@ -95,47 +111,44 @@ class MigrateToTypeRecordsBootstrapAction(
     ) {
         val jobCollection = ensureCollection<JobDocument>()
 
-        val cursor = jobCollection.find(
-            Filters.not(Filters.exists("parameterEntries"))
-        ).cursor()
-
-        while(cursor.hasNext()) {
-            val doc = cursor.next()
-            val jobDocument = try {
-                mongoConverter.read(JobDocument::class.java, doc)
-            }catch (e: Exception) {
-                handleTypeActivationException("job", doc, e)?.let { failure ->
-                    migrationFailures.add(failure)
+        jobCollection.find(
+            Filters.not(Filters.exists(fieldNames.fieldName(JobDocument::class.java, "parameterEntries")))
+        ).cursor().use { cursor ->
+            while (cursor.hasNext()) {
+                val doc = cursor.next()
+                val migratedDocument = try {
+                    val jobDocument = mongoConverter.read(JobDocument::class.java, doc)
+                    val jobData = jobDocument.toJobData(valueTypes)
+                    jobDocument.copy(
+                        parameterEntries = TypedRecords.fromData(jobData.parameters),
+                    ).also { it.toJobData(valueTypes) }
+                } catch (e: Exception) {
+                    handleTypeActivationException(JobDocument::class.java, doc, e)?.let { failure ->
+                        migrationFailures.add(failure)
+                    }
+                    null
                 }
-                null
-            }
-            jobDocument?.let {
-                val jobData = it.toJobData()
-                it.copy(
-                    parameterEntries = TypedRecords.fromData(jobData.parameters)
-                )
-            }?.let {
-                buffer.push(it)
+                migratedDocument?.let { buffer.push(it) }
             }
         }
     }
 
 
     private fun handleTypeActivationException(
-        type: String,
+        type: Class<*>,
         document: Document,
         reason: Exception
     ): MigrationFailure? {
         // We don't need to distinguish between job and step documents,
         // as the properties _id and workflowId are present on both document types.
-        val id = document.getObjectId("_id").toHexString()
-        val workflow = document.getString("workflowId")
+        val id = document["_id"]?.toString() ?: "<unavailable>"
+        val workflow = fieldNames.read(document, type, "workflowId") as? String ?: "<unavailable>"
 
         Logger.warn(
             "Failed to migrate {} document '{}' belonging " +
                     "to the workflow '{}', " +
                     "because an exception occurred during activation. See inner exception for more details.",
-            type,
+            type.simpleName,
             id,
             workflow,
             reason
@@ -143,7 +156,7 @@ class MigrateToTypeRecordsBootstrapAction(
 
         return when (failureAction) {
             PartialFailureAction.Fail -> MigrationFailure(
-                type,
+                type.simpleName,
                 id,
                 workflow,
                 reason

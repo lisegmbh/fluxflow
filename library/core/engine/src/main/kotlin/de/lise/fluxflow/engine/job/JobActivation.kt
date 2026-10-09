@@ -50,9 +50,14 @@ class JobActivation<TWorkflowModel> @JvmOverloads constructor(
         } catch (e: UnknownTypeException) {
             throw JobActivationException(jobData.id, jobData.kind, e)
         }
-        return when(
-            val activatedObject = typeActivator.findActivation(type)?.activate()
-        ) {
+        val activatedObject = try {
+            typeActivator.findActivation(type)?.activate()
+        } catch (exception: Exception) {
+            throw JobActivationException(jobData.id, jobData.kind, exception)
+        } catch (error: LinkageError) {
+            throw JobActivationException(jobData.id, jobData.kind, error)
+        }
+        return when (activatedObject) {
             null ->
                 throw JobActivationException(jobData.id, jobData.kind)
             is JobDefinition -> {

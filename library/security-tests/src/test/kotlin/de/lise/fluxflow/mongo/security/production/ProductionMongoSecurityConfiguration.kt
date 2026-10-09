@@ -1,0 +1,130 @@
+package de.lise.fluxflow.mongo.security.production
+
+import com.mongodb.ReadPreference
+import de.lise.fluxflow.mongo.FluxFlowMongoTemplateCustomizer
+import de.lise.fluxflow.mongo.FluxFlowMongoConverterCustomizer
+import de.lise.fluxflow.mongo.workflow.WorkflowDocument
+import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
+import de.lise.fluxflow.mongo.security.fixtures.SecurityConvertedValueReader
+import de.lise.fluxflow.mongo.security.fixtures.SecurityConvertedValueWriter
+import de.lise.fluxflow.mongo.security.fixtures.SecurityHostRepository
+import de.lise.fluxflow.mongo.security.fixtures.allowedSecurityTestEntries
+import de.lise.fluxflow.mongo.security.fixtures.securityTestRegistry
+import de.lise.fluxflow.reflection.types.TypeRegistry
+import org.springframework.beans.factory.config.BeanPostProcessor
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
+import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper
+import org.springframework.data.mongodb.core.convert.MappingMongoConverter
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions
+import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
+import org.springframework.data.mapping.callback.EntityCallbacks
+import org.springframework.data.mongodb.core.mapping.event.AfterConvertCallback
+import java.util.concurrent.CopyOnWriteArrayList
+
+@TestConfiguration
+@EnableMongoRepositories(basePackageClasses = [SecurityHostRepository::class])
+open class ProductionMongoSecurityConfiguration {
+    @Bean
+    open fun productionMongoCustomizerInvocations(): MongoCustomizerInvocations =
+        MongoCustomizerInvocations()
+
+    @Bean
+    @Order(10)
+    open fun firstProductionMongoTemplateCustomizer(
+        invocations: MongoCustomizerInvocations,
+    ): FluxFlowMongoTemplateCustomizer = FluxFlowMongoTemplateCustomizer {
+        invocations.values += it to "first"
+        it.setReadPreference(ReadPreference.primary())
+    }
+
+    @Bean
+    @Order(20)
+    open fun secondProductionMongoTemplateCustomizer(
+        invocations: MongoCustomizerInvocations,
+    ): FluxFlowMongoTemplateCustomizer = FluxFlowMongoTemplateCustomizer {
+        invocations.values += it to "second"
+        it.setReadPreference(ReadPreference.nearest())
+    }
+
+    @Bean
+    open fun productionMongoConverterCallbacks(): MongoConverterCallbacks = MongoConverterCallbacks()
+
+    @Bean
+    open fun productionMongoConverterCustomizer(
+        callbacks: MongoConverterCallbacks,
+    ): FluxFlowMongoConverterCustomizer = FluxFlowMongoConverterCustomizer { configuration ->
+        configuration.setMapKeyDotReplacement("~")
+        configuration.setEntityCallbacks(
+            EntityCallbacks.create(
+                AfterConvertCallback<WorkflowDocument> { entity, _, _ ->
+                    callbacks.afterConvertCount.incrementAndGet()
+                    entity
+                },
+            )
+        )
+    }
+
+    @Bean("productionWitnessClassLoader")
+    open fun productionWitnessClassLoader(): WitnessClassLoader = WitnessClassLoader()
+
+    @Bean
+    @Primary
+    open fun productionTypeRegistry(
+        @org.springframework.beans.factory.annotation.Qualifier("productionWitnessClassLoader")
+        loader: WitnessClassLoader,
+    ): TypeRegistry = securityTestRegistry(loader, *allowedSecurityTestEntries())
+
+    @Bean
+    open fun mongoCustomConversions(
+        @Value("\${fluxflow.security.test.mapped-status:false}") mappedStatus: Boolean,
+        @Value("\${fluxflow.security.test.numeric-decimal128:false}") numericDecimal128: Boolean,
+        @Value("\${fluxflow.security.test.native-java-time:false}") nativeJavaTime: Boolean,
+    ): MongoCustomConversions =
+        MongoCustomConversions.create { adapter ->
+            if (nativeJavaTime) adapter.useNativeDriverJavaTimeCodecs()
+            if (numericDecimal128) {
+                adapter.bigDecimal(MongoCustomConversions.BigDecimalRepresentation.DECIMAL128)
+            }
+            adapter.registerConverter(SecurityConvertedValueWriter)
+            adapter.registerConverter(SecurityConvertedValueReader)
+            if (mappedStatus) {
+                adapter.registerConverter(MappedJobStatusWriter)
+                adapter.registerConverter(MappedJobStatusReader)
+            }
+        }
+
+    @Bean
+    open fun witnessAwareHostConverter(
+        @org.springframework.beans.factory.annotation.Qualifier("productionWitnessClassLoader")
+        loader: WitnessClassLoader,
+        @Value("\${fluxflow.security.test.type-key:_class}")
+        typeKey: String,
+    ): BeanPostProcessor = object : BeanPostProcessor {
+        override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
+            if (bean is MappingMongoConverter) {
+                bean.setTypeMapper(
+                    DefaultMongoTypeMapper(typeKey, bean.mappingContext).apply {
+                        setBeanClassLoader(loader)
+                    }
+                )
+            }
+            if (bean is MongoTemplate) {
+                bean.setReadPreference(ReadPreference.secondaryPreferred())
+            }
+            return bean
+        }
+    }
+}
+
+class MongoCustomizerInvocations {
+    val values = CopyOnWriteArrayList<Pair<MongoTemplate, String>>()
+}
+
+class MongoConverterCallbacks {
+    val afterConvertCount = java.util.concurrent.atomic.AtomicInteger()
+}

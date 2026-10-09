@@ -89,7 +89,23 @@ class JobActivationServiceTest {
     }
 
     @Test
-    fun `M09 should preserve legacy JVM constructors`() {
+    fun `M08 should wrap a registered job constructor failure`() {
+        val typeName = ThrowingJob::class.java.name
+        val service = service(registry(entry(TypeRole.JOB, typeName, typeName)))
+
+        val failure = catchThrowable {
+            service.activate(workflow(), jobData("throwing-job", typeName))
+        }
+
+        assertThat(failure)
+            .isExactlyInstanceOf(JobActivationException::class.java)
+            .hasMessage("Unable to activate job #throwing-job with kind '$typeName'")
+        assertThat(generateSequence(failure) { it.cause }.toList())
+            .anyMatch { it is IllegalStateException && it.message == "job constructor failed" }
+    }
+
+    @Test
+    fun `legacy JVM constructors remain available`() {
         assertThat(JobActivationService::class.java.constructors.map { it.parameterCount })
             .contains(3, 4)
         assertThat(JobActivation::class.java.constructors.map { it.parameterCount })
@@ -148,6 +164,14 @@ class JobActivationServiceTest {
 
     @Job("allowed-job")
     class AliasedJob {
+        fun execute() = Unit
+    }
+
+    class ThrowingJob {
+        init {
+            throw IllegalStateException("job constructor failed")
+        }
+
         fun execute() = Unit
     }
 }
