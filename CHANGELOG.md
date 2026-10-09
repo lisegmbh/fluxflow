@@ -21,14 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. **Trusted type manifest and registry**<br/>
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
-   generates the manifest in consumer JARs. Mongo enforcement remains a
-   separate follow-up change.
+   generates the manifest in consumer JARs.
 
 ### Changed
 1. **Trusted type inventory is validated during application startup**<br/>
    Duplicate discovered step/job kinds, conflicting model/value registrations, malformed
-   manifests, and missing manifest classes now stop startup, including before the follow-up
-   activation and Mongo enforcement changes. Registry resolution respects `ClassLoaderProvider`
+   manifests, and missing manifest classes now stop startup. Registry resolution respects `ClassLoaderProvider`
    and contributor class identity. The manifest plugin requires Gradle 9.2.0+ and Java 17+
    and compiles its Kotlin DSL API at language/API version 2.2. Generation records
    `manifest.covered-packages`; startup skips annotation scans for those packages. Delegate
@@ -37,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    See the [migration guidance](docs/features/type-manifest.md).
 
 ### Deprecated
+1. **Two-argument scheduled-job reconciliation APIs**<br/>
+   The constructor and `BasicConfiguration` factory remain source- and JVM-signature compatible,
+   but retain bulk, fail-fast reads. Use the four-argument APIs for per-job isolation with raw
+   references; migrate old configuration overrides to the four-argument bean factory.
 
 ### Fixed
 1. **Fail-closed persisted step and job activation**<br/>
@@ -44,6 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    registrations. Unknown kinds fail before their classes can be initialized or constructed.
    Existing fully qualified kinds remain supported when present in the generated manifest or an
    explicit context-local registration.
+2. **Fail-closed Mongo type materialization**<br/>
+   FluxFlow Mongo reads now validate model and value type metadata synchronously against the
+   context-local trusted type registry before Spring Data resolves a class. Repository, FlowQuery,
+   aggregation, projection and bootstrap reads share the guarded converter in both Spring Boot
+   compatibility lines. Scheduled-job startup reconciliation reads identifiers first and isolates
+   a rejected job so healthy neighboring jobs can still be restored.
+3. **Mongo mapping and logical type alias consistency**<br/>
+   Guarded reads, type-record bootstrap migration and scheduled-job reference queries honor
+   host field naming and status conversion, including nested PATH mappings and literal dotted
+   KEY names. `isType` finds registered MODEL and VALUE aliases,
+   including subtype filters and custom type keys. Dual-role projections accept their declared
+   root aliases while nested values and complete workflow models retain strict role checks.
 
 ### Removed
 
