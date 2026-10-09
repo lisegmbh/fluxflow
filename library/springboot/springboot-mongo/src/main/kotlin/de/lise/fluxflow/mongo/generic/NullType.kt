@@ -6,8 +6,11 @@ import de.lise.fluxflow.mongo.generic.record.TypeRecord
 
 class NullType : TypeSpec {
     override fun assertType(value: Any?): Any? {
-        return null // A null type always represents a null value
+        return ValueTypeConverter.BuiltInsOnly.assertType(this, value)
     }
+
+    fun assertType(value: Any?, converter: ValueTypeConverter): Any? =
+        converter.assertType(this, value)
 
     override fun toRecord(context: RecordContext): TypeRecord {
         return NullTypeRecord()

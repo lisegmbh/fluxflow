@@ -1,0 +1,308 @@
+package de.lise.fluxflow.mongo
+
+import de.lise.fluxflow.mongo.job.JobDocument
+import de.lise.fluxflow.mongo.step.StepDocument
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
+import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
+import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.workflow.WorkflowDocument
+import de.lise.fluxflow.reflection.types.TypeRole
+import org.bson.Document
+import org.bson.conversions.Bson
+import java.util.ArrayDeque
+import java.util.Collections
+import java.util.IdentityHashMap
+
+/** Validates every persisted type discriminator before Spring Data may resolve it. */
+internal class MongoDocumentTypePolicy(
+    private val aliases: FluxFlowMongoTypeAliases,
+    private val typeKey: String = "_class",
+    private val maxDepth: Int = 100,
+    private val maxNodes: Int = 100_000,
+    private val fieldNames: MongoFieldNames? = null,
+) {
+    init {
+        require(maxDepth > 0) { "Mongo document maximum depth must be positive" }
+        require(maxNodes > 0) { "Mongo document maximum node count must be positive" }
+    }
+
+    fun validate(targetType: Class<*>, source: Bson) {
+        if (targetType !in aliases.rootTypes) {
+            validateProjection(targetType, source)
+            return
+        }
+        val root = source as? Document
+            ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
+
+        validateRootAlias(targetType, root)
+
+        val pending = ArrayDeque<Frame>()
+        root.entries.asSequence()
+            .filterNot { (key, _) -> key == typeKey }
+            .forEach { (key, value) ->
+                pending.add(Frame(value, key, 1, policyForRootField(targetType, key)))
+            }
+
+        validateFrames(pending)
+    }
+
+    fun validateProjection(targetType: Class<*>, source: Bson) {
+        val root = source as? Document
+            ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
+        val roles = aliases.rolesOf(targetType)
+        val rootPolicy = when (roles) {
+            setOf(TypeRole.MODEL) -> NodePolicy.Model
+            setOf(TypeRole.MODEL, TypeRole.VALUE) -> NodePolicy.Projection(roles)
+            else -> NodePolicy.Application(TypeRole.VALUE)
+        }
+        validateAlias(root, rootPolicy, "projection")
+        val pending = ArrayDeque<Frame>()
+        root.entries.asSequence()
+            .filterNot { (key, _) -> key == typeKey }
+            .forEach { (key, value) ->
+                pending.add(Frame(value, key, 1, policyForField(rootPolicy, key)))
+            }
+        validateFrames(pending)
+    }
+
+    private fun validateFrames(pending: ArrayDeque<Frame>) {
+        val visited = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+        var nodes = 1
+        while (pending.isNotEmpty()) {
+            val frame = pending.removeLast()
+            nodes++
+            require(nodes <= maxNodes) {
+                "Mongo document exceeds the maximum node count of $maxNodes"
+            }
+            require(frame.depth <= maxDepth) {
+                "Mongo document exceeds the maximum depth of $maxDepth at '${frame.path}'"
+            }
+
+            when (val value = frame.value) {
+                is Map<*, *> -> {
+                    if (!visited.add(value)) {
+                        continue
+                    }
+                    validateAlias(value, frame.policy, frame.path)
+                    value.entries.asSequence()
+                        .filterNot { (key, _) -> key == typeKey }
+                        .forEach { (key, nested) ->
+                            pending.add(
+                                Frame(
+                                    nested,
+                                    "${frame.path}.$key",
+                                    frame.depth + 1,
+                                    policyForField(frame.policy, key?.toString()),
+                                )
+                            )
+                        }
+                }
+
+                is Iterable<*> -> {
+                    if (!visited.add(value)) {
+                        continue
+                    }
+                    var index = 0
+                    for (nested in value) {
+                        require(nodes + pending.size < maxNodes) {
+                            "Mongo document exceeds the maximum node count of $maxNodes"
+                        }
+                        pending.add(
+                            Frame(
+                                nested,
+                                "${frame.path}[$index]",
+                                frame.depth + 1,
+                                frame.policy.forElement(),
+                            )
+                        )
+                        index++
+                    }
+                }
+
+                is Array<*> -> {
+                    if (!visited.add(value)) {
+                        continue
+                    }
+                    value.forEachIndexed { index, nested ->
+                        pending.add(
+                            Frame(
+                                nested,
+                                "${frame.path}[$index]",
+                                frame.depth + 1,
+                                frame.policy.forElement(),
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun policyForRootField(targetType: Class<*>, key: String): NodePolicy =
+        policyForField(NodePolicy.RootFields(targetType), key)
+
+    private fun policyForField(policy: NodePolicy, key: String?): NodePolicy {
+        val base = if (policy is NodePolicy.Namespace) policy.base else policy
+        val mappedType = when (base) {
+            is NodePolicy.RootFields -> base.type
+            NodePolicy.TypedRecords -> TypedRecords::class.java
+            NodePolicy.StepDefinitionData -> DataDefinitionDocument::class.java
+            else -> null
+        }
+        if (mappedType == null || fieldNames == null || key == null) {
+            return if (base is NodePolicy.RootFields) policyForRootProperty(base.type, key) else base.forField(key)
+        }
+        val path = (if (policy is NodePolicy.Namespace) policy.path else emptyList()) + key
+        val property = fieldNames.propertyAt(mappedType, path)
+        if (property != null) {
+            return if (base is NodePolicy.RootFields) policyForRootProperty(base.type, property) else base.forField(property)
+        }
+        return if (fieldNames.isNamespace(mappedType, path)) NodePolicy.Namespace(mappedType, path, base)
+            else NodePolicy.Static
+    }
+
+    @Suppress("DEPRECATION")
+    private fun policyForRootProperty(targetType: Class<*>, key: String?): NodePolicy = when (targetType) {
+        WorkflowDocument::class.java -> when (key) {
+            WorkflowDocument::model.name -> NodePolicy.Model
+            else -> NodePolicy.Static
+        }
+
+        StepDocument::class.java -> when (key) {
+            StepDocument::data.name,
+            StepDocument::metadata.name -> NodePolicy.Application(TypeRole.VALUE)
+            StepDocument::dataTypeMap.name,
+            StepDocument::metadataTypeMap.name -> NodePolicy.Infrastructure
+            StepDocument::dataEntries.name,
+            StepDocument::metadataEntries.name -> NodePolicy.TypedRecords
+            else -> NodePolicy.Static
+        }
+
+        JobDocument::class.java -> when (key) {
+            JobDocument::parameters.name -> NodePolicy.Application(TypeRole.VALUE)
+            JobDocument::parameterTypeMap.name -> NodePolicy.Infrastructure
+            JobDocument::parameterEntries.name -> NodePolicy.TypedRecords
+            else -> NodePolicy.Static
+        }
+
+        StepDefinitionDocument::class.java -> when (key) {
+            StepDefinitionDocument::metadata.name -> NodePolicy.TypedRecords
+            StepDefinitionDocument::data.name -> NodePolicy.StepDefinitionData
+            else -> NodePolicy.Static
+        }
+
+        else -> NodePolicy.Static
+    }
+
+    private fun validateRootAlias(targetType: Class<*>, root: Document) {
+        if (!root.containsKey(typeKey)) {
+            return
+        }
+        val resolved = aliases.resolve(root[typeKey])
+        if (targetType in aliases.rootTypes) {
+            require(resolved == targetType) {
+                "Mongo root type '${resolved.name}' does not match requested type '${targetType.name}'"
+            }
+        }
+    }
+
+    private fun validateAlias(document: Map<*, *>, policy: NodePolicy, path: String) {
+        if (!document.containsKey(typeKey)) {
+            return
+        }
+        val alias = document[typeKey]
+        try {
+            when (policy) {
+                is NodePolicy.Application -> aliases.resolve(policy.role, alias)
+                is NodePolicy.Projection -> aliases.resolve(policy.roles, alias)
+                NodePolicy.Model -> aliases.resolve(TypeRole.MODEL, alias)
+                NodePolicy.Infrastructure -> require(aliases.isInfrastructure(alias)) {
+                    "Mongo type alias '$alias' is not allowed in FluxFlow infrastructure metadata"
+                }
+                NodePolicy.TypedRecords -> require(aliases.isAliasFor(alias, TypedRecords::class.java)) {
+                    "Mongo type alias '$alias' is not a TypedRecords container"
+                }
+                NodePolicy.StepDefinitionData -> require(
+                    aliases.isAliasFor(alias, DataDefinitionDocument::class.java)
+                ) {
+                    "Mongo type alias '$alias' is not a step data definition"
+                }
+                NodePolicy.Static, is NodePolicy.Namespace, is NodePolicy.RootFields -> throw IllegalArgumentException(
+                    "Mongo type metadata is not allowed at '$path.$typeKey'"
+                )
+            }
+        } catch (exception: IllegalArgumentException) {
+            exception.addSuppressed(IllegalArgumentException("Invalid Mongo type at '$path.$typeKey'"))
+            throw exception
+        }
+    }
+
+    private data class Frame(
+        val value: Any?,
+        val path: String,
+        val depth: Int,
+        val policy: NodePolicy,
+    )
+
+    private sealed interface NodePolicy {
+        fun forField(key: String?): NodePolicy
+        fun forElement(): NodePolicy
+
+        data class RootFields(val type: Class<*>) : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Static
+            override fun forElement(): NodePolicy = Static
+        }
+
+        /** Mapping path containers carry no discriminator authorization of their own. */
+        data class Namespace(val type: Class<*>, val path: List<String>, val base: NodePolicy) : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Static
+            override fun forElement(): NodePolicy = Static
+        }
+
+        data class Application(val role: TypeRole) : NodePolicy {
+            override fun forField(key: String?): NodePolicy = this
+            override fun forElement(): NodePolicy = this
+        }
+
+        data object Model : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Application(TypeRole.VALUE)
+            override fun forElement(): NodePolicy = Application(TypeRole.VALUE)
+        }
+
+        /** An isolated projection may originate in either registered application context. */
+        data class Projection(val roles: Set<TypeRole>) : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Application(TypeRole.VALUE)
+            override fun forElement(): NodePolicy = Application(TypeRole.VALUE)
+        }
+
+        data object Infrastructure : NodePolicy {
+            override fun forField(key: String?): NodePolicy = this
+            override fun forElement(): NodePolicy = this
+        }
+
+        data object TypedRecords : NodePolicy {
+            override fun forField(key: String?): NodePolicy = when (key) {
+                "values" -> Application(TypeRole.VALUE)
+                "jvmTypes", "types" -> Infrastructure
+                else -> Static
+            }
+
+            override fun forElement(): NodePolicy = Static
+        }
+
+        data object StepDefinitionData : NodePolicy {
+            override fun forField(key: String?): NodePolicy = when (key) {
+                StepDefinitionDocument::data.name -> this
+                StepDefinitionDocument::metadata.name -> TypedRecords
+                else -> Static
+            }
+
+            override fun forElement(): NodePolicy = this
+        }
+
+        data object Static : NodePolicy {
+            override fun forField(key: String?): NodePolicy = this
+            override fun forElement(): NodePolicy = this
+        }
+    }
+}

@@ -15,6 +15,16 @@ class SecurityWitnessTest {
         assertThat(secondLoader.events).containsExactly("initialized", "constructed")
     }
 
+    @Test
+    fun `V01 enum witness stays dormant until constants are accessed`() {
+        val loader = WitnessClassLoader()
+        val fixture = Class.forName(ENUM_WITNESS_NAME, false, loader)
+
+        assertThat(loader.events).isEmpty()
+        assertThat(fixture.enumConstants.map { (it as Enum<*>).name }).containsExactly("SAFE")
+        assertThat(loader.events).containsExactly("enum-initialized")
+    }
+
     private fun exerciseWitness(loader: WitnessClassLoader): Class<*> {
         val name = "de.lise.fluxflow.mongo.security.baseline.fixture.ActivationWitness"
         val fixture = Class.forName(name, false, loader)

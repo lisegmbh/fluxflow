@@ -4,7 +4,9 @@ import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.mongo.job.query.QueryableJobRepository
 import org.springframework.data.mongodb.repository.MongoRepository
 import org.springframework.data.mongodb.repository.Update
+import org.springframework.data.repository.NoRepositoryBean
 
+@NoRepositoryBean
 interface JobRepository : MongoRepository<JobDocument, String>, QueryableJobRepository {
     fun findByWorkflowId(workflowId: String): List<JobDocument>
     fun findByIdAndWorkflowId(id: String, workflowId: String): JobDocument?
