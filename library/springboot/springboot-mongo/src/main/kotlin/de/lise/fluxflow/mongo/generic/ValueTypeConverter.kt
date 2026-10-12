@@ -16,7 +16,9 @@ import java.math.BigDecimal
 import java.math.BigInteger
 import java.net.MalformedURLException
 import java.net.URI
+import java.net.URISyntaxException
 import java.net.URL
+import java.time.DateTimeException
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -28,8 +30,10 @@ import java.time.Period
 import java.time.Year
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.Date
+import java.util.IllformedLocaleException
 import java.util.Locale
 import java.util.UUID
 import kotlin.reflect.KClass
@@ -151,6 +155,12 @@ class ValueTypeConverter private constructor(
             if (value is Set<*>) {
                 assertHashSafe(value, path, depth)
             }
+            if (spec.typeName == ZONE_REGION_TYPE_NAME && value is ZoneOffset) {
+                throw ValueTypeConversionException("Zone region at '$path' must not be an offset zone.")
+            }
+            if (type == Locale::class && value is Locale) {
+                assertLocaleFidelity(value, path)
+            }
             if (type.isInstance(value)) {
                 if (value is Map<*, *>) {
                     assertUntypedMap(value, path, depth)
@@ -214,6 +224,16 @@ class ValueTypeConverter private constructor(
                 }
             }
 
+            if (value is String) {
+                val restored = restoreBuiltinString(type, value, path)
+                if (restored != null) {
+                    if (spec.typeName == ZONE_REGION_TYPE_NAME && restored is ZoneOffset) {
+                        throw ValueTypeConversionException("Zone region at '$path' must not be an offset zone.")
+                    }
+                    return restored
+                }
+            }
+
             if (value is String && type == URL::class) {
                 try {
                     return URL(value)
@@ -260,9 +280,18 @@ class ValueTypeConverter private constructor(
             }
         }
 
+        private fun assertLocaleFidelity(value: Locale, path: String) {
+            val restored = restoreBuiltinString(Locale::class, value.toString(), path)
+            if (restored != value) {
+                throw ValueTypeConversionException(
+                    "Locale at '$path' cannot be persisted without losing its script, variant or extensions."
+                )
+            }
+        }
         private fun inspectUntypedValue(value: Any?, path: String, depth: Int) {
             visitNode(path, depth)
             when (value) {
+                is Locale -> assertLocaleFidelity(value, path)
                 is Enum<*> -> throw ValueTypeConversionException(
                     "Enum values inside maps require explicit type metadata at '$path'."
                 )
@@ -381,6 +410,64 @@ class ValueTypeConverter private constructor(
     )
 
     companion object {
+        private const val ZONE_REGION_TYPE_NAME = "java.time.ZoneRegion"
+
+        private fun restoreBuiltinString(type: KClass<*>, value: String, path: String): Any? {
+            return try {
+                when (type) {
+                    Duration::class -> Duration.parse(value)
+                    Period::class -> Period.parse(value)
+                    ZoneId::class -> ZoneId.of(value)
+                    ZoneOffset::class -> ZoneOffset.of(value)
+                    URI::class -> URI(value)
+                    Locale::class -> restoreLocale(value)
+                    else -> null
+                }
+            } catch (failure: DateTimeException) {
+                throw ValueTypeConversionException("Invalid built-in string value at '$path'.", failure)
+            } catch (failure: URISyntaxException) {
+                throw ValueTypeConversionException("Invalid URI value at '$path'.", failure)
+            } catch (failure: IllformedLocaleException) {
+                throw ValueTypeConversionException("Invalid Locale value at '$path'.", failure)
+            } catch (failure: IllegalArgumentException) {
+                throw ValueTypeConversionException("Invalid Locale value at '$path'.", failure)
+            }
+        }
+
+        /** Inverts the fixed Mongo Locale.toString writer, including scripts and extensions. */
+        private fun restoreLocale(value: String): Locale {
+            if (value.isEmpty()) return Locale.ROOT
+            val parts = value.split("_#", limit = 2)
+            val baseParts = parts[0].split('_', limit = 3)
+            val base = Locale(
+                baseParts[0],
+                baseParts.getOrElse(1) { "" },
+                baseParts.getOrElse(2) { "" },
+            )
+            // Locale constructors restore legacy ja_JP_JP and th_TH_TH extensions themselves.
+            if (base.toString() == value) return base
+            require(parts.size == 2) { "Locale representation is not canonical" }
+            val suffix = parts[1].split('_', limit = 2)
+            val builder = Locale.Builder().setLocale(base)
+            val extensions = if (suffix[0].length == 4 && suffix[0].all(Char::isLetter)) {
+                builder.setScript(suffix[0])
+                suffix.getOrElse(1) { "" }
+            } else {
+                require(suffix.size == 1) { "Invalid Locale suffix" }
+                suffix[0]
+            }
+            if (extensions.isNotEmpty()) {
+                val extensionLocale = Locale.Builder().setLanguageTag("und-$extensions").build()
+                require(extensionLocale.extensionKeys.isNotEmpty()) { "Missing Locale extensions" }
+                extensionLocale.extensionKeys.forEach { key ->
+                    builder.setExtension(key, extensionLocale.getExtension(key))
+                }
+            }
+            val restored = builder.build()
+            require(restored.toString() == value) { "Locale representation loses information" }
+            return restored
+        }
+
         private const val DEFAULT_MAX_DEPTH = 100
         private const val DEFAULT_MAX_NODES = 100_000
 
@@ -469,7 +556,8 @@ class ValueTypeConverter private constructor(
             register(Period::class)
             register(Year::class)
             register(YearMonth::class)
-            register(ZoneId::class)
+            register(ZoneId::class, ZONE_REGION_TYPE_NAME)
+            register(ZoneOffset::class)
             register(Locale::class)
             register(URI::class)
             register(URL::class)

@@ -16,6 +16,7 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoMappedFieldsIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoPathFieldsIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoNumericIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoBuiltinValuesIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoJavaTimeIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoNativeJavaTimeIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoMigrationCopyIT",

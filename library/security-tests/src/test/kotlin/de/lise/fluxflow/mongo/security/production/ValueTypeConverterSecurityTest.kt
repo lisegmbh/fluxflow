@@ -36,6 +36,48 @@ import java.util.concurrent.TimeUnit
 
 class ValueTypeConverterSecurityTest {
     @Test
+    fun `region zone metadata rejects native and encoded offset zones`() {
+        val spec = SimpleType("java.time.ZoneRegion")
+        listOf(java.time.ZoneId.of("+02:00"), "+02:00").forEach { source ->
+            assertThatThrownBy { spec.assertType(source) }
+                .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+        }
+    }
+
+    @Test
+    fun `untyped maps reject nested locales whose text loses information`() {
+        val invalidLocales = listOf(
+            java.util.Locale.Builder().setScript("Latn").build(),
+            java.util.Locale.Builder().setUnicodeLocaleKeyword("ca", "japanese").build(),
+        )
+        invalidLocales.forEach { locale ->
+            val nested = mapOf("items" to listOf(mapOf("locale" to locale)))
+            assertThatThrownBy { SimpleType(Map::class).assertType(nested) }
+                .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+        }
+        val valid = mapOf("locale" to java.util.Locale.GERMANY)
+        assertThat(SimpleType(Map::class).assertType(valid)).isEqualTo(valid)
+    }
+
+    @Test
+    fun `builtin text values reject malformed strings and other scalar sources`() {
+        val malformed = listOf(
+            java.time.Duration::class to "not-duration",
+            java.time.Period::class to "not-period",
+            java.time.ZoneId::class to "Missing/Zone",
+            java.net.URI::class to "http://[",
+            java.util.Locale::class to "en_US_#@",
+        )
+        malformed.forEach { (type, invalid) ->
+            listOf(invalid, 42, true).forEach { source ->
+                assertThatThrownBy { ValueTypeConverter.builtInsOnly().assertType(SimpleType(type), source) }
+                    .describedAs("Invalid source '%s' for %s", source, type)
+                    .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            }
+        }
+    }
+
+    @Test
     fun `V04 decoding snapshot is isolated from later source mutations`() {
         val mapping = JvmTypeMapping(mutableListOf(
             TypeRecordEntry(List::class.java.name, "list"),
