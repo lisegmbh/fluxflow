@@ -21,7 +21,6 @@ internal class FluxFlowMongoTypeAliases(
     private val roleAliases: Map<Pair<TypeRole, String>, Class<*>>
     private val writeTypes: Set<Class<*>>
     private val rolesByType: Map<Class<*>, Set<TypeRole>>
-    private val jvmValueNames: Set<String>
     private val infrastructureAliases = infrastructureTypes.mapTo(mutableSetOf(), Class<*>::getName)
 
     init {
@@ -65,10 +64,6 @@ internal class FluxFlowMongoTypeAliases(
         rolesByType = applicationRegistrations
             .groupBy(Registration::type)
             .mapValues { (_, registrations) -> registrations.mapNotNull(Registration::role).toSet() }
-        jvmValueNames = rolesByType.keys.asSequence()
-            .filter { TypeRole.VALUE in rolesOf(it) }
-            .flatMap { sequenceOf(it.name, it.canonicalName).filterNotNull() }
-            .toSet()
     }
 
     fun resolve(alias: Any?): Class<*> {
@@ -108,11 +103,4 @@ internal class FluxFlowMongoTypeAliases(
 
     fun rolesOf(type: Class<*>): Set<TypeRole> = rolesByType[type].orEmpty()
 
-    /** JVM metadata contains class names, not manifest aliases. Never resolve persisted names by loading them. */
-    fun validateJvmValueType(name: Any?) {
-        require(name is String && name.isNotEmpty()) { "Mongo JVM type name must be a non-empty string" }
-        if (!MongoJvmValueTypes.isAllowed(name, jvmValueNames)) {
-            throw UnknownTypeException(TypeRole.VALUE, name)
-        }
-    }
 }

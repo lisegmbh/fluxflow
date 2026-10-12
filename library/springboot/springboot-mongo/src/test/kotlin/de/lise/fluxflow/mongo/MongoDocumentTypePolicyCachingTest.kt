@@ -5,6 +5,7 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.NullType
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
@@ -113,7 +114,8 @@ class MongoDocumentTypePolicyCachingTest {
                 JvmTypeRecord::class.java, CollectionTypeRecord::class.java, NullTypeRecord::class.java,
                 TypedRecords::class.java, JvmTypeMapping::class.java, TypeRecordEntry::class.java,
                 TypeReference::class.java, TypeName::class.java))
-        return MongoDocumentTypePolicy(aliases, fieldNames = MongoFieldNames(context))
+        return MongoDocumentTypePolicy(aliases, fieldNames = MongoFieldNames(context),
+            isRegisteredJvmValueType = ValueTypeConverter.builtInsOnly()::isRegistered)
     }
 
     private data class Fixture(val context: MongoMappingContext, val source: Document)
