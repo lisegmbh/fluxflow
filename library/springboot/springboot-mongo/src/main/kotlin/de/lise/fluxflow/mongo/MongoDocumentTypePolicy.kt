@@ -42,7 +42,8 @@ internal class MongoDocumentTypePolicy(
         root.entries.asSequence()
             .filterNot { (key, _) -> key == typeKey }
             .forEach { (key, value) ->
-                pending.add(Frame(value, key, 1, policyForRootField(targetType, key)))
+                checkNodeBudget(pending, 1)
+                pending.add(Frame(value, DocumentPath(field = key), 1, policyForRootField(targetType, key)))
             }
 
         validateFrames(pending)
@@ -62,13 +63,14 @@ internal class MongoDocumentTypePolicy(
             roles == setOf(TypeRole.MODEL, TypeRole.VALUE) -> NodePolicy.Projection(roles)
             else -> NodePolicy.Application(TypeRole.VALUE)
         }
-        validateAlias(root, rootPolicy, "projection")
+        validateAlias(root, rootPolicy, DocumentPath(field = "projection"))
         validateJvmTypeName(root, rootPolicy)
         val pending = ArrayDeque<Frame>()
         root.entries.asSequence()
             .filterNot { (key, _) -> key == typeKey }
             .forEach { (key, value) ->
-                pending.add(Frame(value, key, 1, policyForField(rootPolicy, key)))
+                checkNodeBudget(pending, 1)
+                pending.add(Frame(value, DocumentPath(field = key), 1, policyForField(rootPolicy, key)))
             }
         validateFrames(pending)
     }
@@ -96,10 +98,11 @@ internal class MongoDocumentTypePolicy(
                     value.entries.asSequence()
                         .filterNot { (key, _) -> key == typeKey }
                         .forEach { (key, nested) ->
+                            checkNodeBudget(pending, nodes)
                             pending.add(
                                 Frame(
                                     nested,
-                                    "${frame.path}.$key",
+                                    DocumentPath(frame.path, key.toString()),
                                     frame.depth + 1,
                                     policyForField(frame.policy, key?.toString()),
                                 )
@@ -113,13 +116,11 @@ internal class MongoDocumentTypePolicy(
                     }
                     var index = 0
                     for (nested in value) {
-                        require(nodes + pending.size < maxNodes) {
-                            "Mongo document exceeds the maximum node count of $maxNodes"
-                        }
+                        checkNodeBudget(pending, nodes)
                         pending.add(
                             Frame(
                                 nested,
-                                "${frame.path}[$index]",
+                                DocumentPath(frame.path, index = index),
                                 frame.depth + 1,
                                 frame.policy.forElement(),
                             )
@@ -133,10 +134,11 @@ internal class MongoDocumentTypePolicy(
                         continue
                     }
                     value.forEachIndexed { index, nested ->
+                        checkNodeBudget(pending, nodes)
                         pending.add(
                             Frame(
                                 nested,
-                                "${frame.path}[$index]",
+                                DocumentPath(frame.path, index = index),
                                 frame.depth + 1,
                                 frame.policy.forElement(),
                             )
@@ -144,6 +146,12 @@ internal class MongoDocumentTypePolicy(
                     }
                 }
             }
+        }
+    }
+
+    private fun checkNodeBudget(pending: ArrayDeque<Frame>, nodes: Int) {
+        require(nodes + pending.size < maxNodes) {
+            "Mongo document exceeds the maximum node count of $maxNodes"
         }
     }
 
@@ -231,7 +239,7 @@ internal class MongoDocumentTypePolicy(
         }
     }
 
-    private fun validateAlias(document: Map<*, *>, policy: NodePolicy, path: String) {
+    private fun validateAlias(document: Map<*, *>, policy: NodePolicy, path: DocumentPath) {
         if (!document.containsKey(typeKey)) {
             return
         }
@@ -264,10 +272,38 @@ internal class MongoDocumentTypePolicy(
 
     private data class Frame(
         val value: Any?,
-        val path: String,
+        val path: DocumentPath,
         val depth: Int,
         val policy: NodePolicy,
     )
+
+    /** Successful traversal keeps only parent links; diagnostic strings are built on failure. */
+    private class DocumentPath(
+        val parent: DocumentPath? = null,
+        val field: String? = null,
+        val index: Int = -1,
+    ) {
+        override fun toString(): String {
+            val segments = ArrayDeque<DocumentPath>()
+            var current: DocumentPath? = this
+            while (current != null) {
+                segments.addFirst(current)
+                current = current.parent
+            }
+            return buildString {
+                var first = true
+                for (segment in segments) {
+                    if (segment.field != null) {
+                        if (!first) append('.')
+                        append(segment.field)
+                    } else {
+                        append('[').append(segment.index).append(']')
+                    }
+                    first = false
+                }
+            }
+        }
+    }
 
     private sealed interface NodePolicy {
         fun forField(key: String?): NodePolicy
