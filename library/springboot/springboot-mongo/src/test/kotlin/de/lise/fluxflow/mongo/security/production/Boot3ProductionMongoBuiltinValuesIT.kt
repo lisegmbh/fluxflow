@@ -6,7 +6,7 @@ import de.lise.fluxflow.mongo.MongoIntegrationTest
 import org.springframework.boot.test.context.SpringBootTest
 
 @MongoIntegrationTest
-@SpringBootTest(properties = ["fluxflow.mongo.enabled=true"], classes = [
+@SpringBootTest(properties = ["fluxflow.mongo.enabled=true", "spring.data.mongodb.uuid-representation=standard"], classes = [
     IntegrationTestConfig::class, MongoConfiguration::class, ProductionMongoSecurityConfiguration::class,
 ])
 class Boot3ProductionMongoBuiltinValuesIT : AbstractProductionMongoBuiltinValuesIT()

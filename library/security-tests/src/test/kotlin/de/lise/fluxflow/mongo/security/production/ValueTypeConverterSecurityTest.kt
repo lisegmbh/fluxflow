@@ -36,6 +36,74 @@ import java.util.concurrent.TimeUnit
 
 class ValueTypeConverterSecurityTest {
     @Test
+    fun `fixed BSON document alias normalizes maps and retains native identity`() {
+        val spec = SimpleType(org.bson.Document::class)
+        val normalized = spec.assertType(mapOf("inner" to "safe"))
+        assertThat(normalized).isExactlyInstanceOf(org.bson.Document::class.java)
+            .isEqualTo(org.bson.Document("inner", "safe"))
+        val native = org.bson.Document("inner", "safe")
+        assertThat(spec.assertType(native)).isSameAs(native)
+    }
+
+    @Test
+    fun `application document aliases do not authorize map normalization`() {
+        val converter = ValueTypeConverter(registry(valueEntry("custom-document", org.bson.Document::class.java)))
+        val spec = SimpleType("custom-document")
+        val native = org.bson.Document("inner", "safe")
+        assertThat(converter.assertType(spec, native)).isSameAs(native)
+        assertThatThrownBy { converter.assertType(spec, mapOf("inner" to "safe")) }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+    }
+
+    @Test
+    fun `registered BSON document subclasses retain identity and reject base maps`() {
+        val converter = ValueTypeConverter(registry(valueEntry("document-subclass", TrustedDocument::class.java)))
+        val spec = SimpleType("document-subclass")
+        val native = TrustedDocument().apply { put("inner", "safe") }
+        assertThat(converter.assertType(spec, native)).isSameAs(native)
+        listOf(mapOf("inner" to "safe"), org.bson.Document("inner", "safe")).forEach { source ->
+            assertThatThrownBy { converter.assertType(spec, source) }
+                .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+        }
+    }
+
+    @Test
+    fun `BSON document normalization rejects non string keys`() {
+        assertThatThrownBy { SimpleType(org.bson.Document::class).assertType(mapOf(42 to "unsafe")) }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+    }
+
+    @Test
+    fun `BSON document normalization rejects invalid nested values before copying`() {
+        val cyclic = linkedMapOf<String, Any?>().apply { put("self", this) }
+        val values = listOf(
+            mapOf("state" to TrustedEnum.FIRST),
+            cyclic,
+            mapOf("items" to listOf(mapOf("locale" to java.util.Locale.Builder().setScript("Latn").build()))),
+        )
+        values.forEach { value ->
+            assertThatThrownBy { SimpleType(org.bson.Document::class).assertType(value) }
+                .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+        }
+    }
+
+    @Test
+    fun `native values without a default Mongo round trip require explicit registration`() {
+        val unsupported = listOf(
+            java.time.Year.of(2026),
+            java.time.YearMonth.of(2026, 10),
+            java.time.OffsetDateTime.parse("2026-10-12T10:15:30+02:00"),
+            java.time.OffsetTime.parse("10:15:30+02:00"),
+            java.time.ZonedDateTime.parse("2026-10-12T10:15:30+02:00[Europe/Berlin]"),
+            Unit,
+        )
+        unsupported.forEach { value ->
+            assertThatThrownBy { SimpleType(value::class).assertType(value) }
+                .isExactlyInstanceOf(UnknownTypeException::class.java)
+        }
+    }
+
+    @Test
     fun `region zone metadata rejects native and encoded offset zones`() {
         val spec = SimpleType("java.time.ZoneRegion")
         listOf(java.time.ZoneId.of("+02:00"), "+02:00").forEach { source ->
@@ -659,6 +727,7 @@ class ValueTypeConverterSecurityTest {
     private enum class FirstContextEnum { ONLY }
     private enum class SecondContextEnum { ONLY }
     private class TrustedMap : LinkedHashMap<String, Any?>()
+    private class TrustedDocument : org.bson.Document()
     private class TrustedList : ArrayList<Any?>()
     private class TrustedSet : LinkedHashSet<Any?>()
 }

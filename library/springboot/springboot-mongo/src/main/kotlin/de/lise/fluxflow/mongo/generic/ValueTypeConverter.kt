@@ -24,14 +24,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.OffsetDateTime
-import java.time.OffsetTime
 import java.time.Period
-import java.time.Year
-import java.time.YearMonth
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.ZonedDateTime
 import java.util.Date
 import java.util.IllformedLocaleException
 import java.util.Locale
@@ -160,6 +155,16 @@ class ValueTypeConverter private constructor(
             }
             if (type == Locale::class && value is Locale) {
                 assertLocaleFidelity(value, path)
+            }
+            if (spec.typeName == Document::class.java.name && type == Document::class && value is Map<*, *>) {
+                if (value.keys.any { it !is String }) {
+                    throw ValueTypeConversionException("Document keys must be strings at '$path'.")
+                }
+                assertUntypedMap(value, path, depth)
+                if (value is Document) return value
+                return Document().apply {
+                    value.forEach { (key, nestedValue) -> this[key as String] = nestedValue }
+                }
             }
             if (type.isInstance(value)) {
                 if (value is Map<*, *>) {
@@ -540,7 +545,6 @@ class ValueTypeConverter private constructor(
             register(Double::class, "double", "java.lang.Double")
             register(Char::class, "char", "java.lang.Character")
             register(String::class)
-            register(Unit::class)
             register(BigInteger::class)
             register(BigDecimal::class)
             register(UUID::class)
@@ -549,13 +553,8 @@ class ValueTypeConverter private constructor(
             register(LocalDate::class)
             register(LocalDateTime::class)
             register(LocalTime::class)
-            register(OffsetDateTime::class)
-            register(OffsetTime::class)
-            register(ZonedDateTime::class)
             register(Duration::class)
             register(Period::class)
-            register(Year::class)
-            register(YearMonth::class)
             register(ZoneId::class, ZONE_REGION_TYPE_NAME)
             register(ZoneOffset::class)
             register(Locale::class)
