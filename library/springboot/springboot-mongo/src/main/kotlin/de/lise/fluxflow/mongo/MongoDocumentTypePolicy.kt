@@ -10,6 +10,7 @@ import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
 import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.ArrayDeque
@@ -22,6 +23,7 @@ internal class MongoDocumentTypePolicy(
     private val maxDepth: Int = 100,
     private val maxNodes: Int = 100_000,
     private val fieldNames: MongoFieldNames? = null,
+    private val isRegisteredJvmValueType: ((Any?) -> Boolean)? = null,
 ) {
     init {
         require(maxDepth > 0) { "Mongo document maximum depth must be positive" }
@@ -168,7 +170,15 @@ internal class MongoDocumentTypePolicy(
         val present = fieldNames?.contains(document, type, property) ?: document.containsKey(property)
         if (present) {
             val name = if (fieldNames != null) fieldNames.read(document, type, property) else document[property]
-            aliases.validateJvmValueType(name)
+            val isRegistered = isRegisteredJvmValueType
+            if (isRegistered == null) {
+                aliases.validateJvmValueType(name)
+            } else {
+                require(name is String && name.isNotEmpty()) { "Mongo JVM type name must be a non-empty string" }
+                if (!isRegistered(name)) {
+                    throw UnknownTypeException(TypeRole.VALUE, name)
+                }
+            }
         }
     }
 

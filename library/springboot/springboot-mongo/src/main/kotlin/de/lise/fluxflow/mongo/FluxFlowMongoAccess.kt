@@ -95,7 +95,12 @@ class FluxFlowMongoAccess internal constructor(
         valueTypes = ValueTypeConverter.withHostConversions(registry, isolatedConverter.conversionService)
         converter = GuardedMongoConverter(
             isolatedConverter,
-            MongoDocumentTypePolicy(aliases, typeKey, fieldNames = MongoFieldNames(hostConverter.mappingContext)),
+            MongoDocumentTypePolicy(
+                aliases,
+                typeKey,
+                fieldNames = MongoFieldNames(hostConverter.mappingContext),
+                isRegisteredJvmValueType = valueTypes::isRegistered,
+            ),
         )
         template = MongoTemplate(databaseFactory, NonIndexingMongoConverter(converter)).apply {
             setApplicationContext(applicationContext)
