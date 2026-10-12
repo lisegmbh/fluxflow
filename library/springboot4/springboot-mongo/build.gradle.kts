@@ -10,6 +10,7 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoHostTemplateIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoTemplateCustomizationIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoLegacyTypeMapsSnakeIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoLegacyTypeMapsPathIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoMappedFieldsIT",

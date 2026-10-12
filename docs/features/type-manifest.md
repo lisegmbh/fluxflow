@@ -152,6 +152,34 @@ does not create, initialize, or alter a second mapping context, mutate the host 
 auto-index creation. Template-only options remain available through ordered
 `FluxFlowMongoTemplateCustomizer` beans.
 
+**Migration from host-template writes:** only the host template's explicitly configured read
+preference is copied automatically. `WriteConcern`, `WriteConcernResolver`, `WriteResultChecking`,
+`SessionSynchronization` and `entityLifecycleEventsEnabled` set on the host template must be
+configured separately for FluxFlow's internal template. Defaults configured on the shared Mongo
+client/database factory continue to apply. FluxFlow does not inspect private Spring Data fields to
+copy template-specific settings.
+
+Use a shared configuration function for the host template and the internal template when both
+need the same behavior. For example, to require majority writes and disable lifecycle events:
+
+```kotlin
+fun configureMongoWrites(template: MongoTemplate) {
+    template.setWriteConcern(WriteConcern.MAJORITY)
+    template.setWriteResultChecking(WriteResultChecking.EXCEPTION)
+    template.setSessionSynchronization(SessionSynchronization.ON_ACTUAL_TRANSACTION)
+    template.setEntityLifecycleEventsEnabled(false)
+}
+
+@Bean
+fun fluxFlowMongoTemplateCustomizer() = FluxFlowMongoTemplateCustomizer(::configureMongoWrites)
+```
+
+Here `MongoTemplate` and `WriteResultChecking` come from `org.springframework.data.mongodb.core`;
+`SessionSynchronization` comes from `org.springframework.data.mongodb`, and `WriteConcern` from `com.mongodb`.
+Apply the same function when constructing the host template. Configure a `WriteConcernResolver`
+in that function as needed. Disabling lifecycle events does not disable the synchronous type guard.
+Customizer beans run in Spring order; a later customizer can override an earlier setting.
+
 Scheduled-job reconciliation uses raw references when the persistence implementation supplies
 `ScheduledJobReferencePersistence`, then restores each job independently. The deprecated
 two-argument `ReconcileScheduledJobsBootstrapAction(JobService, SchedulingService)` constructor

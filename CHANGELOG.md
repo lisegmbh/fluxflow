@@ -24,7 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    generates the manifest in consumer JARs.
 
 ### Changed
-1. **Trusted type inventory is validated during application startup**<br/>
+1. **Configure FluxFlow's internal Mongo template explicitly**<br/>
+   FluxFlow persistence now uses its own guarded `MongoTemplate`. Host-template settings for
+   `WriteConcern`, `WriteConcernResolver`, `WriteResultChecking`, `SessionSynchronization` and
+   lifecycle events are not automatically copied. Apply these settings through an ordered
+   `FluxFlowMongoTemplateCustomizer`; client/database-factory defaults remain in effect.
+   See the [Mongo customization migration guidance](docs/features/type-manifest.md#internal-mongo-customization-contract).
+2. **Trusted type inventory is validated during application startup**<br/>
    Duplicate discovered step/job kinds, conflicting model/value registrations, malformed
    manifests, and missing manifest classes now stop startup. Registry resolution respects `ClassLoaderProvider`
    and contributor class identity. The manifest plugin requires Gradle 9.2.0+ and Java 17+
