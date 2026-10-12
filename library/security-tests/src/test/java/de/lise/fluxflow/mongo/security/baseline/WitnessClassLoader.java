@@ -10,6 +10,7 @@ public final class WitnessClassLoader extends ClassLoader {
     private static final String FIXTURE_PACKAGE =
         "de.lise.fluxflow.mongo.security.baseline.fixture.";
     private final List<String> events = new CopyOnWriteArrayList<>();
+    private final List<String> fixtureLookups = new CopyOnWriteArrayList<>();
 
     public WitnessClassLoader() {
         super(WitnessClassLoader.class.getClassLoader());
@@ -23,11 +24,16 @@ public final class WitnessClassLoader extends ClassLoader {
         return List.copyOf(events);
     }
 
+    public List<String> getFixtureLookups() {
+        return List.copyOf(fixtureLookups);
+    }
+
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         if (!name.startsWith(FIXTURE_PACKAGE)) {
             return super.loadClass(name, resolve);
         }
+        fixtureLookups.add(name);
         synchronized (getClassLoadingLock(name)) {
             Class<?> loaded = findLoadedClass(name);
             if (loaded == null) {

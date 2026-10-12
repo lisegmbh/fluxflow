@@ -5,6 +5,9 @@ import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
+import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
+import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.reflection.types.TypeRole
 import org.bson.Document
@@ -50,12 +53,18 @@ internal class MongoDocumentTypePolicy(
         val root = source as? Document
             ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
         val roles = aliases.rolesOf(targetType)
-        val rootPolicy = when (roles) {
-            setOf(TypeRole.MODEL) -> NodePolicy.Model
-            setOf(TypeRole.MODEL, TypeRole.VALUE) -> NodePolicy.Projection(roles)
+        val rootPolicy = when {
+            targetType == TypedRecords::class.java -> NodePolicy.TypedRecords
+            targetType == JvmTypeMapping::class.java -> NodePolicy.JvmTypes
+            targetType == TypeRecordEntry::class.java -> NodePolicy.JvmTypeEntry
+            targetType == DataDefinitionDocument::class.java -> NodePolicy.StepDefinitionData
+            targetType in aliases.infrastructureTypes -> NodePolicy.Infrastructure
+            roles == setOf(TypeRole.MODEL) -> NodePolicy.Model
+            roles == setOf(TypeRole.MODEL, TypeRole.VALUE) -> NodePolicy.Projection(roles)
             else -> NodePolicy.Application(TypeRole.VALUE)
         }
         validateAlias(root, rootPolicy, "projection")
+        validateJvmTypeName(root, rootPolicy)
         val pending = ArrayDeque<Frame>()
         root.entries.asSequence()
             .filterNot { (key, _) -> key == typeKey }
@@ -84,6 +93,7 @@ internal class MongoDocumentTypePolicy(
                         continue
                     }
                     validateAlias(value, frame.policy, frame.path)
+                    validateJvmTypeName(value, frame.policy)
                     value.entries.asSequence()
                         .filterNot { (key, _) -> key == typeKey }
                         .forEach { (key, nested) ->
@@ -141,11 +151,27 @@ internal class MongoDocumentTypePolicy(
     private fun policyForRootField(targetType: Class<*>, key: String): NodePolicy =
         policyForField(NodePolicy.RootFields(targetType), key)
 
+    private fun validateJvmTypeName(document: Map<*, *>, policy: NodePolicy) {
+        val type = when (policy) {
+            NodePolicy.Infrastructure -> SimpleType::class.java
+            NodePolicy.JvmTypeEntry -> TypeRecordEntry::class.java
+            else -> return
+        }
+        val property = if (type == SimpleType::class.java) "typeName" else "type"
+        val present = fieldNames?.contains(document, type, property) ?: document.containsKey(property)
+        if (present) {
+            val name = if (fieldNames != null) fieldNames.read(document, type, property) else document[property]
+            aliases.validateJvmValueType(name)
+        }
+    }
+
     private fun policyForField(policy: NodePolicy, key: String?): NodePolicy {
         val base = if (policy is NodePolicy.Namespace) policy.base else policy
         val mappedType = when (base) {
             is NodePolicy.RootFields -> base.type
             NodePolicy.TypedRecords -> TypedRecords::class.java
+            NodePolicy.JvmTypes -> JvmTypeMapping::class.java
+            NodePolicy.JvmTypeEntry -> TypeRecordEntry::class.java
             NodePolicy.StepDefinitionData -> DataDefinitionDocument::class.java
             else -> null
         }
@@ -172,7 +198,7 @@ internal class MongoDocumentTypePolicy(
             StepDocument::data.name,
             StepDocument::metadata.name -> NodePolicy.Application(TypeRole.VALUE)
             StepDocument::dataTypeMap.name,
-            StepDocument::metadataTypeMap.name -> NodePolicy.Infrastructure
+            StepDocument::metadataTypeMap.name -> NodePolicy.TypeMap
             StepDocument::dataEntries.name,
             StepDocument::metadataEntries.name -> NodePolicy.TypedRecords
             else -> NodePolicy.Static
@@ -180,7 +206,7 @@ internal class MongoDocumentTypePolicy(
 
         JobDocument::class.java -> when (key) {
             JobDocument::parameters.name -> NodePolicy.Application(TypeRole.VALUE)
-            JobDocument::parameterTypeMap.name -> NodePolicy.Infrastructure
+            JobDocument::parameterTypeMap.name -> NodePolicy.TypeMap
             JobDocument::parameterEntries.name -> NodePolicy.TypedRecords
             else -> NodePolicy.Static
         }
@@ -216,7 +242,7 @@ internal class MongoDocumentTypePolicy(
                 is NodePolicy.Application -> aliases.resolve(policy.role, alias)
                 is NodePolicy.Projection -> aliases.resolve(policy.roles, alias)
                 NodePolicy.Model -> aliases.resolve(TypeRole.MODEL, alias)
-                NodePolicy.Infrastructure -> require(aliases.isInfrastructure(alias)) {
+                NodePolicy.Infrastructure, NodePolicy.JvmTypes, NodePolicy.JvmTypeEntry -> require(aliases.isInfrastructure(alias)) {
                     "Mongo type alias '$alias' is not allowed in FluxFlow infrastructure metadata"
                 }
                 NodePolicy.TypedRecords -> require(aliases.isAliasFor(alias, TypedRecords::class.java)) {
@@ -227,7 +253,7 @@ internal class MongoDocumentTypePolicy(
                 ) {
                     "Mongo type alias '$alias' is not a step data definition"
                 }
-                NodePolicy.Static, is NodePolicy.Namespace, is NodePolicy.RootFields -> throw IllegalArgumentException(
+                NodePolicy.Static, NodePolicy.TypeMap, is NodePolicy.Namespace, is NodePolicy.RootFields -> throw IllegalArgumentException(
                     "Mongo type metadata is not allowed at '$path.$typeKey'"
                 )
             }
@@ -280,14 +306,31 @@ internal class MongoDocumentTypePolicy(
             override fun forElement(): NodePolicy = this
         }
 
+        /** The keys here belong to the application, not to SimpleType's schema. */
+        data object TypeMap : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Infrastructure
+            override fun forElement(): NodePolicy = Static
+        }
+
         data object TypedRecords : NodePolicy {
             override fun forField(key: String?): NodePolicy = when (key) {
                 "values" -> Application(TypeRole.VALUE)
-                "jvmTypes", "types" -> Infrastructure
+                "jvmTypes" -> JvmTypes
+                "types" -> TypeMap
                 else -> Static
             }
 
             override fun forElement(): NodePolicy = Static
+        }
+
+        data object JvmTypes : NodePolicy {
+            override fun forField(key: String?): NodePolicy = if (key == "entries") JvmTypeEntry else Static
+            override fun forElement(): NodePolicy = Static
+        }
+
+        data object JvmTypeEntry : NodePolicy {
+            override fun forField(key: String?): NodePolicy = Static
+            override fun forElement(): NodePolicy = this
         }
 
         data object StepDefinitionData : NodePolicy {

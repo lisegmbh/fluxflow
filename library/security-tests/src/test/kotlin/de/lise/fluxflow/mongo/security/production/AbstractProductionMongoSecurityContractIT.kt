@@ -20,6 +20,9 @@ import de.lise.fluxflow.mongo.FluxFlowMongoConverterCustomizer
 import de.lise.fluxflow.mongo.FluxFlowMongoTemplateCustomizer
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeMapperFactory
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeAliases
+import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
+import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
 import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.job.JobDocument
@@ -654,6 +657,94 @@ abstract class AbstractProductionMongoSecurityContractIT {
     }
 
     @Test
+    fun `D04 direct infrastructure converter reads reject unregistered JVM names`() {
+        val name = "unregistered.Enum"
+        val sources = listOf(
+            SimpleType::class.java to Document("typeName", name),
+            JvmTypeMapping::class.java to Document("entries", listOf(
+                Document("reference", "payload-type").append("type", name),
+            )),
+            TypeRecordEntry::class.java to Document("reference", "payload-type").append("type", name),
+        )
+        sources.forEach { (type, source) ->
+            val failure = catchFailure { fluxFlowMongoAccess.converter.read(type, source) }
+            assertUnknownType(failure, TypeRole.VALUE, name)
+        }
+    }
+
+    @Test
+    fun `D04 legacy step JVM names are rejected before class lookup or enum initialization`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = StepData(id, workflowId, "enum-step", "1", mapOf("payload" to "SAFE"),
+            Status.Active, emptyMap())
+        steps.create(data)
+        val source = collection(StepDocument::class.java)
+        source.updateOne(eq("_id", ObjectId(id)), unset("dataEntries"))
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id)))
+            .isEqualTo(data)
+        source.updateOne(eq("_id", ObjectId(id)),
+            set("dataTypeMap.payload.typeName", TYPE_METADATA_ENUM_WITNESS))
+
+        assertJvmMetadataRejected {
+            steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))
+        }
+    }
+
+    @Test
+    fun `D04 current step JVM names are rejected before class lookup or enum initialization`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = StepData(id, workflowId, "enum-step", "1", mapOf("payload" to "SAFE"),
+            Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id)))
+            .isEqualTo(data)
+        collection(StepDocument::class.java).updateOne(eq("_id", ObjectId(id)),
+            set("dataEntries.jvmTypes.entries.0.type", TYPE_METADATA_ENUM_WITNESS))
+
+        assertJvmMetadataRejected {
+            steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))
+        }
+    }
+
+    @Test
+    fun `D04 legacy job JVM names are rejected before class lookup or enum initialization`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = JobData(id, workflowId, "enum-job", mapOf("payload" to "SAFE"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+        jobs.create(data)
+        val source = collection(JobDocument::class.java)
+        source.updateOne(eq("_id", ObjectId(id)), unset("parameterEntries"))
+        assertThat(jobs.findForWorkflowAndId(WorkflowIdentifier(workflowId), JobIdentifier(id)))
+            .isEqualTo(data)
+        source.updateOne(eq("_id", ObjectId(id)),
+            set("parameterTypeMap.payload.typeName", TYPE_METADATA_ENUM_WITNESS))
+
+        assertJvmMetadataRejected {
+            jobs.findForWorkflowAndId(WorkflowIdentifier(workflowId), JobIdentifier(id))
+        }
+    }
+
+    @Test
+    fun `D04 current job JVM names are rejected before class lookup or enum initialization`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = JobData(id, workflowId, "enum-job", mapOf("payload" to "SAFE"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+        jobs.create(data)
+        assertThat(jobs.findForWorkflowAndId(WorkflowIdentifier(workflowId), JobIdentifier(id)))
+            .isEqualTo(data)
+        collection(JobDocument::class.java).updateOne(eq("_id", ObjectId(id)),
+            set("parameterEntries.jvmTypes.entries.0.type", TYPE_METADATA_ENUM_WITNESS))
+
+        assertJvmMetadataRejected {
+            jobs.findForWorkflowAndId(WorkflowIdentifier(workflowId), JobIdentifier(id))
+        }
+    }
+
+    @Test
     fun `D04 production step reads reject types in legacy and current value fields`() {
         listOf(
             "data.payload" to "dataEntries",
@@ -980,6 +1071,26 @@ abstract class AbstractProductionMongoSecurityContractIT {
         assertThat(witnessLoader.events).isEmpty()
     }
 
+    private fun assertJvmMetadataRejected(read: () -> Unit) {
+        val loader = WitnessClassLoader()
+        val thread = Thread.currentThread()
+        val previousLoader = thread.contextClassLoader
+        val failure = try {
+            thread.contextClassLoader = loader
+            runCatching(read).exceptionOrNull()
+        } finally {
+            thread.contextClassLoader = previousLoader
+        }
+        assertThat(loader.fixtureLookups)
+            .describedAs("Unregistered JVM metadata must be rejected before a fixture class lookup")
+            .isEmpty()
+        assertThat(loader.events)
+            .describedAs("Unregistered JVM metadata must not initialize an enum")
+            .isEmpty()
+        assertUnknownType(requireNotNull(failure) { "Expected JVM metadata to fail closed" },
+            TypeRole.VALUE, TYPE_METADATA_ENUM_WITNESS)
+    }
+
     private fun persistAndTamperWorkflow(id: String, modelType: String) {
         workflows.create(securityTestModel(), WorkflowIdentifier(id))
         workflowCollection().updateOne(
@@ -1034,3 +1145,6 @@ abstract class AbstractProductionMongoSecurityContractIT {
         runCatching(action).exceptionOrNull()
             ?: throw AssertionError("Expected the production Mongo operation to fail closed")
 }
+
+private const val TYPE_METADATA_ENUM_WITNESS =
+    "de.lise.fluxflow.mongo.security.baseline.fixture.TypeMetadataEnumWitness"

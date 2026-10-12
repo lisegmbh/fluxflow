@@ -25,4 +25,12 @@ internal class MongoFieldNames(
 
     fun read(document: Map<*, *>, type: Class<*>, property: String): Any? =
         fieldParts(type, property).fold(document as Any?) { current, part -> (current as? Map<*, *>)?.get(part) }
+
+    fun contains(document: Map<*, *>, type: Class<*>, property: String): Boolean {
+        val parts = fieldParts(type, property)
+        val parent = parts.dropLast(1).fold(document as Any?) { current, part ->
+            (current as? Map<*, *>)?.get(part)
+        }
+        return (parent as? Map<*, *>)?.containsKey(parts.last()) == true
+    }
 }
