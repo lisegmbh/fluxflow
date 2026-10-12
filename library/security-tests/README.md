@@ -124,6 +124,16 @@ built-in aliases; an application container registration requires an actual insta
 The default writer stores a custom value's canonical JVM name, so that exact key must be registered
 in addition to any logical aliases used by historical records.
 
+The built-in text contract checks real create/save/read round trips for Duration, Period, region
+and offset zones, URI and Locale through step data, metadata and job parameters. Locale cases include
+ROOT, scripts, extensions and legacy variants. Lossy Locale representations are rejected before
+writing, including inside nested maps. Enum names remain case-sensitive. A Spring context test
+also verifies that a historical three-argument step-persistence bean override is actually selected.
+The remaining built-in matrix covers native BSON scalars and Documents. Unsupported temporal and
+Unit entries with type metadata fail before create/save reaches an unavailable BSON codec. UUID fixtures
+explicitly configure the host's STANDARD representation in both compatibility lines; production
+keeps the application's own codec settings.
+
 ## Build gate tests
 
 ```powershell

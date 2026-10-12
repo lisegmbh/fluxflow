@@ -130,6 +130,9 @@ that exact canonical name to read records written through the default persistenc
 aliases are additional entries for records that actually contain those aliases. For nested types,
 the persisted canonical key uses `.`, while the entry's JVM binary class name uses `$`.
 
+Enum strings must match the constant's exact `Enum.name()` spelling. Case variants are rejected,
+and constants such as `KB` and `kB` remain distinct.
+
 Map records describe the map container, but do not carry type records for their nested values.
 FluxFlow therefore rejects enum values anywhere inside a map before writing, because MongoDB would
 otherwise store the enum name as a string and silently lose its type. Store enums as typed fields or
@@ -151,6 +154,26 @@ URL accepts its stored string form without connecting to the address. URL values
 sets, including URLs nested inside collection elements or map keys/values, before set hashing can
 trigger blocking host resolution. Scalar URLs and URL lists remain supported. Incompatible representations
 remain conversion errors; these conversions do not apply to registered application classes.
+
+String representations restore Duration, Period, ZoneId, ZoneOffset, URI and Locale through fixed
+parsers. The fixed ZoneRegion alias accepts region zones, not offset zones. Locale reconstruction
+preserves language, country, variant, script and extensions, including legacy Japanese calendar
+variants. A Locale whose `toString()` representation cannot preserve those fields is rejected before
+create or save, including inside nested maps. For example, a script-only Locale without language
+or country would otherwise be stored as the same empty string as `Locale.ROOT`; ROOT itself remains
+supported. Use typed scalar fields or typed collection entries when their type must be restored;
+map records do not contain individual type metadata for nested values.
+
+Year, YearMonth, OffsetDateTime, OffsetTime, ZonedDateTime and Kotlin Unit are not automatic built-ins:
+the default BSON codecs cannot round-trip these values. They require explicit VALUE registration
+and a matching host representation/conversion contract. Registration alone does not supply a codec.
+Without registration, create and save reject these typed scalar or collection entries before writing.
+
+The fixed `org.bson.Document` alias restores BSON maps to Document after checking String keys and
+their contents. Additional application aliases and Document subclasses are not normalized from maps.
+UUID values require an explicitly configured host UUID representation. For example, use
+`spring.data.mongodb.uuid-representation=standard` with Boot 3 or
+`spring.mongodb.representation.uuid=standard` with Boot 4. FluxFlow preserves the host configuration.
 
 Big-number writes depend on the host's Mongo representation. When configuring custom conversions
 for Spring Data 5, choose `MongoCustomConversions.BigDecimalRepresentation.DECIMAL128` or an

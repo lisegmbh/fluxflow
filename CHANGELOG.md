@@ -85,6 +85,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    collections and map keys or values. Preserves registered collection instances when validated
    elements need no reconstruction. Read-only JVM reference indexes avoid repeated mapping scans
    and reject duplicate references. [PR #468](https://github.com/lisegmbh/fluxflow/pull/468)
+7. **Exact enum and text scalar reconstruction**<br/>
+   Preserves case-sensitive enum constants and restores Duration, Period, zone, URI and Locale
+   string representations. Locale values that would lose fields during writing are rejected before
+   persistence, including in nested maps. Historical three-argument Spring step-persistence bean
+   overrides remain effective, and Mongo policy validation uses the same exact value resolver as
+   reconstruction.
+8. **Reject unsupported automatic Mongo value types before writing**<br/>
+   Year, YearMonth, OffsetDateTime, OffsetTime, ZonedDateTime and Kotlin Unit require an explicit
+   VALUE registration and matching host codec/conversion support. They are no longer automatically
+   admitted as built-ins. The fixed BSON Document alias safely reconstructs maps while application
+   aliases and subclasses retain their strict instance requirements.
 
 ### Removed
 
