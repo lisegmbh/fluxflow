@@ -335,8 +335,7 @@ internal class MongoDocumentTypePolicy(
 
         data object StepDefinitionData : NodePolicy {
             override fun forField(key: String?): NodePolicy = when (key) {
-                StepDefinitionDocument::data.name -> this
-                StepDefinitionDocument::metadata.name -> TypedRecords
+                DataDefinitionDocument::metadata.name -> TypedRecords
                 else -> Static
             }
 

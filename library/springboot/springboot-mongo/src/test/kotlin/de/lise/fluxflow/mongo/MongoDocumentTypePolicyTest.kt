@@ -4,6 +4,9 @@ import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
+import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
+import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.reflection.types.TypeManifestEntry
 import de.lise.fluxflow.reflection.types.TypeRegistry
@@ -190,6 +193,34 @@ class MongoDocumentTypePolicyTest {
     }
 
     @Test
+    fun `D04 data definition metadata remains a validated VALUE container`() {
+        val metadata = Document("_class", TypedRecords::class.java.name)
+            .append("values", Document("payload", Document("_class", "value")))
+        val dataDefinition = Document("_class", DataDefinitionDocument::class.java.name)
+            .append("metadata", metadata)
+        val source = Document("_class", StepDefinitionDocument::class.java.name)
+            .append("data", listOf(dataDefinition))
+
+        policy().validate(StepDefinitionDocument::class.java, source)
+
+        metadata["values"] = Document("payload", Document("_class", "model"))
+        assertThatThrownBy { policy().validate(StepDefinitionDocument::class.java, source) }
+            .isInstanceOf(UnknownTypeException::class.java)
+    }
+
+    @Test
+    fun `D04 nonexistent nested data field does not authorize data definition infrastructure`() {
+        val dataDefinition = Document("_class", DataDefinitionDocument::class.java.name)
+            .append("data", Document("_class", DataDefinitionDocument::class.java.name))
+        val source = Document("_class", StepDefinitionDocument::class.java.name)
+            .append("data", listOf(dataDefinition))
+
+        assertThatThrownBy { policy().validate(StepDefinitionDocument::class.java, source) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("Mongo type metadata is not allowed")
+    }
+
+    @Test
     fun `D06 projection DTOs keep VALUE role validation for nested aliases`() {
         val projection = Document(
             "payload",
@@ -244,8 +275,9 @@ class MongoDocumentTypePolicyTest {
         )
         val aliases = FluxFlowMongoTypeAliases(
             registry,
-            setOf(WorkflowDocument::class.java, StepDocument::class.java),
-            setOf(SimpleType::class.java, JvmTypeMapping::class.java, TypeRecordEntry::class.java),
+            setOf(WorkflowDocument::class.java, StepDocument::class.java, StepDefinitionDocument::class.java),
+            setOf(SimpleType::class.java, JvmTypeMapping::class.java, TypeRecordEntry::class.java,
+                TypedRecords::class.java, DataDefinitionDocument::class.java),
         )
         return MongoDocumentTypePolicy(aliases, typeKey, maxDepth, maxNodes, fieldNames)
     }
