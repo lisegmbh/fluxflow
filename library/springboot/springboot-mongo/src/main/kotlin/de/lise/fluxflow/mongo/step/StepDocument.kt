@@ -56,37 +56,27 @@ data class StepDocument(
         status
     )
 
-    private val typeSafeData: Map<String, Any?>
-        get() = dataEntries?.toTypeSafeData()
-            ?: dataTypeMap.withData(data).toTypeSafeData()
-
-    private val typeSafeMetadata: Map<String, Any>
-        get() = metadataEntries?.toTypeSafeData()
-            ?: metadataTypeMap
-                .withData(metadata)
-                .toTypeSafeData()
-                .mapValues { it.value!! }
-
-    fun toStepData(): StepData {
-        return StepData(
-            id!!,
-            workflowId,
-            kind,
-            version,
-            typeSafeData,
-            status,
-            typeSafeMetadata
-        )
-    }
-
-    fun toStepData(valueTypes: ValueTypeConverter): StepData {
-        val typeSafeData = dataEntries?.toTypeSafeData(valueTypes)
+    private fun typeSafeData(valueTypes: ValueTypeConverter): Map<String, Any?> =
+        dataEntries?.toTypeSafeData(valueTypes)
             ?: dataTypeMap.withData(data).toTypeSafeData(valueTypes)
-        val typeSafeMetadata = metadataEntries?.toTypeSafeData(valueTypes)
+
+    private fun typeSafeMetadata(valueTypes: ValueTypeConverter): Map<String, Any> =
+        metadataEntries?.toTypeSafeData(valueTypes)
             ?: metadataTypeMap
                 .withData(metadata)
                 .toTypeSafeData(valueTypes)
                 .mapValues { it.value!! }
+
+    internal fun validateForWrite(valueTypes: ValueTypeConverter) {
+        typeSafeData(valueTypes)
+        typeSafeMetadata(valueTypes)
+    }
+
+    fun toStepData(): StepData = toStepData(ValueTypeConverter.builtInsOnly())
+
+    fun toStepData(valueTypes: ValueTypeConverter): StepData {
+        val typeSafeData = typeSafeData(valueTypes)
+        val typeSafeMetadata = typeSafeMetadata(valueTypes)
         return StepData(
             id!!,
             workflowId,

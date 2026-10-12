@@ -48,25 +48,18 @@ data class JobDocument(
         jobStatus
     )
     
-    private val typeSafeData: Map<String, Any?>
-        get() = parameterEntries?.toTypeSafeData()  
-            ?: parameterTypeMap.withData(parameters).toTypeSafeData()
-    
-    fun toJobData(): JobData {
-        return JobData(
-            id!!,
-            workflowId,
-            kind,
-            typeSafeData,
-            scheduledTime,
-            cancellationKey,
-            jobStatus
-        )
+    private fun typeSafeParameters(valueTypes: ValueTypeConverter): Map<String, Any?> =
+        parameterEntries?.toTypeSafeData(valueTypes)
+            ?: parameterTypeMap.withData(parameters).toTypeSafeData(valueTypes)
+
+    internal fun validateForWrite(valueTypes: ValueTypeConverter) {
+        typeSafeParameters(valueTypes)
     }
 
+    fun toJobData(): JobData = toJobData(ValueTypeConverter.builtInsOnly())
+
     fun toJobData(valueTypes: ValueTypeConverter): JobData {
-        val typeSafeData = parameterEntries?.toTypeSafeData(valueTypes)
-            ?: parameterTypeMap.withData(parameters).toTypeSafeData(valueTypes)
+        val typeSafeData = typeSafeParameters(valueTypes)
         return JobData(
             id!!,
             workflowId,

@@ -55,7 +55,7 @@ class JobMongoPersistence(
             jobData.cancellationKey,
             jobData.status,
         )
-        document.toJobData(valueTypes)
+        document.validateForWrite(valueTypes)
         return jobRepository.insert(document).toJobData(valueTypes)
     }
 
@@ -156,7 +156,7 @@ class JobMongoPersistence(
             jobData.cancellationKey,
             jobData.status,
         )
-        document.toJobData(valueTypes)
+        document.validateForWrite(valueTypes)
         return jobRepository.save(document).toJobData(valueTypes)
     }
 

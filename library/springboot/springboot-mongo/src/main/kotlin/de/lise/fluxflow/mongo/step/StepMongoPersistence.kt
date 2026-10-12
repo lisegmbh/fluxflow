@@ -45,7 +45,7 @@ class StepMongoPersistence(
             stepData.metadata,
             stepData.status,
         )
-        document.toStepData(valueTypes)
+        document.validateForWrite(valueTypes)
         return stepRepository.insert(document).toStepData(valueTypes)
     }
 
@@ -110,7 +110,7 @@ class StepMongoPersistence(
             stepData.metadata,
             stepData.status,
         )
-        document.toStepData(valueTypes)
+        document.validateForWrite(valueTypes)
         return stepRepository.save(document).toStepData(valueTypes)
     }
 
