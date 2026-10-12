@@ -980,7 +980,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
         steps.create(
             StepData(
                 legacyStepId.toHexString(), workflowId, "allowed-enum-legacy", "1",
-                mapOf("state" to "done"), Status.Active, emptyMap(),
+                mapOf("state" to "Done"), Status.Active, emptyMap(),
             )
         )
         collection(StepDocument::class.java).updateOne(
@@ -1133,7 +1133,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
         steps.create(
             StepData(
                 stepId.toHexString(), workflowId, "legacy-allowed-enum", "1",
-                mapOf("state" to "ready"), Status.Active, emptyMap(),
+                mapOf("state" to "Ready"), Status.Active, emptyMap(),
             )
         )
         collection(StepDocument::class.java).updateOne(
@@ -1148,7 +1148,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
         jobs.create(
             JobData(
                 jobId.toHexString(), workflowId, "legacy-allowed-enum-job",
-                mapOf("state" to "done"), Instant.parse("2026-09-10T10:00:00Z"),
+                mapOf("state" to "Done"), Instant.parse("2026-09-10T10:00:00Z"),
                 null, JobStatus.Scheduled,
             )
         )

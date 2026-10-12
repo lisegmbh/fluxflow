@@ -240,7 +240,7 @@ class ValueTypeConverter private constructor(
             if (value is String && type.java.isEnum) {
                 @Suppress("UNCHECKED_CAST")
                 val constants = type.java.enumConstants as Array<out Enum<*>>
-                return constants.firstOrNull { it.name.equals(value, ignoreCase = true) }
+                return constants.firstOrNull { it.name == value }
                     ?: throw ValueTypeConversionException(
                         "Value '$value' is not a constant of '${type.java.name}' at '$path'."
                     )

@@ -188,16 +188,29 @@ class ValueTypeConverterSecurityTest {
             )
         )
 
-        assertThat(converter.assertType(SimpleType("trusted-enum"), "first"))
+        assertThat(converter.assertType(SimpleType("trusted-enum"), "FIRST"))
             .isEqualTo(TrustedEnum.FIRST)
         assertThat(converter.assertType(SimpleType(TrustedEnum::class.java.name), "SECOND"))
             .isEqualTo(TrustedEnum.SECOND)
         assertThat(
             converter.assertType(
                 SimpleType(requireNotNull(TrustedEnum::class.java.canonicalName)),
-                "first",
+                "FIRST",
             )
         ).isEqualTo(TrustedEnum.FIRST)
+        assertThatThrownBy { converter.assertType(SimpleType("trusted-enum"), "first") }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+    }
+
+    @Test
+    fun `V03 registered enums preserve case-sensitive constants`() {
+        val converter = converter("case-sensitive-enum", CaseSensitiveEnum::class.java)
+        val spec = SimpleType("case-sensitive-enum")
+
+        assertThat(converter.assertType(spec, "KB")).isEqualTo(CaseSensitiveEnum.KB)
+        assertThat(converter.assertType(spec, "kB")).isEqualTo(CaseSensitiveEnum.kB)
+        assertThatThrownBy { converter.assertType(spec, "Kb") }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
     }
 
     @Test
@@ -221,8 +234,8 @@ class ValueTypeConverterSecurityTest {
         val records = TypedRecords(
             mapping,
             linkedMapOf<String, Any?>(
-                "list" to listOf("first"),
-                "set" to listOf("second"),
+                "list" to listOf("FIRST"),
+                "set" to listOf("SECOND"),
                 "instant" to Date.from(instant),
                 "null" to null,
             ),
@@ -600,6 +613,7 @@ class ValueTypeConverterSecurityTest {
     }
 
     private enum class TrustedEnum { FIRST, SECOND }
+    private enum class CaseSensitiveEnum { KB, kB }
     private enum class FirstContextEnum { ONLY }
     private enum class SecondContextEnum { ONLY }
     private class TrustedMap : LinkedHashMap<String, Any?>()
