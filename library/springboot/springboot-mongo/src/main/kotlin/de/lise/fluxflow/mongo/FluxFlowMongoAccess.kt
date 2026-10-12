@@ -94,7 +94,7 @@ class FluxFlowMongoAccess internal constructor(
             isolatedConverter,
             MongoDocumentTypePolicy(aliases, typeKey, fieldNames = MongoFieldNames(hostConverter.mappingContext)),
         )
-        template = MongoTemplate(databaseFactory, converter).apply {
+        template = MongoTemplate(databaseFactory, NonIndexingMongoConverter(converter)).apply {
             setApplicationContext(applicationContext)
             converterCustomization.entityCallbacks?.let { setEntityCallbacks(it) }
             if (hostTemplate.hasReadPreference()) {
