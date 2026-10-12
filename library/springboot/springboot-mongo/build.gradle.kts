@@ -28,6 +28,7 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.prototype.Boot3PrototypeMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot3PrototypeMongoHostTemplateIT",
         "de.lise.fluxflow.mongo.security.production.ValueTypeConverterSecurityTest",
+        "de.lise.fluxflow.mongo.security.production.StepMongoConfigurationCompatibilityTest",
         "de.lise.fluxflow.mongo.security.production.ValueTypeConverterJavaCompatibilityTest",
     ))
 }
