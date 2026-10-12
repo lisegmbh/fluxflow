@@ -233,6 +233,26 @@ class MongoDocumentTypePolicyTest {
     }
 
     @Test
+    fun `D13 shared document identities are validated in every structural policy`() {
+        listOf(true, false).forEach { modelFirst ->
+            val shared = Document("_class", "model")
+            val source = Document("_class", WorkflowDocument::class.java.name)
+            if (modelFirst) {
+                source["model"] = shared
+                source["extra"] = shared
+            } else {
+                source["extra"] = shared
+                source["model"] = shared
+            }
+
+            assertThatThrownBy { policy().validate(WorkflowDocument::class.java, source) }
+                .describedAs("The shared instance must not authorize a forbidden field (modelFirst=%s)", modelFirst)
+                .isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("Mongo type metadata is not allowed")
+        }
+    }
+
+    @Test
     fun `D13 rejects documents beyond the configured depth`() {
         val policy = policy(maxDepth = 3)
         val model = Document("_class", "model")

@@ -13,7 +13,6 @@ import de.lise.fluxflow.reflection.types.TypeRole
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.ArrayDeque
-import java.util.Collections
 import java.util.IdentityHashMap
 
 /** Validates every persisted type discriminator before Spring Data may resolve it. */
@@ -75,7 +74,7 @@ internal class MongoDocumentTypePolicy(
     }
 
     private fun validateFrames(pending: ArrayDeque<Frame>) {
-        val visited = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+        val visited = IdentityHashMap<Any, MutableSet<NodePolicy>>()
         var nodes = 1
         while (pending.isNotEmpty()) {
             val frame = pending.removeLast()
@@ -89,7 +88,7 @@ internal class MongoDocumentTypePolicy(
 
             when (val value = frame.value) {
                 is Map<*, *> -> {
-                    if (!visited.add(value)) {
+                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
                         continue
                     }
                     validateAlias(value, frame.policy, frame.path)
@@ -109,7 +108,7 @@ internal class MongoDocumentTypePolicy(
                 }
 
                 is Iterable<*> -> {
-                    if (!visited.add(value)) {
+                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
                         continue
                     }
                     var index = 0
@@ -130,7 +129,7 @@ internal class MongoDocumentTypePolicy(
                 }
 
                 is Array<*> -> {
-                    if (!visited.add(value)) {
+                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
                         continue
                     }
                     value.forEachIndexed { index, nested ->
