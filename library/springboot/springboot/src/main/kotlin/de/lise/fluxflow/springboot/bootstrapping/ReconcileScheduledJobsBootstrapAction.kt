@@ -6,6 +6,7 @@ import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.job.query.JobQueryable.Companion.status
 import de.lise.fluxflow.api.workflow.WorkflowService
+import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.persistence.job.ScheduledJobReference
 import de.lise.fluxflow.persistence.job.ScheduledJobReferencePersistence
 import de.lise.fluxflow.scheduling.SchedulingReference
@@ -49,16 +50,25 @@ class ReconcileScheduledJobsBootstrapAction private constructor(
             return
         }
 
-        scheduledJobs.forEach { reference ->
-            reconcile(reference, references.workflows)
+        scheduledJobs.groupBy(ScheduledJobReference::workflowIdentifier).forEach { (workflowIdentifier, jobs) ->
+            val workflow = try {
+                references.workflows.get<Any>(workflowIdentifier)
+            } catch (exception: Exception) {
+                Logger.error(
+                    "Scheduled job reconciliation failed to load workflow \"{}\".",
+                    workflowIdentifier,
+                    exception,
+                )
+                return@forEach
+            }
+            jobs.forEach { reference -> reconcile(reference, workflow) }
         }
 
         Logger.info("Scheduled job reconciliation completed.")
     }
 
-    private fun reconcile(reference: ScheduledJobReference, workflowService: WorkflowService) {
+    private fun reconcile(reference: ScheduledJobReference, workflow: Workflow<Any>) {
         try {
-            val workflow = workflowService.get<Any>(reference.workflowIdentifier)
             val job = jobService.getJob(workflow, reference.jobIdentifier)
             scheduleJobIfNeeded(reference, job)
         } catch (exception: Exception) {

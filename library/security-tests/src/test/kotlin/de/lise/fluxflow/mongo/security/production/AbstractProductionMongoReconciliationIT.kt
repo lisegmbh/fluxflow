@@ -113,4 +113,24 @@ abstract class AbstractProductionMongoReconciliationIT {
     private fun jobCollection() = access.template.getCollection(
         access.template.getCollectionName(JobDocument::class.java),
     )
+
+    @Test
+    fun `O01 rejected workflow does not prevent scheduling a later healthy workflow`() {
+        val rejectedWorkflow = UUID.randomUUID().toString()
+        val healthyWorkflow = UUID.randomUUID().toString()
+        val rejectedIds = listOf(ObjectId().toHexString(), ObjectId().toHexString())
+        val healthyIds = listOf(ObjectId().toHexString(), ObjectId().toHexString())
+        listOf(rejectedWorkflow to rejectedIds, healthyWorkflow to healthyIds).forEach { (workflowId, ids) ->
+            workflows.create(ReconciliationWorkflowModel("group"), WorkflowIdentifier(workflowId))
+            ids.forEach { id -> jobs.create(JobData(id, workflowId, RECONCILIATION_JOB_KIND, emptyMap(),
+                Instant.parse("2099-09-10T10:00:00Z"), null, JobStatus.Scheduled)) }
+        }
+        access.template.getCollection(access.template.getCollectionName(WorkflowDocument::class.java))
+            .updateOne(eq("_id", rejectedWorkflow), set("model._class", "unregistered.WorkflowModel"))
+
+        reconciliation.setup()
+
+        assertThat(schedulingService.scheduled.map { it.jobIdentifier.value })
+            .containsExactlyInAnyOrderElementsOf(healthyIds)
+    }
 }

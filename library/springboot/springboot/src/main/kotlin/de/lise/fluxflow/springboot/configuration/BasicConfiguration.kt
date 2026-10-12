@@ -8,11 +8,9 @@ import de.lise.fluxflow.api.continuation.history.query.ContinuationRecordQueryab
 import de.lise.fluxflow.api.event.EventService
 import de.lise.fluxflow.api.event.FlowListener
 import de.lise.fluxflow.api.ioc.IocProvider
-import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.job.interceptors.JobExecutionInterceptor
 import de.lise.fluxflow.api.job.query.JobQueryable
-import de.lise.fluxflow.api.job.query.JobQueryable.Companion.status
 import de.lise.fluxflow.api.state.ChangeDetector
 import de.lise.fluxflow.api.step.StepDefinition
 import de.lise.fluxflow.api.step.StepService
@@ -47,7 +45,6 @@ import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersi
 import de.lise.fluxflow.persistence.continuation.history.flowquery.ContinuationRecordQueryableToDataMapper
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
-import de.lise.fluxflow.persistence.job.ScheduledJobReference
 import de.lise.fluxflow.persistence.job.ScheduledJobReferencePersistence
 import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataReplacer
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
@@ -782,26 +779,15 @@ open class BasicConfiguration {
         havingValue = "true",
         matchIfMissing = false
     )
+    @Suppress("DEPRECATION")
     open fun startupJobReconciliation(
         jobService: JobService,
         schedulingService: SchedulingService,
         scheduledJobReferencePersistence: ObjectProvider<ScheduledJobReferencePersistence>,
         workflowService: WorkflowService,
     ): BootstrapAction {
-        val referencePersistence = scheduledJobReferencePersistence.getIfAvailable {
-            ScheduledJobReferencePersistence {
-                jobService.findAll {
-                    where {
-                        status.isEqual(JobStatus.Scheduled)
-                    }
-                }.items.map { job ->
-                    ScheduledJobReference(
-                        job.workflow.identifier,
-                        job.identifier,
-                    )
-                }
-            }
-        }
+        val referencePersistence = scheduledJobReferencePersistence.ifAvailable
+            ?: return startupJobReconciliation(jobService, schedulingService)
 
         return ReconcileScheduledJobsBootstrapAction(
             jobService,

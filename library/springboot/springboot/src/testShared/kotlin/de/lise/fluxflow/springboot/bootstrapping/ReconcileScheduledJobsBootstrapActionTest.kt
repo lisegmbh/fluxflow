@@ -66,6 +66,38 @@ class ReconcileScheduledJobsBootstrapActionTest {
         verify(schedulingService, org.mockito.kotlin.times(2)).schedule(any(), scheduled.capture())
         assertThat(scheduled.allValues.map { it.jobIdentifier.value })
             .containsExactly("good-before", "good-after")
+        verify(workflowService).get<Any>(WorkflowIdentifier("workflow-1"))
+    }
+
+    @Test
+    fun `a rejected workflow is loaded once while later healthy workflow jobs continue`() {
+        val references = listOf(reference("rejected-workflow", "rejected-first"),
+            reference("rejected-workflow", "rejected-second"),
+            reference("healthy-workflow", "healthy-first"), reference("healthy-workflow", "healthy-second"))
+        val persistence = mock<ScheduledJobReferencePersistence>()
+        whenever(persistence.findScheduledJobReferences()).thenReturn(references)
+        val workflows = mock<WorkflowService>()
+        doThrow(UnknownTypeException(TypeRole.MODEL, "untrusted.Model"))
+            .whenever(workflows).get<Any>(WorkflowIdentifier("rejected-workflow"))
+        val workflow = mock<Workflow<Any>>()
+        whenever(workflows.get<Any>(WorkflowIdentifier("healthy-workflow"))).thenReturn(workflow)
+        val jobs = mock<JobService>()
+        val time = Instant.parse("2026-09-10T09:00:00Z")
+        listOf("healthy-first", "healthy-second").forEach { id ->
+            val healthyJob = job(id, workflow, time)
+            whenever(jobs.getJob(workflow, JobIdentifier(id))).thenReturn(healthyJob)
+        }
+        val scheduler = mock<SchedulingService>()
+        whenever(scheduler.isJobScheduled(any())).thenReturn(false)
+
+        ReconcileScheduledJobsBootstrapAction(jobs, scheduler, persistence, workflows).setup()
+
+        val scheduled = argumentCaptor<SchedulingReference>()
+        verify(scheduler, org.mockito.kotlin.times(2)).schedule(any(), scheduled.capture())
+        assertThat(scheduled.allValues.map { it.jobIdentifier.value })
+            .containsExactly("healthy-first", "healthy-second")
+        verify(workflows).get<Any>(WorkflowIdentifier("rejected-workflow"))
+        verify(workflows).get<Any>(WorkflowIdentifier("healthy-workflow"))
     }
 
     private fun reference(workflowId: String, jobId: String) = ScheduledJobReference(
