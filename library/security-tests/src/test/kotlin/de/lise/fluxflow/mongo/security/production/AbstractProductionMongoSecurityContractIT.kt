@@ -69,6 +69,10 @@ import de.lise.fluxflow.reflection.types.TypeRole
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.bson.Document
+import org.bson.BsonArray
+import org.bson.BsonDocument
+import org.bson.BsonInt32
+import org.bson.BsonString
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -81,10 +85,12 @@ import org.springframework.context.event.SimpleApplicationEventMulticaster
 import org.springframework.context.support.AbstractApplicationContext
 import org.springframework.context.support.GenericApplicationContext
 import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.core.convert.NoOpDbRefResolver
 import org.springframework.data.mongodb.MongoDatabaseFactory
 import org.springframework.data.mongodb.MongoTransactionManager
 import org.springframework.data.mongodb.core.mapping.event.AfterLoadEvent
 import org.springframework.data.mongodb.core.query.Query
+import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.transaction.support.TransactionTemplate
 import java.util.UUID
 import java.time.Instant
@@ -915,6 +921,66 @@ abstract class AbstractProductionMongoSecurityContractIT {
         assertThat(persisted.containsKey("parameterEntries")).isFalse()
         assertThat(persisted["parameters"]).isEqualTo(before["parameters"])
         assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `D06 distinct document results keep nested VALUE role validation`() {
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = securityTestModel()
+        workflows.create(model, identifier)
+        val query = Query(Criteria.where("_id").`is`(identifier.value))
+
+        assertThat(fluxFlowMongoAccess.template.findDistinct(query, "model",
+            WorkflowDocument::class.java, SecurityTestWorkflowModel::class.java))
+            .containsExactly(model)
+        assertThat(fluxFlowMongoAccess.template.findDistinct(query, "model.mapped_name",
+            WorkflowDocument::class.java, String::class.java)).containsExactly(model.name)
+
+        workflowCollection().updateOne(eq("_id", identifier.value),
+            set("model.nested.0.alias._class", SUBTYPE_ALIAS))
+
+        val failure = catchFailure {
+            fluxFlowMongoAccess.template.findDistinct(query, "model",
+                WorkflowDocument::class.java, SecurityTestWorkflowModel::class.java)
+        }
+        assertUnknownType(failure, TypeRole.VALUE, SUBTYPE_ALIAS)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `D06 BSON document value conversion keeps nested VALUE role validation`() {
+        val identifier = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = securityTestModel()
+        workflows.create(model, identifier)
+        val persisted = requireNotNull(workflowCollection().find(eq("_id", identifier.value)).first())
+        val rawModel = persisted.get("model", Document::class.java)
+        val converter = fluxFlowMongoAccess.converter
+        val resolver = NoOpDbRefResolver.INSTANCE
+
+        assertThat(converter.mapValueToTargetType(BsonDocument.parse(rawModel.toJson()),
+            SecurityTestWorkflowModel::class.java, resolver)).isEqualTo(model)
+        rawModel.getList("nested", Document::class.java)[0]
+            .get("alias", Document::class.java)["_class"] = SUBTYPE_ALIAS
+
+        val failure = catchFailure {
+            converter.mapValueToTargetType(BsonDocument.parse(rawModel.toJson()),
+                SecurityTestWorkflowModel::class.java, resolver)
+        }
+        assertUnknownType(failure, TypeRole.VALUE, SUBTYPE_ALIAS)
+    }
+
+    @Test
+    fun `D06 BSON value conversion preserves scalar and raw array semantics`() {
+        val converter = fluxFlowMongoAccess.converter
+        val resolver = NoOpDbRefResolver.INSTANCE
+        assertThat(converter.mapValueToTargetType(BsonString("safe"), String::class.java, resolver))
+            .isEqualTo("safe")
+        assertThat(converter.mapValueToTargetType(BsonInt32(42), Int::class.javaObjectType, resolver))
+            .isEqualTo(42)
+        assertThat(converter.mapValueToTargetType(
+            BsonArray(listOf(BsonString("safe"), BsonInt32(42))), List::class.java, resolver))
+            .containsExactly(BsonString("safe"), BsonInt32(42))
+
     }
 
     @Test
