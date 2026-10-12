@@ -29,10 +29,11 @@ internal object TypeRecordDecoder {
     }
 
     private class Decoder(
-        private val context: RecordContext,
+        context: RecordContext,
         private val maxDepth: Int,
         private val maxNodes: Int,
     ) {
+        private val context = if (context is JvmTypeMapping) context.snapshot() else context
         private val active = Collections.newSetFromMap(IdentityHashMap<TypeRecord, Boolean>())
         private var nodes = 0
 

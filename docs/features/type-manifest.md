@@ -138,13 +138,18 @@ collection entries instead.
 Only aliases from the fixed built-in table enable conversion between MongoDB container
 representations. A registered application `Map`, `List`, or `Set` subtype must already be an
 instance of its declared type; FluxFlow does not coerce a standard container into that subtype.
+Already compatible containers are retained after recursive validation when their elements need no
+reconstruction. If restoring an element would require replacing a custom container, conversion
+fails rather than mutating that container or invoking an application constructor.
 
 Mongo scalar restoration is restricted to fixed built-in types after resolving their VALUE key.
 BSON int32 values restore Byte and Short only within their exact ranges. BSON doubles restore Float
 only when Double-to-Float-to-Double preserves its bits, including signed zero and infinities;
 NaN is restored as the canonical Float NaN. BigDecimal accepts decimal strings and finite
 Decimal128 values without losing scale; BigInteger additionally requires an exact integer.
-URL accepts its stored string form without connecting to the address. Incompatible representations
+URL accepts its stored string form without connecting to the address. URL values are rejected in
+sets, including URLs nested inside collection elements or map keys/values, before set hashing can
+trigger blocking host resolution. Scalar URLs and URL lists remain supported. Incompatible representations
 remain conversion errors; these conversions do not apply to registered application classes.
 
 Big-number writes depend on the host's Mongo representation. When configuring custom conversions
@@ -162,7 +167,9 @@ values. The existing public constructor signatures remain available.
 
 Malformed records fail with `ValueTypeConversionException`. This includes missing or duplicate JVM
 type references, different value and metadata key sets, incompatible values, inconsistent
-collection lengths, cycles, and type graphs beyond the traversal limits. Unknown names continue to
+collection lengths, cycles, and type graphs beyond the traversal limits. JVM type mappings are
+indexed once in a read-only snapshot before decoding; duplicate references fail even when unused.
+Unknown names continue to
 fail with `UnknownTypeException` and role `VALUE`. Create and save operations validate these types
 before writing, and the legacy-to-typed-record migration applies the same rules per document.
 The migration also validates the newly constructed records before adding them to a write batch.

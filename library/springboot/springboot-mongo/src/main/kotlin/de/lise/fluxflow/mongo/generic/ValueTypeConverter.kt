@@ -109,6 +109,9 @@ class ValueTypeConverter private constructor(
         private val activeUntypedContainers = java.util.Collections.newSetFromMap(
             java.util.IdentityHashMap<Any, Boolean>()
         )
+        private val activeHashContainers = java.util.Collections.newSetFromMap(
+            java.util.IdentityHashMap<Any, Boolean>()
+        )
         private var nodes = 0
 
         fun assertType(spec: TypeSpec, value: Any?, path: String, depth: Int): Any? {
@@ -145,6 +148,9 @@ class ValueTypeConverter private constructor(
             depth: Int,
         ): Any? {
             val type = resolve(spec.typeName)
+            if (value is Set<*>) {
+                assertHashSafe(value, path, depth)
+            }
             if (type.isInstance(value)) {
                 if (value is Map<*, *>) {
                     assertUntypedMap(value, path, depth)
@@ -154,6 +160,7 @@ class ValueTypeConverter private constructor(
 
             if (spec.typeName in normalizableContainerAliases && value is Collection<*>) {
                 if (Set::class.java.isAssignableFrom(type.java)) {
+                    assertHashSafe(value, path, depth)
                     return value.toSet()
                 }
                 if (List::class.java.isAssignableFrom(type.java) ||
@@ -261,6 +268,9 @@ class ValueTypeConverter private constructor(
                 )
                 is Map<*, *> -> assertUntypedMap(value, path, depth)
                 is Collection<*> -> withUntypedContainer(value, path) {
+                    if (value is Set<*>) {
+                        assertHashSafe(value, path, depth)
+                    }
                     value.forEachIndexed { index, element ->
                         inspectUntypedValue(element, "$path[$index]", depth + 1)
                     }
@@ -270,6 +280,32 @@ class ValueTypeConverter private constructor(
                         inspectUntypedValue(element, "$path[$index]", depth + 1)
                     }
                 }
+            }
+        }
+
+        // Collection and map hash codes recursively hash their elements, keys and values.
+        // URL.hashCode may resolve a host, so reject it before creating any hashed set.
+        private fun assertHashSafe(value: Any?, path: String, depth: Int) {
+            visitNode(path, depth)
+            if (value is URL) {
+                throw ValueTypeConversionException("URL values are not allowed in sets at '$path'.")
+            }
+            if (value !is Collection<*> && value !is Map<*, *>) return
+            if (!activeHashContainers.add(value)) {
+                throw ValueTypeConversionException("Cyclic set element detected at '$path'.")
+            }
+            try {
+                when (value) {
+                    is Collection<*> -> value.forEachIndexed { index, element ->
+                        assertHashSafe(element, "$path[$index]", depth + 1)
+                    }
+                    is Map<*, *> -> value.entries.forEachIndexed { index, entry ->
+                        assertHashSafe(entry.key, "$path[$index].key", depth + 1)
+                        assertHashSafe(entry.value, "$path[$index].value", depth + 1)
+                    }
+                }
+            } finally {
+                activeHashContainers.remove(value)
             }
         }
 
@@ -318,15 +354,24 @@ class ValueTypeConverter private constructor(
                             "${collection.size} values, ${spec.componentTypes.size} types."
                 )
             }
+            var unchanged = true
             val elements = collection.mapIndexed { index, element ->
                 assertType(
                     spec.componentTypes[index],
                     element,
                     "$path[$index]",
                     depth + 1,
-                )
+                ).also { restored -> if (restored !== element) unchanged = false }
             }
-            return assertType(spec.collectionType, elements, "$path.collection", depth + 1)
+            // Keep compatible application containers without mutation or reflective construction.
+            // Identity avoids calling user equals/hashCode while checking validated elements.
+            val originalType = spec.collectionType as? SimpleType
+            val validated = if (unchanged && originalType != null && resolve(originalType.typeName).isInstance(collection)) {
+                collection
+            } else {
+                elements
+            }
+            return assertType(spec.collectionType, validated, "$path.collection", depth + 1)
         }
     }
 

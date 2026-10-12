@@ -23,6 +23,10 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.context.support.GenericApplicationContext
 import java.time.Instant
+import java.net.InetAddress
+import java.net.URL
+import java.net.URLConnection
+import java.net.URLStreamHandler
 import java.util.Collections
 import java.util.Date
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -31,6 +35,148 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class ValueTypeConverterSecurityTest {
+    @Test
+    fun `V04 decoding snapshot is isolated from later source mutations`() {
+        val mapping = JvmTypeMapping(mutableListOf(
+            TypeRecordEntry(List::class.java.name, "list"),
+            TypeRecordEntry(String::class.java.name, "value"),
+        ))
+        val children = object : AbstractList<TypeRecord>() {
+            override val size: Int = 1
+            override fun get(index: Int): TypeRecord {
+                mapping.entries.clear()
+                return JvmTypeRecord(TypeReference("value"))
+            }
+        }
+        val record = CollectionTypeRecord(JvmTypeRecord(TypeReference("list")), children)
+
+        assertThat(record.toTypeSpec(mapping).assertType(listOf("safe"))).isEqualTo(listOf("safe"))
+        assertThat(mapping.entries).isEmpty()
+    }
+
+    @Test
+    fun `V04 snapshots reject identical duplicate references even when unused`() {
+        val entry = TypeRecordEntry(String::class.java.name, "duplicate")
+        val records = TypedRecords(
+            JvmTypeMapping(mutableListOf(entry, entry)),
+            emptyMap<String, Any?>(),
+            emptyMap(),
+        )
+
+        assertThatThrownBy { records.toTypeSafeData() }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("duplicate")
+    }
+
+    @Test
+    fun `V04 custom collections are not mutated to reconstruct their elements`() {
+        val converter = ValueTypeConverter(registry(
+            valueEntry(requireNotNull(TrustedList::class.java.canonicalName), TrustedList::class.java),
+        ))
+        val date = Date.from(Instant.parse("2026-10-12T08:00:00Z"))
+        val custom = TrustedList().apply { add(date) }
+        val spec = CollectionType(SimpleType(TrustedList::class), listOf(SimpleType(Instant::class)))
+
+        assertThatThrownBy { converter.assertType(spec, custom) }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("not compatible")
+        assertThat(custom.single()).isSameAs(date)
+    }
+
+    @Test
+    fun `V04 record decoding reads JVM mappings once despite repeated references`() {
+        val entries = CountingEntries(MutableList(1_000) { index ->
+            TypeRecordEntry(String::class.java.name, "value-$index")
+        }.apply { add(TypeRecordEntry(List::class.java.name, "list")) })
+        val record = CollectionTypeRecord(
+            JvmTypeRecord(TypeReference("list")),
+            List(1_000) { JvmTypeRecord(TypeReference("value-0")) },
+        )
+
+        val decoded = record.toTypeSpec(JvmTypeMapping(entries))
+
+        assertThat(decoded.assertType(List(1_000) { "safe" })).isEqualTo(List(1_000) { "safe" })
+        assertThat(entries.reads).isLessThanOrEqualTo(2 * entries.size)
+    }
+
+    @Test
+    fun `V03 typed records retain registered collection instances with nested containers`() {
+        val converter = ValueTypeConverter(registry(
+            valueEntry(requireNotNull(TrustedList::class.java.canonicalName), TrustedList::class.java),
+            valueEntry(requireNotNull(TrustedSet::class.java.canonicalName), TrustedSet::class.java),
+        ))
+        val customList = TrustedList().apply { add(listOf("safe")); add(setOf("nested")) }
+        val customSet = TrustedSet().apply { add(listOf("safe")); add("second") }
+        val records = TypedRecords.fromData(mapOf("list" to customList, "set" to customSet))
+
+        val restored = records.toTypeSafeData(converter)
+
+        assertThat(restored["list"]).isSameAs(customList)
+        assertThat(restored["set"]).isSameAs(customSet)
+        assertThat(customList).containsExactly(listOf("safe"), setOf("nested"))
+        assertThat(customSet).containsExactly(listOf("safe"), "second")
+    }
+
+    @Test
+    fun `V04 nested URLs and existing URL sets cannot bypass hash safety`() {
+        var resolutions = 0
+        val handler = object : URLStreamHandler() {
+            override fun openConnection(url: URL): URLConnection = error("Network access is forbidden")
+            override fun getHostAddress(url: URL): InetAddress? {
+                resolutions++
+                return null
+            }
+        }
+        val url = URL(null, "http://nested.example.invalid/value", handler)
+        val converter = ValueTypeConverter.builtInsOnly()
+        val identitySet = Collections.newSetFromMap(java.util.IdentityHashMap<URL, Boolean>()).apply { add(url) }
+        val identityMap = java.util.IdentityHashMap<URL, String>().apply { put(url, "safe") }
+        val cases = listOf(
+            SimpleType(List::class) to listOf(listOf(url), listOf("safe")),
+            SimpleType(Map::class) to listOf(mapOf("url" to url), mapOf("safe" to "value")),
+            SimpleType(Map::class) to listOf(identityMap, mapOf("safe" to "value")),
+        )
+        cases.forEach { (elementType, values) ->
+            val spec = CollectionType(SimpleType(Set::class), List(2) { elementType })
+            assertThatThrownBy { converter.assertType(spec, values) }
+                .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+                .hasMessageContaining("URL")
+            assertThat(resolutions).isZero()
+        }
+        assertThatThrownBy { converter.assertType(SimpleType(Set::class), identitySet) }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("URL")
+        assertThatThrownBy { converter.assertType(SimpleType(Map::class), mapOf("set" to identitySet)) }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("URL")
+        assertThat(resolutions).isZero()
+        assertThat(converter.assertType(SimpleType(URL::class), url)).isSameAs(url)
+        assertThat(converter.assertType(SimpleType(List::class), listOf(url))).isInstanceOf(List::class.java)
+        assertThat(resolutions).isZero()
+    }
+
+    @Test
+    fun `V04 URL sets are rejected before host resolution`() {
+        var resolutions = 0
+        val handler = object : URLStreamHandler() {
+            override fun openConnection(url: URL): URLConnection = error("Network access is forbidden")
+            override fun getHostAddress(url: URL): InetAddress? {
+                resolutions++
+                return null
+            }
+        }
+        val urls = listOf(
+            URL(null, "http://first.example.invalid/value", handler),
+            URL(null, "http://second.example.invalid/value", handler),
+        )
+        val spec = CollectionType(SimpleType(Set::class), List(2) { SimpleType(URL::class) })
+
+        assertThatThrownBy { ValueTypeConverter.builtInsOnly().assertType(spec, urls) }
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("URL")
+        assertThat(resolutions).isZero()
+    }
+
     @Test
     fun `V03 registered enum accepts exact key binary and canonical registrations`() {
         val type = TrustedEnum::class.java
@@ -442,6 +588,16 @@ class ValueTypeConverterSecurityTest {
 
     private fun registry(vararg entries: TypeManifestEntry): TypeRegistry =
         TypeRegistry.create(javaClass.classLoader, entries.toList())
+
+    private class CountingEntries(private val backing: MutableList<TypeRecordEntry>) : AbstractMutableList<TypeRecordEntry>() {
+        var reads = 0
+            private set
+        override val size: Int get() = backing.size
+        override fun get(index: Int): TypeRecordEntry = backing[index].also { reads++ }
+        override fun add(index: Int, element: TypeRecordEntry) = backing.add(index, element)
+        override fun removeAt(index: Int): TypeRecordEntry = backing.removeAt(index)
+        override fun set(index: Int, element: TypeRecordEntry): TypeRecordEntry = backing.set(index, element)
+    }
 
     private enum class TrustedEnum { FIRST, SECOND }
     private enum class FirstContextEnum { ONLY }
