@@ -2,9 +2,11 @@ package de.lise.fluxflow.mongo.security.prototype
 
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.reflection.types.TypeRegistry
+import de.lise.fluxflow.reflection.types.TypeRole
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 import org.springframework.data.mongodb.MongoDatabaseFactory
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions
@@ -21,6 +23,18 @@ open class PrototypeMongoContractConfiguration {
     @Bean("prototypeTypeRegistry")
     open fun prototypeTypeRegistry(): TypeRegistry =
         prototypeRegistry(WitnessClassLoader(), *allowedPrototypeEntries())
+
+    @Bean
+    @Primary
+    open fun hostTypeRegistry(): TypeRegistry = prototypeRegistry(
+        WitnessClassLoader(),
+        *allowedPrototypeEntries(),
+        prototypeEntry(
+            TypeRole.MODEL,
+            HostOnlyWorkflowModel::class.java.name,
+            HostOnlyWorkflowModel::class.java.name,
+        ),
+    )
 
     @Bean
     open fun prototypeFluxFlowMongoAccess(

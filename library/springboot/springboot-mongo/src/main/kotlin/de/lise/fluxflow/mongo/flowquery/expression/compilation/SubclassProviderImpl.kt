@@ -23,7 +23,7 @@ class SubclassProviderImpl(
             .filter { !it.isAbstract }
             .mapNotNull { it.beanClassName }
             .distinct()
-            .mapNotNull { Class.forName(it) }
+            .mapNotNull { Class.forName(it, false, type.java.classLoader) }
 
         val allClasses = (allFoundClasses + type.java).toSet()
         return allClasses.filter {

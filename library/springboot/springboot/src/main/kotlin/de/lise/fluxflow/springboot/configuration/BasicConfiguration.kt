@@ -45,6 +45,7 @@ import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersi
 import de.lise.fluxflow.persistence.continuation.history.flowquery.ContinuationRecordQueryableToDataMapper
 import de.lise.fluxflow.persistence.job.JobData
 import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.job.ScheduledJobReferencePersistence
 import de.lise.fluxflow.persistence.job.flowquery.JobQueryableToDataReplacer
 import de.lise.fluxflow.persistence.migration.MigrationPersistence
 import de.lise.fluxflow.persistence.step.StepData
@@ -87,8 +88,8 @@ import de.lise.fluxflow.stereotyped.workflow.action.WorkflowActionFunctionResolv
 import de.lise.fluxflow.validation.jakarta.JakartaDataValidationBuilder
 import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import jakarta.validation.Validator
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -763,6 +764,14 @@ open class BasicConfiguration {
         )
     }
 
+    /** Compatibility factory for callers supplying only bulk job access. */
+    @Deprecated("Override the four-argument factory to customize the production reconciliation bean")
+    @Suppress("DEPRECATION")
+    open fun startupJobReconciliation(
+        jobService: JobService,
+        schedulingService: SchedulingService,
+    ): BootstrapAction = ReconcileScheduledJobsBootstrapAction(jobService, schedulingService)
+
     @Bean
     @Order(105)
     @ConditionalOnProperty(
@@ -770,13 +779,21 @@ open class BasicConfiguration {
         havingValue = "true",
         matchIfMissing = false
     )
+    @Suppress("DEPRECATION")
     open fun startupJobReconciliation(
         jobService: JobService,
         schedulingService: SchedulingService,
+        scheduledJobReferencePersistence: ObjectProvider<ScheduledJobReferencePersistence>,
+        workflowService: WorkflowService,
     ): BootstrapAction {
+        val referencePersistence = scheduledJobReferencePersistence.ifAvailable
+            ?: return startupJobReconciliation(jobService, schedulingService)
+
         return ReconcileScheduledJobsBootstrapAction(
             jobService,
-            schedulingService
+            schedulingService,
+            referencePersistence,
+            workflowService,
         )
     }
 }

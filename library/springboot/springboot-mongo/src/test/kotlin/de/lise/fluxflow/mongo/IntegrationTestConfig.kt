@@ -1,6 +1,12 @@
 package de.lise.fluxflow.mongo
 
 import de.lise.fluxflow.mongo.docker.ConditionalOnDocker
+import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryRepositoryIT
+import de.lise.fluxflow.mongo.security.DocumentTypeGuardIT
+import de.lise.fluxflow.mongo.workflow.WorkflowMongoPersistenceIT
+import de.lise.fluxflow.reflection.types.TypeManifestEntry
+import de.lise.fluxflow.reflection.types.TypeRegistry
+import de.lise.fluxflow.reflection.types.TypeRole
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.test.context.TestConfiguration
@@ -23,4 +29,18 @@ open class IntegrationTestConfig {
             null
         }
     }
+
+    @Bean
+    open fun integrationTestTypeRegistry(): TypeRegistry = TypeRegistry.create(
+        IntegrationTestConfig::class.java.classLoader,
+        listOf(
+            testType(TypeRole.MODEL, WorkflowMongoPersistenceIT.TestModel::class.java),
+            testType(TypeRole.VALUE, WorkflowMongoPersistenceIT.NestedTestModel::class.java),
+            testType(TypeRole.MODEL, DocumentTypeGuardIT.TestModel::class.java),
+            testType(TypeRole.VALUE, MongoQueryRepositoryIT.NestedTestDocument::class.java),
+        ),
+    )
+
+    private fun testType(role: TypeRole, type: Class<*>): TypeManifestEntry =
+        TypeManifestEntry(role, type.name, type.name, "Boot 3 Mongo integration test fixture")
 }

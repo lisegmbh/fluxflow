@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.security
 
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.Boot4MongoIntegrationTest
+import de.lise.fluxflow.mongo.e2e.Boot4MongoE2EWorkflowModel
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -27,7 +28,7 @@ class Boot4DocumentTypeGuardIT {
     @Test
     fun `an exception thrown from onAfterLoad propagates out of a real workflow read`() {
         // Arrange
-        val saved = workflowPersistence.create(TestModel("a"), null)
+        val saved = workflowPersistence.create(Boot4MongoE2EWorkflowModel("a"), null)
         val listener = ThrowingDocumentListener()
         applicationContext.addApplicationListener(listener)
 
@@ -47,6 +48,4 @@ class Boot4DocumentTypeGuardIT {
             throw IllegalStateException("boom")
         }
     }
-
-    data class TestModel(val value: String)
 }
