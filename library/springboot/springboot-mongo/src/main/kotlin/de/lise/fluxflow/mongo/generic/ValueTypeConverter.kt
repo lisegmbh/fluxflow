@@ -68,7 +68,7 @@ class ValueTypeConverter private constructor(
             maxDepth,
             maxNodes,
         )
-        return toTypeSafeData(specs, records.values)
+        return convertMatchedData(specs, records.values)
     }
 
     fun <TValue> toTypeSafeData(
@@ -76,6 +76,13 @@ class ValueTypeConverter private constructor(
         values: Map<String, TValue>,
     ): Map<String, TValue> {
         requireMatchingKeys(values, specs)
+        return convertMatchedData(specs, values)
+    }
+
+    private fun <TValue> convertMatchedData(
+        specs: Map<String, TypeSpec>,
+        values: Map<String, TValue>,
+    ): Map<String, TValue> {
         val traversal = Traversal()
         return specs.mapValues { (key, spec) ->
             @Suppress("UNCHECKED_CAST")
@@ -178,9 +185,7 @@ class ValueTypeConverter private constructor(
                     assertHashSafe(value, path, depth)
                     return value.toSet()
                 }
-                if (List::class.java.isAssignableFrom(type.java) ||
-                    Collection::class.java == type.java
-                ) {
+                if (List::class.java.isAssignableFrom(type.java)) {
                     return value.toList()
                 }
             }
