@@ -44,6 +44,12 @@ open class JobMongoConfiguration {
         queryMapper: QueryMapper<JobData, JobDocument>,
         access: FluxFlowMongoAccess,
     ): JobMongoPersistence {
-        return JobMongoPersistence(jobRepository, queryableRepository, queryMapper, access.template)
+        return JobMongoPersistence(
+            jobRepository,
+            queryableRepository,
+            queryMapper,
+            access.template,
+            access.valueTypes,
+        )
     }
 }

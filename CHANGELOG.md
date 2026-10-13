@@ -64,6 +64,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    KEY names. `isType` finds registered MODEL and VALUE aliases,
    including subtype filters and custom type keys. Dual-role projections accept their declared
    root aliases while nested values and complete workflow models retain strict role checks.
+4. **Fail-closed Mongo value reconstruction**<br/>
+   Legacy value type maps and current typed records now resolve custom value types through the
+   context-local trusted registry. Persisted type names no longer reach a class loader, malformed
+   type graphs fail with defined errors, and unknown values are rejected before create, save, or
+   legacy migration writes data. Registrations authorize exact persisted keys, container conversion
+   is limited to fixed built-ins, and enum values in structurally untyped maps are rejected before
+   their type information can be lost.
+
+5. **Exact Mongo built-in scalar restoration**<br/>
+   Restores BSON-normalized Byte, Short, Float, BigDecimal, BigInteger and URL values only for
+   their fixed registered types, preserving numeric ranges, reversible Float values and decimal
+   precision. Production JavaTime reconstruction follows the isolated host converter's JSR-310
+   or native UTC behavior. Big-number writes still require the host's chosen representation;
+   standalone converters keep their existing constructor signatures and have no host timezone
+   bridge. Type-record migration validates newly constructed records before buffering writes,
+   leaving rejected documents unchanged under its configured Fail or Warn policy.
+6. **Safe Mongo collection reconstruction**<br/>
+   Rejects URL values in sets before hashing can resolve their hosts, including URLs in nested
+   collections and map keys or values. Preserves registered collection instances when validated
+   elements need no reconstruction. Read-only JVM reference indexes avoid repeated mapping scans
+   and reject duplicate references. [PR #468](https://github.com/lisegmbh/fluxflow/pull/468)
+7. **Exact enum and text scalar reconstruction**<br/>
+   Preserves case-sensitive enum constants and restores Duration, Period, zone, URI and Locale
+   string representations. Locale values that would lose fields during writing are rejected before
+   persistence, including in nested maps. Historical three-argument Spring step-persistence bean
+   overrides remain effective, and Mongo policy validation uses the same exact value resolver as
+   reconstruction.
+8. **Reject unsupported automatic Mongo value types before writing**<br/>
+   Year, YearMonth, OffsetDateTime, OffsetTime, ZonedDateTime and Kotlin Unit require an explicit
+   VALUE registration and matching host codec/conversion support. They are no longer automatically
+   admitted as built-ins. The fixed BSON Document alias safely reconstructs maps while application
+   aliases and subclasses retain their strict instance requirements.
 
 ### Removed
 

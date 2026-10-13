@@ -15,10 +15,18 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoLegacyTypeMapsPathIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoMappedFieldsIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoPathFieldsIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoNumericIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoBuiltinValuesIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoJavaTimeIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoNativeJavaTimeIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoMigrationCopyIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoCustomTypeKeyIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoReconciliationIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoHostTemplateIT",
+        "de.lise.fluxflow.mongo.security.production.ValueTypeConverterSecurityTest",
+        "de.lise.fluxflow.mongo.security.production.StepMongoConfigurationCompatibilityTest",
+        "de.lise.fluxflow.mongo.security.production.ValueTypeConverterJavaCompatibilityTest",
     ))
 }
 
@@ -69,4 +77,9 @@ dependencies {
     testImplementation(project(":core:scheduling"))
     testImplementation(project(":core:stereotyped"))
     testImplementation(project(":core:validation"))
+}
+
+// Exercise host JSR-310 and native UTC codecs under a deterministic non-UTC process timezone.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.timezone", "Europe/Berlin")
 }

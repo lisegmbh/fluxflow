@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.step
 
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.mongo.generic.TypeSpec
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.generic.toGenericMap
 import de.lise.fluxflow.mongo.generic.toTypeSafeData
@@ -55,18 +56,27 @@ data class StepDocument(
         status
     )
 
-    private val typeSafeData: Map<String, Any?>
-        get() = dataEntries?.toTypeSafeData()
-            ?: dataTypeMap.withData(data).toTypeSafeData()
+    private fun typeSafeData(valueTypes: ValueTypeConverter): Map<String, Any?> =
+        dataEntries?.toTypeSafeData(valueTypes)
+            ?: dataTypeMap.withData(data).toTypeSafeData(valueTypes)
 
-    private val typeSafeMetadata: Map<String, Any>
-        get() = metadataEntries?.toTypeSafeData()
+    private fun typeSafeMetadata(valueTypes: ValueTypeConverter): Map<String, Any> =
+        metadataEntries?.toTypeSafeData(valueTypes)
             ?: metadataTypeMap
                 .withData(metadata)
-                .toTypeSafeData()
+                .toTypeSafeData(valueTypes)
                 .mapValues { it.value!! }
 
-    fun toStepData(): StepData {
+    internal fun validateForWrite(valueTypes: ValueTypeConverter) {
+        typeSafeData(valueTypes)
+        typeSafeMetadata(valueTypes)
+    }
+
+    fun toStepData(): StepData = toStepData(ValueTypeConverter.builtInsOnly())
+
+    fun toStepData(valueTypes: ValueTypeConverter): StepData {
+        val typeSafeData = typeSafeData(valueTypes)
+        val typeSafeMetadata = typeSafeMetadata(valueTypes)
         return StepData(
             id!!,
             workflowId,
@@ -74,7 +84,7 @@ data class StepDocument(
             version,
             typeSafeData,
             status,
-            typeSafeMetadata
+            typeSafeMetadata,
         )
     }
 }

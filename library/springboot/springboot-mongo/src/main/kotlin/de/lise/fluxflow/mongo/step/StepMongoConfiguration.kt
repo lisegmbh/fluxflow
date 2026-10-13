@@ -7,15 +7,21 @@ import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.flowquery.repository.MongoExecutor
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.step.flowquery.StepDataToDocumentReplacer
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
 @ConditionalOnFluxFlowMongo
 open class StepMongoConfiguration {
+    @Autowired
+    private var access: ObjectProvider<FluxFlowMongoAccess>? = null
+
     @Bean
     internal open fun stepMongoExecutor(access: FluxFlowMongoAccess): MongoExecutor<StepDocument> {
         return MongoExecutor(access.template, StepDocument::class.java)
@@ -44,5 +50,10 @@ open class StepMongoConfiguration {
         queryableRepository: MongoFlowQueryRepository<StepDocument>,
         queryMapper: QueryMapper<StepData, StepDocument>,
     ): StepPersistence =
-        StepMongoPersistence(stepRepository, queryableRepository, queryMapper)
+        StepMongoPersistence(
+            stepRepository,
+            queryableRepository,
+            queryMapper,
+            access?.getObject()?.valueTypes ?: ValueTypeConverter.builtInsOnly(),
+        )
 }

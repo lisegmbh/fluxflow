@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.job
 
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.mongo.generic.TypeSpec
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.generic.toGenericMap
 import de.lise.fluxflow.mongo.generic.toTypeSafeData
@@ -47,11 +48,18 @@ data class JobDocument(
         jobStatus
     )
     
-    private val typeSafeData: Map<String, Any?>
-        get() = parameterEntries?.toTypeSafeData()  
-            ?: parameterTypeMap.withData(parameters).toTypeSafeData()
-    
-    fun toJobData(): JobData {
+    private fun typeSafeParameters(valueTypes: ValueTypeConverter): Map<String, Any?> =
+        parameterEntries?.toTypeSafeData(valueTypes)
+            ?: parameterTypeMap.withData(parameters).toTypeSafeData(valueTypes)
+
+    internal fun validateForWrite(valueTypes: ValueTypeConverter) {
+        typeSafeParameters(valueTypes)
+    }
+
+    fun toJobData(): JobData = toJobData(ValueTypeConverter.builtInsOnly())
+
+    fun toJobData(valueTypes: ValueTypeConverter): JobData {
+        val typeSafeData = typeSafeParameters(valueTypes)
         return JobData(
             id!!,
             workflowId,
@@ -59,7 +67,7 @@ data class JobDocument(
             typeSafeData,
             scheduledTime,
             cancellationKey,
-            jobStatus
+            jobStatus,
         )
     }
 }

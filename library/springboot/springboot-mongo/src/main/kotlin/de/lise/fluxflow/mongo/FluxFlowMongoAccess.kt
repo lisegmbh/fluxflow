@@ -4,6 +4,7 @@ import de.lise.fluxflow.mongo.continuation.history.ContinuationRecordDocument
 import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.NullType
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
@@ -51,6 +52,7 @@ class FluxFlowMongoAccess internal constructor(
     internal val converter: MongoConverter
     internal val template: MongoTemplate
     internal val typeKey: String
+    internal val valueTypes: ValueTypeConverter
 
     private val repositoryFactory: MongoRepositoryFactory
 
@@ -90,9 +92,15 @@ class FluxFlowMongoAccess internal constructor(
         }
         val converterCustomization = FluxFlowMongoConverterCustomization(isolatedConverter)
         converterCustomizers.orderedStream().forEach { it.customize(converterCustomization) }
+        valueTypes = ValueTypeConverter.withHostConversions(registry, isolatedConverter.conversionService)
         converter = GuardedMongoConverter(
             isolatedConverter,
-            MongoDocumentTypePolicy(aliases, typeKey, fieldNames = MongoFieldNames(hostConverter.mappingContext)),
+            MongoDocumentTypePolicy(
+                aliases,
+                typeKey,
+                fieldNames = MongoFieldNames(hostConverter.mappingContext),
+                isRegisteredJvmValueType = valueTypes::isRegistered,
+            ),
         )
         template = MongoTemplate(databaseFactory, NonIndexingMongoConverter(converter)).apply {
             setApplicationContext(applicationContext)

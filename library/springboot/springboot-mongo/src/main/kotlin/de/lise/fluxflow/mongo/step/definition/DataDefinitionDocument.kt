@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.step.definition
 
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.persistence.step.definition.DataDefinitionData
 
 data class DataDefinitionDocument(
@@ -22,6 +23,15 @@ data class DataDefinitionDocument(
             type,
             metadata.toTypeSafeData(),
             isCalculatedValue
+        )
+    }
+
+    fun toDataDefinitionData(valueTypes: ValueTypeConverter): DataDefinitionData {
+        return DataDefinitionData(
+            kind,
+            type,
+            metadata.toTypeSafeData(valueTypes),
+            isCalculatedValue,
         )
     }
 }

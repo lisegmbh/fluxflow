@@ -60,6 +60,8 @@ fluxflowTypeManifest {
         "com.example.workflow.SubmitOrderStep",
     )
     model("order", "com.example.workflow.OrderModel")
+    value("com.example.workflow.Currency", "com.example.workflow.Currency")
+    // Add only when historical records contain this logical key:
     value("currency", "com.example.workflow.Currency")
 }
 ```
@@ -78,6 +80,12 @@ configuration:
 fun workflowTypes() = TypeRegistrationContributor {
     listOf(
         TypeRegistration(TypeRole.MODEL, "order", OrderModel::class),
+        TypeRegistration(
+            TypeRole.VALUE,
+            requireNotNull(Currency::class.java.canonicalName),
+            Currency::class,
+        ),
+        // Add only when historical records contain this logical key:
         TypeRegistration(TypeRole.VALUE, "currency", Currency::class),
     )
 }
@@ -99,10 +107,9 @@ step require that same entry before anything is written. An unknown job kind fai
 `JobActivationException` and the message `Unable to schedule job with kind '<kind>'`, without
 cancelling, persisting, or scheduling. An unknown step kind fails with `StepActivationException`
 before the step document or its definition snapshot is written. Reading jobs stays
-fail-closed: one job that cannot be activated fails the whole `findAllJobs` call. Mongo model and value type
-metadata use the same inventory in a separate hardening step.
-This startup validation takes effect immediately when upgrading, including for `model` and
-`value` registrations before their persistence consumers use the registry exclusively.
+fail-closed: one job that cannot be activated fails the whole `findAllJobs` call. Mongo model and value
+metadata use the same inventory and reject unregistered types before materialization.
+This startup validation takes effect immediately when upgrading for every registered role.
 For example, two discovered `@Job("notify")` classes now prevent startup, as does
 a dependency manifest referencing a class absent at runtime. Audit duplicate kinds and dependency
 manifests before upgrading; invalid registrations are not ignored.
@@ -112,12 +119,104 @@ resolution. Contributors retain the exact `KClass` they supply. Registrations fo
 role/key and binary name from different class loaders conflict if they identify different JVM
 classes. Contributor classes must also be compatible with the application's shared APIs.
 
-Before upgrading a running system, compare the distinct persisted step and job kinds with the
-generated inventory. Every historical kind that can still be activated needs an exact `step` or
-`job` declaration. Compare model/value type metadata as preparation for Mongo hardening as well.
-Database contents may identify missing declarations, but must never add registrations
-automatically. Applications with dynamic or erased model types need explicit entries. A repository
-fixture cannot replace an inventory check against the actual application's data.
+Step data, step metadata, job parameters, and step-definition metadata also use the registry when
+reconstructing values from legacy type maps or current typed records. Common JVM scalar, date/time,
+Mongo scalar, map, list, and set representations use a fixed internal allowlist. Every other type,
+including application enums, needs a `value` registration. FluxFlow resolves only the registered
+key; it never passes a persisted value type name to a class loader. Historical binary or canonical
+class names remain readable when each persisted spelling has its own explicit `value` entry.
+The default writer stores a custom value's canonical JVM class name in its type record. Register
+that exact canonical name to read records written through the default persistence path. Logical
+aliases are additional entries for records that actually contain those aliases. For nested types,
+the persisted canonical key uses `.`, while the entry's JVM binary class name uses `$`.
+
+Enum strings must match the constant's exact `Enum.name()` spelling. Case variants are rejected,
+and constants such as `KB` and `kB` remain distinct.
+
+Map records describe the map container, but do not carry type records for their nested values.
+FluxFlow therefore rejects enum values anywhere inside a map before writing, because MongoDB would
+otherwise store the enum name as a string and silently lose its type. Store enums as typed fields or
+collection entries instead.
+
+Only aliases from the fixed built-in table enable conversion between MongoDB container
+representations. A registered application `Map`, `List`, or `Set` subtype must already be an
+instance of its declared type; FluxFlow does not coerce a standard container into that subtype.
+Already compatible containers are retained after recursive validation when their elements need no
+reconstruction. If restoring an element would require replacing a custom container, conversion
+fails rather than mutating that container or invoking an application constructor.
+
+Mongo scalar restoration is restricted to fixed built-in types after resolving their VALUE key.
+BSON int32 values restore Byte and Short only within their exact ranges. BSON doubles restore Float
+only when Double-to-Float-to-Double preserves its bits, including signed zero and infinities;
+NaN is restored as the canonical Float NaN. BigDecimal accepts decimal strings and finite
+Decimal128 values without losing scale; BigInteger additionally requires an exact integer.
+URL accepts its stored string form without connecting to the address. URL values are rejected in
+sets, including URLs nested inside collection elements or map keys/values, before set hashing can
+trigger blocking host resolution. Scalar URLs and URL lists remain supported. Incompatible representations
+remain conversion errors; these conversions do not apply to registered application classes.
+
+String representations restore Duration, Period, ZoneId, ZoneOffset, URI and Locale through fixed
+parsers. The fixed ZoneRegion alias accepts region zones, not offset zones. Locale reconstruction
+preserves language, country, variant, script and extensions, including legacy Japanese calendar
+variants. A Locale whose `toString()` representation cannot preserve those fields is rejected before
+create or save, including inside nested maps. For example, a script-only Locale without language
+or country would otherwise be stored as the same empty string as `Locale.ROOT`; ROOT itself remains
+supported. Use typed scalar fields or typed collection entries when their type must be restored;
+map records do not contain individual type metadata for nested values.
+
+Year, YearMonth, OffsetDateTime, OffsetTime, ZonedDateTime and Kotlin Unit are not automatic built-ins:
+the default BSON codecs cannot round-trip these values. They require explicit VALUE registration
+and a matching host representation/conversion contract. Registration alone does not supply a codec.
+Without registration, create and save reject these typed scalar or collection entries before writing.
+
+The fixed `org.bson.Document` alias restores BSON maps to Document after checking String keys and
+their contents. Additional application aliases and Document subclasses are not normalized from maps.
+UUID values require an explicitly configured host UUID representation. For example, use
+`spring.data.mongodb.uuid-representation=standard` with Boot 3 or
+`spring.mongodb.representation.uuid=standard` with Boot 4. FluxFlow preserves the host configuration.
+
+Big-number writes depend on the host's Mongo representation. When configuring custom conversions
+for Spring Data 5, choose `MongoCustomConversions.BigDecimalRepresentation.DECIMAL128` or an
+appropriate String writing converter explicitly. FluxFlow does not add a BigInteger writer or
+change the host's representation. Decimal128 writes must fit its precision and range; an exact
+string representation can retain values beyond that range.
+
+Production persistence restores BSON Date values to LocalDate, LocalTime and LocalDateTime through
+the isolated host converter's conversion service. This preserves the host's Spring JSR-310
+system-zone or native UTC codec behavior, including under non-UTC process timezones. Millisecond
+precision follows BSON Date. Standalone `ValueTypeConverter(typeRegistry)` and legacy built-in-only
+helpers have no host timezone conversion; use production persistence for these host-normalized
+values. The existing public constructor signatures remain available.
+
+Malformed records fail with `ValueTypeConversionException`. This includes missing or duplicate JVM
+type references, different value and metadata key sets, incompatible values, inconsistent
+collection lengths, cycles, and type graphs beyond the traversal limits. JVM type mappings are
+indexed once in a read-only snapshot before decoding; duplicate references fail even when unused.
+Unknown names continue to
+fail with `UnknownTypeException` and role `VALUE`. Create and save operations validate these types
+before writing, and the legacy-to-typed-record migration applies the same rules per document.
+The migration also validates the newly constructed records before adding them to a write batch.
+If a readable legacy alias would produce an unregistered canonical key, that document remains
+unchanged. Healthy documents still migrate; the configured Fail or Warn policy reports rejected
+documents without adding registrations from persisted data.
+
+The parameterless `SimpleType`, `CollectionType`, and `TypedRecords` conversion methods remain
+available for compatibility and accept only fixed built-ins. Code that reconstructs registered
+application values directly can bind the registry explicitly:
+
+```kotlin
+val valueTypes = ValueTypeConverter(typeRegistry)
+val restored = typedRecords.toTypeSafeData(valueTypes)
+```
+
+Before upgrading a running system, compare the distinct persisted step and job kinds, Mongo
+model/value discriminators, legacy `typeName` fields, and typed-record JVM type entries with the
+generated inventory. Every historical custom key that can still be read needs an exact declaration
+for its matching role; entries from legacy value maps and typed records use the `value` role.
+Database contents may identify missing declarations,
+but must never add registrations automatically. Applications with dynamic or erased model types
+need explicit entries. A repository fixture cannot replace an inventory check against the actual
+application's data.
 
 Mongo reads, type-record bootstrap migration and scheduled-job reference queries use the host
 converter's mapping context, including custom field names and status converters. Mapped PATH fields

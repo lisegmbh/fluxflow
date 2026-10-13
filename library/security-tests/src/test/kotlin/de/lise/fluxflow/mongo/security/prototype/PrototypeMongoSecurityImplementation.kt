@@ -1,7 +1,8 @@
 package de.lise.fluxflow.mongo.security.prototype
 
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
-import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProviderImpl
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompilerConfig
+import de.lise.fluxflow.mongo.flowquery.expression.compilation.RegistrySubclassProvider
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowMongoConfiguration
@@ -366,7 +367,9 @@ class PrototypeFluxFlowMongoAccess(
             RepositoryFragments.just(QueryableWorkflowRepositoryImpl(template)),
         )
         val configuration = WorkflowMongoConfiguration()
-        val translator = MongoQueryTranslator(MongoCompiler(SubclassProviderImpl(emptySet())))
+        val translator = MongoQueryTranslator(
+            MongoCompiler(RegistrySubclassProvider(registry), config = MongoCompilerConfig(typeFieldName = effectiveTypeKey))
+        )
         workflows = configuration.workflowPersistence(
             repository,
             configuration.workflowFlowQueryRepository(

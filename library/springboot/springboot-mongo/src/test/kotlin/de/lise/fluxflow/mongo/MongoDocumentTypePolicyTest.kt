@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo
 
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
@@ -151,16 +152,53 @@ class MongoDocumentTypePolicyTest {
     }
 
     @Test
-    fun `D04 permitted JVM metadata includes registered nested enums and fixed compatibility types`() {
-        val names = listOf(
-            RegisteredEnum::class.java.name,
-            RegisteredEnum::class.java.canonicalName,
-            "java.util.List", "java.util.Set", "java.time.Instant",
-            "java.util.Collections.SingletonList", "java.util.Collections\$SingletonSet",
-            "java.util.ImmutableCollections.List12", "kotlin.collections.EmptyMap",
+    fun `D04 arrays rejected by value conversion are also rejected by document policy`() {
+        assertPolicyRejectsUnsupportedValueNames(listOf(
             "int[]", "[[I", "java.lang.String[]", "[Ljava.lang.String;",
             "${RegisteredEnum::class.java.canonicalName}[]",
             "[L${RegisteredEnum::class.java.name};",
+        ))
+    }
+
+    @Test
+    fun `D04 SQL types rejected by value conversion are also rejected by document policy`() {
+        assertPolicyRejectsUnsupportedValueNames(listOf("java.sql.Date", "java.sql.Time", "java.sql.Timestamp"))
+    }
+
+    @Test
+    fun `D04 MonthDay rejected by value conversion is also rejected by document policy`() {
+        assertPolicyRejectsUnsupportedValueNames(listOf("java.time.MonthDay"))
+    }
+
+    @Test
+    fun `D04 container aliases require an exact registered JVM name`() {
+        assertPolicyRejectsUnsupportedValueNames(listOf("java.util.Collections\$SingletonSet"))
+    }
+
+    private fun assertPolicyRejectsUnsupportedValueNames(names: List<String>) {
+        names.forEach { name ->
+            assertThatThrownBy { ValueTypeConverter.builtInsOnly().assertType(SimpleType(name), null) }
+                .isInstanceOf(UnknownTypeException::class.java)
+            assertThatThrownBy {
+                policy().validate(SimpleType::class.java, Document("typeName", name))
+            }.isInstanceOf(UnknownTypeException::class.java)
+            assertThatThrownBy {
+                policy().validate(JvmTypeMapping::class.java, Document("entries", listOf(
+                    Document("reference", "payload-type").append("type", name),
+                )))
+            }.isInstanceOf(UnknownTypeException::class.java)
+        }
+    }
+
+    @Test
+    fun `D04 permitted JVM metadata includes registered nested enums and fixed compatibility types`() {
+        val names = listOf(
+            "registered-enum",
+            RegisteredEnum::class.java.name,
+            RegisteredEnum::class.java.canonicalName,
+            "java.util.List", "java.util.Set", "java.time.Instant",
+            "java.util.Collections.SingletonList", "java.util.Collections.SingletonSet",
+            "java.util.ImmutableCollections.List12", "kotlin.collections.EmptyMap",
         )
         val policy = policy()
         names.forEach { name ->
@@ -291,6 +329,8 @@ class MongoDocumentTypePolicyTest {
                 entry(TypeRole.VALUE, "value", AllowedValue::class.java),
                 entry(TypeRole.VALUE, "value-only", ValueOnly::class.java),
                 entry(TypeRole.VALUE, "registered-enum", RegisteredEnum::class.java),
+                entry(TypeRole.VALUE, RegisteredEnum::class.java.name, RegisteredEnum::class.java),
+                entry(TypeRole.VALUE, requireNotNull(RegisteredEnum::class.java.canonicalName), RegisteredEnum::class.java),
             ),
         )
         val aliases = FluxFlowMongoTypeAliases(
@@ -299,7 +339,8 @@ class MongoDocumentTypePolicyTest {
             setOf(SimpleType::class.java, JvmTypeMapping::class.java, TypeRecordEntry::class.java,
                 TypedRecords::class.java, DataDefinitionDocument::class.java),
         )
-        return MongoDocumentTypePolicy(aliases, typeKey, maxDepth, maxNodes, fieldNames)
+        return MongoDocumentTypePolicy(aliases, typeKey, maxDepth, maxNodes, fieldNames,
+            isRegisteredJvmValueType = ValueTypeConverter(registry)::isRegistered)
     }
 
     private fun workflow(model: Document, typeKey: String = "_class"): Document =
