@@ -41,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import java.time.Instant
@@ -61,6 +62,136 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         roots.forEach { collection(it).deleteMany(Document()) }
         assertThat(mappingWitness.events).isEmpty()
     }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = RecordField::class, names = ["STEP_DATA", "STEP_METADATA", "JOB_PARAMETERS", "DEFINITION_METADATA", "DEFINITION_DATA_METADATA"])
+    fun `O03 current record type maps retain exact inner type findings at every persistence position`(field: RecordField) {
+        val fixture = currentRecordFixture(field, mapOf("typeName" to "first", "type_name" to "second"))
+        val key = if (mapping == AuditMapping.SNAKE) "type_name" else "typeName"
+        val names = mapped(fixture.records, TypedRecords::class.java, "types") as Document
+        setMapped(names.get(key, Document::class.java), SimpleType::class.java, "typeName", WITNESS_NAME)
+        collection(fixture.type).replaceOne(eq("_id", fixture.id), fixture.source)
+        val before = inventorySnapshot()
+
+        assertUnknownType(catchThrowable { fixture.read() }, TypeRole.VALUE, WITNESS_NAME)
+        assertFinding(fixture.type, fixture.id.toString(), fixture.typesPath + "/$key/" + extraNameField,
+            TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED)
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(ExtraTypeNameForm::class)
+    fun `O03 current record extra type names preserve exact classification and permitted forms`(form: ExtraTypeNameForm) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("typeName" to "first", "type_name" to "second"))
+        val key = if (mapping == AuditMapping.SNAKE) "type_name" else "typeName"
+        val value: Any? = when (form) {
+            ExtraTypeNameForm.UNKNOWN -> WITNESS_NAME
+            ExtraTypeNameForm.WHITESPACE -> " "
+            ExtraTypeNameForm.EMPTY -> ""
+            ExtraTypeNameForm.NULL -> null
+            ExtraTypeNameForm.NONSTRING -> 42
+            ExtraTypeNameForm.WRONG_ROLE -> MODEL_TYPE_ALIAS
+            ExtraTypeNameForm.REGISTERED -> VALUE_TYPE_ALIAS
+            ExtraTypeNameForm.BUILTIN -> String::class.java.name
+            ExtraTypeNameForm.MISSING -> null
+        }
+        if (form != ExtraTypeNameForm.MISSING) {
+            val names = mapped(fixture.records, TypedRecords::class.java, "types") as Document
+            setMapped(names.get(key, Document::class.java), SimpleType::class.java, "typeName", value)
+            collection(fixture.type).replaceOne(eq("_id", fixture.id), fixture.source)
+        }
+        val before = inventorySnapshot()
+        val issue = when (form) {
+            ExtraTypeNameForm.UNKNOWN, ExtraTypeNameForm.WHITESPACE -> MongoTypeAuditIssue.UNREGISTERED
+            ExtraTypeNameForm.EMPTY, ExtraTypeNameForm.NULL, ExtraTypeNameForm.NONSTRING -> MongoTypeAuditIssue.MALFORMED
+            ExtraTypeNameForm.WRONG_ROLE -> MongoTypeAuditIssue.DISALLOWED
+            else -> null
+        }
+        if (issue == null) {
+            fixture.read()
+            assertCleanInventory()
+        } else {
+            val failure = catchThrowable { fixture.read() }
+            if (issue == MongoTypeAuditIssue.MALFORMED) {
+                assertThat(generateSequence(failure) { it.cause }.toList()).anyMatch {
+                    it is IllegalArgumentException && it.message == "Mongo JVM type name must be a non-empty string"
+                }
+            } else {
+                assertUnknownType(failure, TypeRole.VALUE, value as String)
+            }
+            assertFinding(fixture.type, fixture.id.toString(), fixture.typesPath + "/$key/" + extraNameField,
+                TypeRole.VALUE, issue, value as? String)
+        }
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = ["slash/key", "literal.key"])
+    fun `O03 current record application key pointers preserve actual literal BSON segments`(key: String) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf(key to "value"))
+        val encoded = if (key == "literal.key") "literal~key" else "slash/key"
+        val pointer = if (key == "literal.key") "literal~0key" else "slash~1key"
+        val names = mapped(fixture.records, TypedRecords::class.java, "types") as Document
+        assertThat(names).containsKey(encoded)
+        setMapped(names.get(encoded, Document::class.java), SimpleType::class.java, "typeName", WITNESS_NAME)
+        collection(fixture.type).replaceOne(eq("_id", fixture.id), fixture.source)
+        val before = inventorySnapshot()
+
+        assertUnknownType(catchThrowable { fixture.read() }, TypeRole.VALUE, WITNESS_NAME)
+        assertFinding(fixture.type, fixture.id.toString(), fixture.typesPath + "/$pointer/" + extraNameField,
+            TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED)
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    private val extraNameField: String get() = if (mapping == AuditMapping.SNAKE) "type_name" else "typeName"
+
+    private fun currentRecordFixture(field: RecordField, values: Map<String, String>): CurrentRecordFixture {
+        val id = ObjectId()
+        val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
+        val (type, read) = when (field) {
+            RecordField.STEP_DATA, RecordField.STEP_METADATA -> {
+                val data = StepData(id.toHexString(), workflow.value, AUDIT_STEP_KIND, "1",
+                    if (field == RecordField.STEP_DATA) values else emptyMap(), Status.Active,
+                    if (field == RecordField.STEP_METADATA) values else emptyMap())
+                mappingSteps.create(data)
+                StepDocument::class.java to { assertThat(mappingSteps.findForWorkflowAndId(workflow, StepIdentifier(data.id))).isEqualTo(data); Unit }
+            }
+            RecordField.JOB_PARAMETERS -> {
+                val data = JobData(id.toHexString(), workflow.value, AUDIT_JOB_KIND, values,
+                    Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+                mappingJobs.create(data)
+                JobDocument::class.java to { assertThat(mappingJobs.findForWorkflowAndId(workflow, JobIdentifier(data.id))).isEqualTo(data); Unit }
+            }
+            RecordField.DEFINITION_METADATA, RecordField.DEFINITION_DATA_METADATA -> {
+                val data = StepDefinitionData(AUDIT_STEP_KIND, "1",
+                    if (field == RecordField.DEFINITION_METADATA) values else emptyMap(),
+                    listOf(DataDefinitionData("payload", String::class.java.name,
+                        if (field == RecordField.DEFINITION_DATA_METADATA) values else emptyMap(), false)))
+                mappingDefinitions.save(data)
+                StepDefinitionDocument::class.java to { assertThat(mappingDefinitions.findForKindAndVersion(data.kind, data.version)).isEqualTo(data); Unit }
+            }
+            else -> error("The current record fixture requires a current record position")
+        }
+        read()
+        assertCleanInventory()
+        val storedId = if (type == StepDefinitionDocument::class.java) raw(type, Document())["_id"] else id
+        val source = raw(type, Document("_id", storedId))
+        val records = if (field == RecordField.DEFINITION_DATA_METADATA) {
+            val data = mapped(source, type, "data") as List<*>
+            mapped(data.single() as Document, DataDefinitionDocument::class.java, "metadata") as Document
+        } else mapped(source, type, field.property) as Document
+        // These are declared fixture-schema literals, independent of the production field resolver.
+        val typesPath = mapping.recordPaths[field.ordinal].substringBefore("/jvm") + "/types"
+        return CurrentRecordFixture(type, requireNotNull(storedId), read, source, records, typesPath)
+    }
+
+    private data class CurrentRecordFixture(
+        val type: Class<*>, val id: Any, val read: () -> Unit,
+        val source: Document, val records: Document, val typesPath: String,
+    )
 
     @ParameterizedTest(name = "{0}: {1}")
     @MethodSource("legacyApplicationKeyCases")
@@ -274,7 +405,7 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
     }
 
     private fun assertFinding(type: Class<*>, id: String, path: String, role: TypeRole, issue: MongoTypeAuditIssue,
-                              name: String = WITNESS_NAME) {
+                              name: String? = WITNESS_NAME) {
         val report = mappingAudit.audit()
         assertThat(report.complete).isTrue()
         assertThat(report.isCompatible).isFalse()
@@ -307,6 +438,8 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
     }
 
     enum class ModelTypeDeviation { INCONSISTENT, UNREGISTERED }
+
+    enum class ExtraTypeNameForm { UNKNOWN, WHITESPACE, EMPTY, NULL, NONSTRING, WRONG_ROLE, REGISTERED, BUILTIN, MISSING }
 
     enum class LegacyPosition(val legacyProperty: String, val currentProperty: String) {
         STEP_DATA("dataTypeMap", "dataEntries"), STEP_METADATA("metadataTypeMap", "metadataEntries"),

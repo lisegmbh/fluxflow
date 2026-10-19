@@ -264,6 +264,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         add: (PendingFinding) -> Unit,
     ) {
         val records = field.value as? Map<*, *> ?: return
+        auditLegacyTypeNames(rawField(records, TypedRecords::class.java, "types", field.path), add)
         val jvmTypesField = rawField(records, TypedRecords::class.java, "jvmTypes", field.path)
         val jvmTypes = jvmTypesField.value as? Map<*, *> ?: return
         val entriesField = rawField(jvmTypes, JvmTypeMapping::class.java, "entries", jvmTypesField.path)

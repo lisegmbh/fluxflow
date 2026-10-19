@@ -99,6 +99,22 @@ KEY fields and JSON pointer escaping. Expected paths are independent schema lite
 public persistence reads, unchanged raw BSON and empty witness events establish the
 materialization and read-only boundaries.
 
+`AbstractProductionMongoTypeAuditIT.O03 audit reports extra type names inside current typed record metadata`
+checks additional infrastructure type names below `TypedRecords.types` against the public
+persistence read contract, independently of JVM mapping entries and without interpreting
+the enclosing dynamic application keys as type names.
+
+The current-record matrix adds `O03 current record type maps retain exact inner type findings at every persistence position`,
+`O03 current record extra type names preserve exact classification and permitted forms` and
+`O03 current record application key pointers preserve actual literal BSON segments` in
+`AbstractProductionMongoAuditMappingContract`. These cover all five record positions,
+permitted and malformed forms, role classification, literal keys and pointer escaping.
+The focused contracts `O03 current type names remain guarded throughout existing infrastructure maps and lists`
+and `O03 null records keep inner type checks when JVM entries use their empty default`
+retain nested infrastructure checks and valid empty JVM mappings. The existing legacy
+mapping suites also run `O03 current record extra type names honor multi segment infrastructure field mappings`
+for actual nested `jvm.name` fields and snake-case names in current records.
+
 `O03 legacy application keys preserve inner type checks through public fallback reads`
 checks all three legacy type maps with colliding application keys, nested collection/null
 descriptions, additional infrastructure type names and escaped BSON keys. The companion

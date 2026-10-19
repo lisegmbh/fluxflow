@@ -18,6 +18,7 @@ import de.lise.fluxflow.mongo.security.fixtures.AUDIT_JOB_KIND
 import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
 import de.lise.fluxflow.mongo.security.fixtures.AuditNestedTypes
 import de.lise.fluxflow.mongo.security.fixtures.VALUE_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
@@ -31,11 +32,14 @@ import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.reflection.types.TypeRole
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.catchThrowable
 import org.assertj.core.groups.Tuple.tuple
 import org.bson.Document
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import java.time.Instant
@@ -69,6 +73,128 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         auditedTypes.forEach { type ->
             collection(type).deleteMany(Document())
         }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(CurrentInfrastructureLocation::class)
+    fun `O03 current type names remain guarded throughout existing infrastructure maps and lists`(location: CurrentInfrastructureLocation) {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("nested-current-record-workflow")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("record" to "scalar", "collection" to listOf("first", null, listOf("nested"))), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val types = stored.get("dataEntries", Document::class.java).get("types", Document::class.java)
+        val scalar = types.get("record", Document::class.java)
+        val collectionRecord = types.get("collection", Document::class.java)
+        val components = collectionRecord.getList("componentTypes", Document::class.java)
+        val (target, path) = when (location) {
+            CurrentInfrastructureLocation.REFERENCE -> {
+                val reference = scalar.get("jvmTypeReference", Document::class.java)
+                assertThat(reference).containsKey("value")
+                reference to "/dataEntries/types/record/jvmTypeReference/typeName"
+            }
+            CurrentInfrastructureLocation.COLLECTION_RECORD -> collectionRecord to "/dataEntries/types/collection/typeName"
+            CurrentInfrastructureLocation.COLLECTION_CONTAINER -> collectionRecord.get("collectionType", Document::class.java) to
+                "/dataEntries/types/collection/collectionType/typeName"
+            CurrentInfrastructureLocation.NULL_COMPONENT -> components[1] to "/dataEntries/types/collection/componentTypes/1/typeName"
+            CurrentInfrastructureLocation.NESTED_COLLECTION -> components[2].getList("componentTypes", Document::class.java)[0] to
+                "/dataEntries/types/collection/componentTypes/2/componentTypes/0/typeName"
+            CurrentInfrastructureLocation.EXTRA_LIST_MAP -> {
+                val extra = Document()
+                scalar["extra"] = listOf(extra)
+                extra to "/dataEntries/types/record/extra/0/typeName"
+            }
+        }
+        target["typeName"] = WITNESS_NAME
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        assertUnknownType(catchThrowable { steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id)) }, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(), path,
+                TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 null records keep inner type checks when JVM entries use their empty default`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("null-current-record-workflow")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("nullable" to null), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val records = stored.get("dataEntries", Document::class.java)
+        records.get("jvmTypes", Document::class.java).remove("entries")
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+        records.get("types", Document::class.java).get("nullable", Document::class.java)["typeName"] = WITNESS_NAME
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        assertUnknownType(catchThrowable { steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id)) }, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("path", "expectedRole", "issue", "persistedName")
+            .containsExactly("/dataEntries/types/nullable/typeName", TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class CurrentInfrastructureLocation { REFERENCE, COLLECTION_RECORD, COLLECTION_CONTAINER, NULL_COMPONENT, NESTED_COLLECTION, EXTRA_LIST_MAP }
+
+    @Test
+    fun `O03 audit reports extra type names inside current typed record metadata`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-record-typeName-workflow")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "current value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+        assertThat(witnessLoader.events).isEmpty()
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        stored.get("dataEntries", Document::class.java).get("types", Document::class.java)
+            .get("payload", Document::class.java)["typeName"] = WITNESS_NAME
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        assertUnknownType(catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/types/payload/typeName", TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
     }
 
     @Test

@@ -22,6 +22,7 @@ import de.lise.fluxflow.mongo.bootstrapping.MigrateMetadataTypesMapBootstrapActi
 import de.lise.fluxflow.mongo.bootstrapping.MigrateJobParameterTypesMapBootstrapAction
 import de.lise.fluxflow.mongo.generic.NullType
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.persistence.job.JobData
@@ -55,6 +56,46 @@ abstract class AbstractProductionMongoLegacyTypeMapsIT(private val expectedTypeN
 
     @BeforeEach fun clear() {
         listOf(StepDocument::class.java, JobDocument::class.java).forEach { collection(it).deleteMany(Document()) }
+    }
+
+    @Test
+    fun `O03 current record extra type names honor multi segment infrastructure field mappings`() {
+        val pathMapping = expectedTypeNamePath == "/types/dataTypeMap/payload/jvm/name"
+        val key = if (pathMapping) "typeName" else "type_name"
+        val data = StepData(ObjectId().toHexString(), UUID.randomUUID().toString(), AUDIT_STEP_KIND, "1",
+            mapOf(key to "current value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(data.workflowId), StepIdentifier(data.id))).isEqualTo(data)
+        val valid = raw(StepDocument::class.java, data.id)
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(raw(StepDocument::class.java, data.id)).isEqualTo(valid)
+        val source = raw(StepDocument::class.java, data.id)
+        val records = fields.read(source, StepDocument::class.java, "dataEntries") as Document
+        val types = fields.read(records, TypedRecords::class.java, "types") as Document
+        var target = types.get(key, Document::class.java)
+        val parts = fields.fieldParts(SimpleType::class.java, "typeName")
+        parts.dropLast(1).forEach { segment ->
+            target = target.get(segment, Document::class.java) ?: Document().also { target[segment] = it }
+        }
+        target[parts.last()] = WITNESS_NAME
+        replace(StepDocument::class.java, data.id, source)
+        val before = raw(StepDocument::class.java, data.id)
+
+        assertUnknownType(catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(data.workflowId), StepIdentifier(data.id))
+        }, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(access.template.getCollectionName(StepDocument::class.java), data.id,
+                if (pathMapping) "/records/dataEntries/types/typeName/jvm/name" else "/data_entries/types/type_name/type_name",
+                TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(raw(StepDocument::class.java, data.id)).isEqualTo(before)
+        assertThat(witness.events).isEmpty()
     }
 
     @ParameterizedTest(name = "{0}")
