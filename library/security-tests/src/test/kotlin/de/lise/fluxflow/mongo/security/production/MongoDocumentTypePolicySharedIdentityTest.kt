@@ -201,6 +201,28 @@ class MongoDocumentTypePolicySharedIdentityTest {
             .isEqualTo("Mongo document exceeds the maximum depth of 2 at '/model/inner/deep~1key~0.leaf'")
     }
 
+    @Test
+    fun `legacy SimpleType discriminator does not consume an extra alias audit node`() {
+        val policy = policy(maxNodes = 4)
+        val simpleType = Document("typeName", String::class.java.name)
+        val baseline = Document("_class", StepDocument::class.java.name)
+            .append("dataTypeMap", Document("payload", simpleType))
+
+        assertThat(policy.auditAliases(StepDocument::class.java, baseline, ValueTypeConverter(registry())::isRegistered))
+            .isEmpty()
+
+        val withInfrastructureDiscriminator = Document("_class", StepDocument::class.java.name)
+            .append("dataTypeMap", Document("payload", Document("typeName", String::class.java.name)
+                .append("_class", SimpleType::class.java.name)))
+        assertThat(
+            policy.auditAliases(
+                StepDocument::class.java,
+                withInfrastructureDiscriminator,
+                ValueTypeConverter(registry())::isRegistered,
+            )
+        ).isEmpty()
+    }
+
     private fun assertSingleDeviation(
         policy: MongoDocumentTypePolicy,
         targetType: Class<*>,

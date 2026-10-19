@@ -5,7 +5,6 @@ import com.mongodb.client.MongoCollection
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.MongoTypeAliasIssue
 import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
-import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
@@ -128,14 +127,11 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         },
         target(StepDocument::class.java) { document, add ->
             auditRoleName(rawField(document, StepDocument::class.java, "kind"), TypeRole.STEP, add, required = true)
-            auditLegacyTypeNames(rawField(document, StepDocument::class.java, "dataTypeMap"), add)
-            auditLegacyTypeNames(rawField(document, StepDocument::class.java, "metadataTypeMap"), add)
             auditTypedRecords(rawField(document, StepDocument::class.java, "dataEntries"), add)
             auditTypedRecords(rawField(document, StepDocument::class.java, "metadataEntries"), add)
         },
         target(JobDocument::class.java) { document, add ->
             auditRoleName(rawField(document, JobDocument::class.java, "kind"), TypeRole.JOB, add, required = true)
-            auditLegacyTypeNames(rawField(document, JobDocument::class.java, "parameterTypeMap"), add)
             auditTypedRecords(rawField(document, JobDocument::class.java, "parameterEntries"), add)
         },
         target(StepDefinitionDocument::class.java) { document, add ->
@@ -171,6 +167,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             target.type,
             document,
             access.valueTypes::isRegistered,
+            { value -> isKnownInAnotherRole(value, TypeRole.VALUE) },
         ).forEach { deviation ->
             add(
                 PendingFinding(
@@ -259,45 +256,6 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         }
     }
 
-    private fun auditLegacyTypeNames(
-        field: RawField,
-        add: (PendingFinding) -> Unit,
-    ) {
-        // Type-map keys belong to the application; only their values describe infrastructure types.
-        val types = field.value as? Map<*, *> ?: return
-        types.forEach { (key, value) ->
-            val path = "${field.path}/${pointerSegment(key?.toString().orEmpty())}"
-            auditInfrastructureTypeNames(RawField(value, true, path), add)
-        }
-    }
-
-    private fun auditInfrastructureTypeNames(
-        field: RawField,
-        add: (PendingFinding) -> Unit,
-    ) {
-        when (val value = field.value) {
-            is Map<*, *> -> {
-                val typeName = rawField(value, SimpleType::class.java, "typeName", field.path)
-                if (typeName.present) {
-                    auditValueName(typeName.path, typeName.value, add)
-                }
-                val literalTypeName = access.fieldNames.fieldParts(SimpleType::class.java, "typeName").singleOrNull()
-                value.forEach { (key, nested) ->
-                    if (literalTypeName == null || key != literalTypeName) {
-                        val nestedPath = "${field.path}/${pointerSegment(key?.toString().orEmpty())}"
-                        auditInfrastructureTypeNames(RawField(nested, true, nestedPath), add)
-                    }
-                }
-            }
-            is Iterable<*> -> value.forEachIndexed { index, nested ->
-                auditInfrastructureTypeNames(RawField(nested, true, "${field.path}/$index"), add)
-            }
-            is Array<*> -> value.forEachIndexed { index, nested ->
-                auditInfrastructureTypeNames(RawField(nested, true, "${field.path}/$index"), add)
-            }
-        }
-    }
-
     private fun auditTypedRecords(
         field: RawField,
         add: (PendingFinding) -> Unit,
@@ -333,7 +291,6 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 )
             }
         }
-        auditLegacyTypeNames(typesField, add)
         val jvmTypesField = rawField(records, TypedRecords::class.java, "jvmTypes", field.path)
         val jvmTypes = auditRequiredMap(jvmTypesField, add) ?: return
         val entriesField = rawField(jvmTypes, JvmTypeMapping::class.java, "entries", jvmTypesField.path)

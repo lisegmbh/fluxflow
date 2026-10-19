@@ -332,6 +332,9 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
                 LegacyInnerNameProbe.NONSTRING -> setMapped(simpleType, SimpleType::class.java, "typeName", 42)
                 LegacyInnerNameProbe.NESTED_MAP -> setMapped(simpleType, SimpleType::class.java, "typeName", Document(extraNameField, WITNESS_NAME))
                 LegacyInnerNameProbe.KNOWN_OTHER_ROLE -> setMapped(simpleType, SimpleType::class.java, "typeName", MODEL_TYPE_ALIAS)
+                LegacyInnerNameProbe.STEP_ALIAS -> setMapped(simpleType, SimpleType::class.java, "typeName", AUDIT_STEP_KIND)
+                LegacyInnerNameProbe.JOB_ALIAS -> setMapped(simpleType, SimpleType::class.java, "typeName", AUDIT_JOB_KIND)
+                LegacyInnerNameProbe.ROOT_INFRA_ALIAS -> setMapped(simpleType, SimpleType::class.java, "typeName", StepDocument::class.java.name)
                 LegacyInnerNameProbe.APPLICATION_KEY -> error("handled above")
             }
             collection(type).replaceOne(eq("_id", id), source)
@@ -343,10 +346,23 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
                 read()
                 assertCleanInventory()
             }
-            LegacyInnerNameProbe.KNOWN_OTHER_ROLE -> {
-                assertUnknownType(catchThrowable { read() }, TypeRole.VALUE, MODEL_TYPE_ALIAS)
+            LegacyInnerNameProbe.KNOWN_OTHER_ROLE,
+            LegacyInnerNameProbe.STEP_ALIAS,
+            LegacyInnerNameProbe.JOB_ALIAS,
+            LegacyInnerNameProbe.ROOT_INFRA_ALIAS -> {
+                val name = when (probe) {
+                    LegacyInnerNameProbe.KNOWN_OTHER_ROLE -> MODEL_TYPE_ALIAS
+                    LegacyInnerNameProbe.STEP_ALIAS -> AUDIT_STEP_KIND
+                    LegacyInnerNameProbe.JOB_ALIAS -> AUDIT_JOB_KIND
+                    LegacyInnerNameProbe.ROOT_INFRA_ALIAS -> StepDocument::class.java.name
+                    else -> error("not a known-other-role probe")
+                }
+                assertUnknownType(catchThrowable { read() }, TypeRole.VALUE, name)
+                val issue = if (probe == LegacyInnerNameProbe.ROOT_INFRA_ALIAS) {
+                    MongoTypeAuditIssue.UNREGISTERED
+                } else MongoTypeAuditIssue.DISALLOWED
                 assertFinding(type, id.toHexString(), legacyPath, TypeRole.VALUE,
-                    MongoTypeAuditIssue.DISALLOWED, MODEL_TYPE_ALIAS)
+                    issue, name)
             }
             LegacyInnerNameProbe.MISSING -> {
                 assertThat(catchThrowable { read() }).isInstanceOf(RuntimeException::class.java)
@@ -644,7 +660,9 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         NESTED_EXTRA_TYPE_NAME, LITERAL_DOT_KEY, SLASH_KEY,
     }
 
-    enum class LegacyInnerNameProbe { MISSING, NULL, NONSTRING, NESTED_MAP, KNOWN_OTHER_ROLE, APPLICATION_KEY }
+    enum class LegacyInnerNameProbe {
+        MISSING, NULL, NONSTRING, NESTED_MAP, KNOWN_OTHER_ROLE, STEP_ALIAS, JOB_ALIAS, ROOT_INFRA_ALIAS, APPLICATION_KEY,
+    }
 
     enum class AuditMapping(val modelPath: String, val modelTypePath: String, val typeKey: String,
                             val recordPaths: List<String>) {

@@ -105,6 +105,7 @@ internal class MongoDocumentTypePolicy(
         targetType: Class<*>,
         source: Bson,
         isRegisteredValueType: (Any?) -> Boolean,
+        isKnownInAnotherRoleValueType: (Any?) -> Boolean = { aliases.isRegistered(it) },
     ): List<MongoTypeAliasDeviation> {
         val root = source as? Document
             ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
@@ -135,8 +136,25 @@ internal class MongoDocumentTypePolicy(
                     )
                 }
             },
+            onValueTypeName = { path, value ->
+                if (!isRegisteredValueType(value)) {
+                    val persistedName = value as? String
+                    val issue = when {
+                        persistedName.isNullOrEmpty() -> MongoTypeAliasIssue.MALFORMED
+                        isKnownInAnotherRoleValueType(value) -> MongoTypeAliasIssue.DISALLOWED
+                        else -> MongoTypeAliasIssue.UNREGISTERED
+                    }
+                    deviations += MongoTypeAliasDeviation(
+                        path.pointerString(),
+                        TypeRole.VALUE,
+                        persistedName,
+                        issue,
+                    )
+                }
+            },
             onLimit = ::auditLimit,
             pathBeforeNodeBudget = true,
+            auditTypeNameValues = true,
         )
         return deviations
     }
@@ -144,8 +162,10 @@ internal class MongoDocumentTypePolicy(
     private fun walk(
         seeds: Sequence<PendingFrame>,
         onMap: (Map<*, *>, NodePolicy, DocumentPath) -> Unit,
+        onValueTypeName: (DocumentPath, Any?) -> Unit = { _, _ -> },
         onLimit: (DocumentPath, LimitKind) -> Nothing,
         pathBeforeNodeBudget: Boolean,
+        auditTypeNameValues: Boolean = false,
     ) {
         val pending = ArrayDeque<Frame>()
         var nodes = 1
@@ -155,7 +175,16 @@ internal class MongoDocumentTypePolicy(
                 onLimit(earlyPath ?: DocumentPath(), LimitKind.NODE)
             }
             val path = earlyPath ?: pendingFrame.path()
-            pending.add(Frame(pendingFrame.value, path, pendingFrame.depth, pendingFrame.policy()))
+            pending.add(
+                Frame(
+                    pendingFrame.value,
+                    path,
+                    pendingFrame.depth,
+                    pendingFrame.policy(),
+                    pendingFrame.auditTypeNameScope,
+                    pendingFrame.inspectAliases,
+                )
+            )
         }
         seeds.forEach(::enqueue)
 
@@ -172,13 +201,46 @@ internal class MongoDocumentTypePolicy(
 
             when (val value = frame.value) {
                 is Map<*, *> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
+                    val firstAliasVisit = frame.inspectAliases &&
+                        visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)
+                    if (!firstAliasVisit && !frame.auditTypeNameScope) {
                         continue
                     }
-                    onMap(value, frame.policy, frame.path)
+                    if (firstAliasVisit) {
+                        onMap(value, frame.policy, frame.path)
+                    }
+                    if (auditTypeNameValues && frame.auditTypeNameScope && frame.policy == NodePolicy.Infrastructure) {
+                        val typeNamePresent = fieldNames?.contains(value, SimpleType::class.java, "typeName")
+                            ?: value.containsKey("typeName")
+                        if (typeNamePresent) {
+                            val typeNameParts = fieldNames?.fieldParts(SimpleType::class.java, "typeName")
+                                ?: listOf("typeName")
+                            var typeNamePath = frame.path
+                            typeNameParts.forEach { part ->
+                                typeNamePath = typeNamePath.childField(part, part)
+                            }
+                            val typeName = fieldNames?.read(value, SimpleType::class.java, "typeName")
+                                ?: if (fieldNames == null) value["typeName"] else null
+                            onValueTypeName(typeNamePath, typeName)
+                        }
+                    }
                     value.entries.asSequence()
-                        .filterNot { (key, _) -> key == typeKey }
+                        .filter { (key, nested) ->
+                            val scansTypeMapValue = auditTypeNameValues && frame.policy == NodePolicy.TypeMap
+                            val scansScopedValue = frame.auditTypeNameScope
+                            val scanTypeNameSubtree = scansTypeMapValue || scansScopedValue
+                            !(key == typeKey && !scanTypeNameSubtree) &&
+                                !(key == typeKey && scanTypeNameSubtree && !isStructuredValue(nested))
+                        }
                         .forEach { (key, nested) ->
+                            val childTypeNameScope = when {
+                                auditTypeNameValues && frame.policy == NodePolicy.TypeMap -> true
+                                frame.auditTypeNameScope &&
+                                    frame.policy == NodePolicy.Infrastructure &&
+                                    (fieldNames?.fieldParts(SimpleType::class.java, "typeName")
+                                        ?: listOf("typeName")).singleOrNull() == key -> false
+                                else -> frame.auditTypeNameScope
+                            }
                             enqueue(
                                 PendingFrame(
                                     nested,
@@ -188,13 +250,17 @@ internal class MongoDocumentTypePolicy(
                                         frame.path.childField(keyText ?: "null", keyText.orEmpty())
                                     },
                                     policy = { policyForField(frame.policy, key?.toString()) },
+                                    auditTypeNameScope = childTypeNameScope,
+                                    inspectAliases = frame.inspectAliases && key != typeKey,
                                 )
                             )
                         }
                 }
 
                 is Iterable<*> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
+                    val firstAliasVisit = frame.inspectAliases &&
+                        visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)
+                    if (!firstAliasVisit && !frame.auditTypeNameScope) {
                         continue
                     }
                     var index = 0
@@ -205,6 +271,8 @@ internal class MongoDocumentTypePolicy(
                                 frame.depth + 1,
                                 path = { frame.path.childIndex(index) },
                                 policy = { frame.policy.forElement() },
+                                auditTypeNameScope = frame.auditTypeNameScope,
+                                inspectAliases = frame.inspectAliases,
                             )
                         )
                         index++
@@ -212,7 +280,9 @@ internal class MongoDocumentTypePolicy(
                 }
 
                 is Array<*> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
+                    val firstAliasVisit = frame.inspectAliases &&
+                        visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)
+                    if (!firstAliasVisit && !frame.auditTypeNameScope) {
                         continue
                     }
                     value.forEachIndexed { index, nested ->
@@ -222,6 +292,8 @@ internal class MongoDocumentTypePolicy(
                                 frame.depth + 1,
                                 path = { frame.path.childIndex(index) },
                                 policy = { frame.policy.forElement() },
+                                auditTypeNameScope = frame.auditTypeNameScope,
+                                inspectAliases = frame.inspectAliases,
                             )
                         )
                     }
@@ -254,6 +326,9 @@ internal class MongoDocumentTypePolicy(
         NODE,
         DEPTH,
     }
+
+    private fun isStructuredValue(value: Any?): Boolean =
+        value is Map<*, *> || value is Iterable<*> || value is Array<*>
 
     private fun policyForRootField(targetType: Class<*>, key: String): NodePolicy =
         policyForField(NodePolicy.RootFields(targetType), key)
@@ -416,6 +491,8 @@ internal class MongoDocumentTypePolicy(
         val path: DocumentPath,
         val depth: Int,
         val policy: NodePolicy,
+        val auditTypeNameScope: Boolean,
+        val inspectAliases: Boolean,
     )
 
     private data class PendingFrame(
@@ -423,6 +500,8 @@ internal class MongoDocumentTypePolicy(
         val depth: Int,
         val path: () -> DocumentPath,
         val policy: () -> NodePolicy,
+        val auditTypeNameScope: Boolean = false,
+        val inspectAliases: Boolean = true,
     )
 
     /** Successful traversal keeps only parent links; diagnostic strings are built on failure. */
