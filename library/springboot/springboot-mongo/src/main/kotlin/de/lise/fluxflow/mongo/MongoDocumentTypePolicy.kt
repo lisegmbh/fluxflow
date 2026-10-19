@@ -379,21 +379,22 @@ internal class MongoDocumentTypePolicy(
             return
         }
         val alias = document[typeKey]
+        val aliasText = alias as? String ?: "<non-string>"
         try {
             when (policy) {
                 is NodePolicy.Application -> aliases.resolve(policy.role, alias)
                 is NodePolicy.Projection -> aliases.resolve(policy.roles, alias)
                 NodePolicy.Model -> aliases.resolve(TypeRole.MODEL, alias)
                 NodePolicy.Infrastructure, NodePolicy.JvmTypes, NodePolicy.JvmTypeEntry -> require(aliases.isInfrastructure(alias)) {
-                    "Mongo type alias '$alias' is not allowed in FluxFlow infrastructure metadata"
+                    "Mongo type alias '$aliasText' is not allowed in FluxFlow infrastructure metadata"
                 }
                 NodePolicy.TypedRecords -> require(aliases.isAliasFor(alias, TypedRecords::class.java)) {
-                    "Mongo type alias '$alias' is not a TypedRecords container"
+                    "Mongo type alias '$aliasText' is not a TypedRecords container"
                 }
                 NodePolicy.StepDefinitionData -> require(
                     aliases.isAliasFor(alias, DataDefinitionDocument::class.java)
                 ) {
-                    "Mongo type alias '$alias' is not a step data definition"
+                    "Mongo type alias '$aliasText' is not a step data definition"
                 }
                 NodePolicy.Static, NodePolicy.TypeMap, is NodePolicy.Namespace, is NodePolicy.RootFields -> throw IllegalArgumentException(
                     "Mongo type metadata is not allowed at '$path.$typeKey'"

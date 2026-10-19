@@ -270,6 +270,11 @@ For a matching `values` entry that is a collection, each collection record compa
 the number of `componentTypes`; nested collection records receive the corresponding raw collection
 element and are checked the same way. A mismatch is reported once at that record's mapped
 `componentTypes` path.
+When guarded reads reject a non-string discriminator in infrastructure, TypedRecords or step
+definition metadata, the diagnostic uses a fixed placeholder instead of rendering the arbitrary
+value. Existing string-alias messages and the mapped suppressed diagnostic remain unchanged. This
+protects the in-memory diagnostic path; it does not claim a remotely exploitable persisted-data
+denial of service.
 JVM mapping references must be unique, including unused entries, and every used reference must
 have a mapping. Reference failures are structural `MALFORMED` findings with no registry role or
 persisted type name. References need not be UUIDs or nonblank strings; matching reference values

@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    unused. Reference checks preserve matching primitive scalar, BSON `ObjectId` and BSON
    `Document` forms without hydration; Document JSON uses the standard UUID string codec. The
    second reference pass enforces its own depth and node budget after document preflight.
+   Guarded-read diagnostics for non-string infrastructure, TypedRecords and step-definition aliases
+   use a fixed placeholder instead of invoking their `toString()`; string messages and mapped
+   suppressed diagnostics are preserved. This addresses an in-memory diagnostic boundary and makes
+   no remote denial-of-service claim.
    [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 
 ### Changed
