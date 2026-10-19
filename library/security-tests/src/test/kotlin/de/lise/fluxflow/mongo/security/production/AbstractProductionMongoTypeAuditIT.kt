@@ -49,6 +49,7 @@ import org.junit.jupiter.params.provider.ValueSource
 import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.data.mapping.model.MappingInstantiationException
 import java.time.Instant
 
 abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAuditMappingContract(AuditMapping.DEFAULT) {
@@ -169,6 +170,226 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
     }
 
     enum class CurrentInfrastructureLocation { REFERENCE, COLLECTION_RECORD, COLLECTION_CONTAINER, NULL_COMPONENT, NESTED_COLLECTION, EXTRA_LIST_MAP }
+
+    @Test
+    fun `O03 audit reports a required values container rejected by public persistence`() {
+        val workflowId = WorkflowIdentifier("missing-record-values-workflow")
+        val data = StepData(
+            steps.randomId(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "safe value"), Status.Active, emptyMap(),
+        )
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", ObjectId(data.id))).first())
+        stored.get("dataEntries", Document::class.java).remove("values")
+        collection(StepDocument::class.java).replaceOne(Document("_id", ObjectId(data.id)), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id)) }
+
+        assertThat(readFailure).isInstanceOf(MappingInstantiationException::class.java)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .describedAs("Audit findings after the public read failed with %s", readFailure?.javaClass?.name)
+            .singleElement().extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), data.id, "/dataEntries/values", null,
+                MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(allVisitedCounts(StepDocument::class.java to 1L))
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 structural map findings do not hide sibling infrastructure type names`() {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        fixture.records.remove("jvmTypes")
+        fixture.records.get("types", Document::class.java).get("payload", Document::class.java)["typeName"] = WITNESS_NAME
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        assertUnknownType(catchThrowable { fixture.read() }, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.findings).extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(
+                tuple(collectionName(fixture.type), fixture.id.toString(), "/dataEntries/jvmTypes", null, MongoTypeAuditIssue.MALFORMED, null),
+                tuple(collectionName(fixture.type), fixture.id.toString(), "/dataEntries/types/payload/typeName", TypeRole.VALUE,
+                    MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME),
+            )
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(RequiredMapCase::class)
+    fun `O03 required record maps reject publicly invalid raw forms`(case: RequiredMapCase) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        mutateContainer(fixture.records, case.property, case.form)
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+
+        assertThat(readFailure).isInstanceOf(RuntimeException::class.java)
+        assertStructuralFinding(fixture, "/dataEntries/${case.property}", readFailure)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(OptionalRootCase::class)
+    fun `O03 absent and null optional record roots retain genuine legacy fallback reads`(case: OptionalRootCase) {
+        val fixture = currentRecordFixture(case.field, mapOf("payload" to "safe legacy value"))
+        mutateContainer(fixture.source, case.field.property, case.form)
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        fixture.read()
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.failures).isEmpty()
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(RequiredRootCase::class)
+    fun `O03 definition record roots are required independently of legacy fallback roots`(case: RequiredRootCase) {
+        val fixture = currentRecordFixture(case.field, mapOf("payload" to "safe metadata"))
+        val nested = case.field == RecordField.DEFINITION_DATA_METADATA
+        val parent = if (nested) fixture.source.getList("data", Document::class.java).single() else fixture.source
+        mutateContainer(parent, "metadata", case.form)
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+
+        assertThat(readFailure).isInstanceOf(RuntimeException::class.java)
+        assertStructuralFinding(fixture, if (nested) "/data/0/metadata" else "/metadata", readFailure)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(DefaultEntriesCase::class)
+    fun `O03 empty and null records preserve publicly accepted JVM entry defaults`(case: DefaultEntriesCase) {
+        val workflowId = WorkflowIdentifier("default-entries-workflow")
+        val values: Map<String, Any?> = if (case.nullRecord) mapOf("nullable" to null) else emptyMap()
+        val data = StepData(steps.randomId(), workflowId.value, AUDIT_STEP_KIND, "1", values, Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        assertThat(audit.audit().isCompatible).isTrue()
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", ObjectId(data.id))).first())
+        val records = stored.get("dataEntries", Document::class.java)
+        when (case.form) {
+            EntriesDefault.MISSING -> records.get("jvmTypes", Document::class.java).remove("entries")
+            EntriesDefault.NULL -> records.get("jvmTypes", Document::class.java)["entries"] = null
+            EntriesDefault.EMPTY_JVM_MAP -> records["jvmTypes"] = Document()
+        }
+        collection(StepDocument::class.java).replaceOne(Document("_id", ObjectId(data.id)), stored)
+        val before = rawSnapshot()
+
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.failures).isEmpty()
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 audit reports a scalar JVM entry container when public persistence rejects it`() {
+        val workflowId = WorkflowIdentifier("scalar-entries-workflow")
+        val data = StepData(steps.randomId(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("nullable" to null), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        assertThat(audit.audit().isCompatible).isTrue()
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", ObjectId(data.id))).first())
+        stored.get("dataEntries", Document::class.java).get("jvmTypes", Document::class.java)["entries"] = 42
+        collection(StepDocument::class.java).replaceOne(Document("_id", ObjectId(data.id)), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id)) }
+
+        assertThat(readFailure).isInstanceOf(RuntimeException::class.java)
+        val report = audit.audit()
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .describedAs("JVM entry audit after public read failed with %s", readFailure?.javaClass?.name)
+            .singleElement().extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), data.id, "/dataEntries/jvmTypes/entries", null,
+                MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(report.isCompatible).isFalse()
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class ContainerForm { MISSING, NULL, SCALAR }
+
+    enum class RequiredMapCase(val property: String, val form: ContainerForm) {
+        JVM_MISSING("jvmTypes", ContainerForm.MISSING), JVM_NULL("jvmTypes", ContainerForm.NULL), JVM_SCALAR("jvmTypes", ContainerForm.SCALAR),
+        VALUES_NULL("values", ContainerForm.NULL), VALUES_SCALAR("values", ContainerForm.SCALAR),
+        TYPES_MISSING("types", ContainerForm.MISSING), TYPES_NULL("types", ContainerForm.NULL), TYPES_SCALAR("types", ContainerForm.SCALAR),
+    }
+
+    enum class OptionalRootCase(val field: RecordField, val form: ContainerForm) {
+        DATA_MISSING(RecordField.STEP_DATA, ContainerForm.MISSING), DATA_NULL(RecordField.STEP_DATA, ContainerForm.NULL),
+        META_MISSING(RecordField.STEP_METADATA, ContainerForm.MISSING), META_NULL(RecordField.STEP_METADATA, ContainerForm.NULL),
+        PARAMS_MISSING(RecordField.JOB_PARAMETERS, ContainerForm.MISSING), PARAMS_NULL(RecordField.JOB_PARAMETERS, ContainerForm.NULL),
+    }
+
+    enum class RequiredRootCase(val field: RecordField, val form: ContainerForm) {
+        META_MISSING(RecordField.DEFINITION_METADATA, ContainerForm.MISSING), META_NULL(RecordField.DEFINITION_METADATA, ContainerForm.NULL),
+        META_SCALAR(RecordField.DEFINITION_METADATA, ContainerForm.SCALAR),
+        DATA_META_MISSING(RecordField.DEFINITION_DATA_METADATA, ContainerForm.MISSING), DATA_META_NULL(RecordField.DEFINITION_DATA_METADATA, ContainerForm.NULL),
+        DATA_META_SCALAR(RecordField.DEFINITION_DATA_METADATA, ContainerForm.SCALAR),
+    }
+
+    enum class EntriesDefault { MISSING, NULL, EMPTY_JVM_MAP }
+
+    enum class DefaultEntriesCase(val nullRecord: Boolean, val form: EntriesDefault) {
+        EMPTY_MISSING(false, EntriesDefault.MISSING), EMPTY_NULL(false, EntriesDefault.NULL), EMPTY_JVM_MAP(false, EntriesDefault.EMPTY_JVM_MAP),
+        NULL_RECORD_MISSING(true, EntriesDefault.MISSING), NULL_RECORD_NULL(true, EntriesDefault.NULL), NULL_RECORD_JVM_MAP(true, EntriesDefault.EMPTY_JVM_MAP),
+    }
+
+    private fun mutateContainer(parent: Document, property: String, form: ContainerForm) {
+        when (form) {
+            ContainerForm.MISSING -> parent.remove(property)
+            ContainerForm.NULL -> parent[property] = null
+            ContainerForm.SCALAR -> parent[property] = 42
+        }
+    }
+
+    private fun assertStructuralFinding(fixture: CurrentRecordFixture, path: String, readFailure: Throwable?) {
+        val report = audit.audit()
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .describedAs("Structural audit after public read failed with %s", readFailure?.javaClass?.name)
+            .singleElement().extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(fixture.type), fixture.id.toString(), path, null, MongoTypeAuditIssue.MALFORMED, null)
+    }
 
     @Test
     fun `O03 audit reports extra type names inside current typed record metadata`() {

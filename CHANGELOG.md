@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    kind. Required kind strings and all persisted value type metadata remain validated.
    Audit finding limits now truncate only when an additional finding exists; exactly the configured
    number can complete. Scan counts distinguish unvisited collections from attempted collections.
+   Required typed-record containers now report malformed mapped paths without hiding independent
+   type-name findings. Non-null JVM-entry containers must be sequences; optional step/job legacy
+   fallbacks and missing or null JVM-entry defaults remain supported.
    [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 
 ### Changed

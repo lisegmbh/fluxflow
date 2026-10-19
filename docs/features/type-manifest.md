@@ -249,9 +249,16 @@ contain the collection, document ID, JSON-pointer-style field path, expected rol
 persisted name when it is a string, and one of these issues:
 
 - `UNREGISTERED`: the exact persisted name is absent from the expected registry role.
-- `MALFORMED`: required type metadata is missing, empty, or is not a string.
+- `MALFORMED`: required type metadata is missing, empty, or has an invalid field or container form.
 - `DISALLOWED`: a name is known in another role or is not permitted at that document location.
 - `INCONSISTENT`: two registered fields in one document identify different model classes.
+
+An existing typed-record container requires `jvmTypes`, `values` and `types` maps. Missing, null
+or non-map required containers produce `MALFORMED` findings at their mapped field paths, without
+an expected registry role or persisted type name. Empty maps remain valid. Step and job record
+fields may be absent or null when their legacy fallback applies; definition and data-definition
+metadata containers are required. Missing or null JVM mapping `entries` retains its empty-list
+default; a non-null value must be a sequence, otherwise the mapped `entries` path is malformed.
 
 The historical `kind` in a persisted step definition is descriptive: it must be a nonempty string,
 but does not require an active STEP registration. A retained definition can therefore support

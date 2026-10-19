@@ -63,6 +63,42 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         assertThat(mappingWitness.events).isEmpty()
     }
 
+    @Test
+    fun `O03 mapped required record containers match public read failures`() {
+        val field = when (mapping) {
+            AuditMapping.DEFAULT -> RecordField.STEP_METADATA
+            AuditMapping.SNAKE -> RecordField.JOB_PARAMETERS
+            AuditMapping.PATH -> RecordField.DEFINITION_DATA_METADATA
+            AuditMapping.CUSTOM -> RecordField.DEFINITION_METADATA
+        }
+        val fixture = currentRecordFixture(field, mapOf("payload" to "safe value"))
+        val path = when (mapping) {
+            AuditMapping.DEFAULT -> {
+                setMapped(fixture.records, TypedRecords::class.java, "types", null)
+                "/metadataEntries/types"
+            }
+            AuditMapping.SNAKE -> {
+                removeMapped(fixture.records, TypedRecords::class.java, "jvmTypes")
+                "/parameter_entries/jvm_types"
+            }
+            AuditMapping.PATH -> {
+                setMapped(fixture.records, TypedRecords::class.java, "values", 42)
+                "/schema/data/0/definition/metadata/record/values"
+            }
+            AuditMapping.CUSTOM -> {
+                removeMapped(fixture.source, StepDefinitionDocument::class.java, "metadata")
+                "/metadata"
+            }
+        }
+        collection(fixture.type).replaceOne(eq("_id", fixture.id), fixture.source)
+        val before = inventorySnapshot()
+
+        assertThat(catchThrowable { fixture.read() }).isInstanceOf(RuntimeException::class.java)
+        assertFinding(fixture.type, fixture.id.toString(), path, null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
     @ParameterizedTest(name = "{0}")
     @EnumSource(value = RecordField::class, names = ["STEP_DATA", "STEP_METADATA", "JOB_PARAMETERS", "DEFINITION_METADATA", "DEFINITION_DATA_METADATA"])
     fun `O03 current record type maps retain exact inner type findings at every persistence position`(field: RecordField) {
@@ -148,7 +184,7 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
 
     private val extraNameField: String get() = if (mapping == AuditMapping.SNAKE) "type_name" else "typeName"
 
-    private fun currentRecordFixture(field: RecordField, values: Map<String, String>): CurrentRecordFixture {
+    protected fun currentRecordFixture(field: RecordField, values: Map<String, String>): CurrentRecordFixture {
         val id = ObjectId()
         val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
         val (type, read) = when (field) {
@@ -188,7 +224,7 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         return CurrentRecordFixture(type, requireNotNull(storedId), read, source, records, typesPath)
     }
 
-    private data class CurrentRecordFixture(
+    protected data class CurrentRecordFixture(
         val type: Class<*>, val id: Any, val read: () -> Unit,
         val source: Document, val records: Document, val typesPath: String,
     )
@@ -404,7 +440,7 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         assertThat(mappingWitness.events).isEmpty()
     }
 
-    private fun assertFinding(type: Class<*>, id: String, path: String, role: TypeRole, issue: MongoTypeAuditIssue,
+    private fun assertFinding(type: Class<*>, id: String, path: String, role: TypeRole?, issue: MongoTypeAuditIssue,
                               name: String? = WITNESS_NAME) {
         val report = mappingAudit.audit()
         assertThat(report.complete).isTrue()
@@ -422,6 +458,12 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         val parts = mappingAccess.fieldNames.fieldParts(type, property)
         val parent = parts.dropLast(1).fold(document) { current, segment -> current.get(segment, Document::class.java) }
         parent[parts.last()] = value
+    }
+
+    private fun removeMapped(document: Document, type: Class<*>, property: String) {
+        val parts = mappingAccess.fieldNames.fieldParts(type, property)
+        val parent = parts.dropLast(1).fold(document) { current, segment -> current.get(segment, Document::class.java) }
+        parent.remove(parts.last())
     }
 
     private fun collection(type: Class<*>) = mappingAccess.template.getCollection(mappingAccess.template.getCollectionName(type))

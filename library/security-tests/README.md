@@ -115,6 +115,20 @@ retain nested infrastructure checks and valid empty JVM mappings. The existing l
 mapping suites also run `O03 current record extra type names honor multi segment infrastructure field mappings`
 for actual nested `jvm.name` fields and snake-case names in current records.
 
+`AbstractProductionMongoTypeAuditIT.O03 audit reports a required values container rejected by public persistence`
+pins the missing-container gap against the real public read. The companion cases
+`O03 required record maps reject publicly invalid raw forms`,
+`O03 absent and null optional record roots retain genuine legacy fallback reads`,
+`O03 definition record roots are required independently of legacy fallback roots`,
+`O03 empty and null records preserve publicly accepted JVM entry defaults`,
+`O03 structural map findings do not hide sibling infrastructure type names` and
+`O03 audit reports a scalar JVM entry container when public persistence rejects it`
+cover malformed forms, fallback boundaries, accepted defaults and independent findings.
+`AbstractProductionMongoAuditMappingContract.O03 mapped required record containers match public read failures`
+adds representative cases for the remaining record positions, snake-case/PATH fields
+and a custom type key. Literal KEY fixtures cover application model properties;
+they do not establish a separate KEY mapping for TypedRecords containers.
+
 `AbstractProductionMongoTypeAuditIT.O03 audit continues after an individual document exceeds the inspection budget`
 checks that a bounded inspection failure produces a document-specific `MALFORMED` finding,
 marks the report incomplete, and preserves findings from later documents. Read and projection

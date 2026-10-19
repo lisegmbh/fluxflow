@@ -126,13 +126,14 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         },
         target(StepDefinitionDocument::class.java) { document, add ->
             auditHistoricalStepKind(rawField(document, StepDefinitionDocument::class.java, "kind"), add)
-            auditTypedRecords(rawField(document, StepDefinitionDocument::class.java, "metadata"), add)
+            auditTypedRecords(rawField(document, StepDefinitionDocument::class.java, "metadata"), add, required = true)
             val data = rawField(document, StepDefinitionDocument::class.java, "data")
             (data.value as? Iterable<*>)?.forEachIndexed { index, entry ->
                 val definition = entry as? Map<*, *> ?: return@forEachIndexed
                 auditTypedRecords(
                     rawField(definition, DataDefinitionDocument::class.java, "metadata", "${data.path}/$index"),
                     add,
+                    required = true,
                 )
             }
         },
@@ -286,13 +287,26 @@ internal class RawBsonFluxFlowMongoTypeAudit(
     private fun auditTypedRecords(
         field: RawField,
         add: (PendingFinding) -> Unit,
+        required: Boolean = false,
     ) {
-        val records = field.value as? Map<*, *> ?: return
-        auditLegacyTypeNames(rawField(records, TypedRecords::class.java, "types", field.path), add)
+        if (field.value == null && !required) {
+            return
+        }
+        val records = auditRequiredMap(field, add) ?: return
+        auditRequiredMap(rawField(records, TypedRecords::class.java, "values", field.path), add)
+        val typesField = rawField(records, TypedRecords::class.java, "types", field.path)
+        auditRequiredMap(typesField, add)
+        auditLegacyTypeNames(typesField, add)
         val jvmTypesField = rawField(records, TypedRecords::class.java, "jvmTypes", field.path)
-        val jvmTypes = jvmTypesField.value as? Map<*, *> ?: return
+        val jvmTypes = auditRequiredMap(jvmTypesField, add) ?: return
         val entriesField = rawField(jvmTypes, JvmTypeMapping::class.java, "entries", jvmTypesField.path)
-        val entries = entriesField.value as? Iterable<*> ?: return
+        val entries = entriesField.value as? Iterable<*>
+        if (entries == null) {
+            if (entriesField.value != null) {
+                add(PendingFinding(entriesField.path, null, MongoTypeAuditIssue.MALFORMED, null))
+            }
+            return
+        }
         entries.forEachIndexed { index, entry ->
             val type = rawField(entry as? Map<*, *>, TypeRecordEntry::class.java, "type", "${entriesField.path}/$index")
             auditValueName(
@@ -301,6 +315,14 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 add,
             )
         }
+    }
+
+    private fun auditRequiredMap(field: RawField, add: (PendingFinding) -> Unit): Map<*, *>? {
+        val value = field.value as? Map<*, *>
+        if (value == null) {
+            add(PendingFinding(field.path, null, MongoTypeAuditIssue.MALFORMED, null))
+        }
+        return value
     }
 
     private fun identifyModelName(value: Any?): Class<*>? =
