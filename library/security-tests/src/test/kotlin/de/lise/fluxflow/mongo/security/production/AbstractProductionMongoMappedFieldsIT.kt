@@ -15,6 +15,7 @@ import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.job.JobDocument
+import de.lise.fluxflow.mongo.generic.ValueTypeConversionException
 import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
@@ -153,6 +154,42 @@ abstract class AbstractProductionMongoMappedFieldsIT : AbstractProductionMongoAu
             .updateOne(eq("_id", ObjectId(id)), combine(unset("data_entries"), unset("metadata_entries")))
         assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id)))
             .isEqualTo(data)
+    }
+
+    @Test
+    fun `mapped writer keyset mismatch fails public read and is audited without writes`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = StepData(id, workflowId, AUDIT_STEP_KIND, "1",
+            mapOf("dataKey" to SecurityTestWorkflowValue("mapped keyset")), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))).isEqualTo(data)
+
+        val collection = hostTemplate.getCollection(hostTemplate.getCollectionName(StepDocument::class.java))
+        val stored = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+        val records = stored.get("data_entries", Document::class.java)
+        val values = records.get("values", Document::class.java)
+        val types = records.get("types", Document::class.java)
+        assertThat(values).containsKey("dataKey")
+        assertThat(types).containsKey("dataKey")
+        assertThat(records.get("jvm_types", Document::class.java).getList("entries", Document::class.java))
+            .isNotEmpty()
+        values.remove("dataKey")
+        collection.replaceOne(eq("_id", ObjectId(id)), stored)
+        val beforeAudit = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+
+        assertThat(catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))
+        }).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(hostTemplate.getCollectionName(StepDocument::class.java), id,
+                "/data_entries/values/dataKey", MongoTypeAuditIssue.MALFORMED)
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(beforeAudit)
+        assertThat(witnessLoader.events).isEmpty()
     }
 
     @Test
