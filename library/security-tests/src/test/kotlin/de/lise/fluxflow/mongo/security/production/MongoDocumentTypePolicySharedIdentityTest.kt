@@ -2,7 +2,7 @@ package de.lise.fluxflow.mongo.security.production
 
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeAliases
 import de.lise.fluxflow.mongo.MongoDocumentTypePolicy
-import de.lise.fluxflow.mongo.MongoTypeAliasIssue
+import de.lise.fluxflow.mongo.MongoTypeViolationIssue
 import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
 import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.NullType
@@ -135,6 +135,31 @@ class MongoDocumentTypePolicySharedIdentityTest {
     }
 
     @Test
+    fun `shared direct JVM entry map reports a finding at each list position`() {
+        val policy = policy()
+        val sharedEntry = Document("_class", TypeRecordEntry::class.java.name)
+            .append("type", "unknown-jvm-value")
+            .append("reference", "shared-reference")
+        val entries = listOf(sharedEntry, sharedEntry)
+        val source = Document("_class", StepDocument::class.java.name)
+            .append("dataEntries", Document("_class", TypedRecords::class.java.name)
+                .append("jvmTypes", Document("_class", JvmTypeMapping::class.java.name)
+                    .append("entries", entries)))
+        val before = source.toJson()
+
+        assertThat(entries[0]).isSameAs(entries[1])
+        val deviations = policy.auditAliases(StepDocument::class.java, source, ValueTypeConverter(registry())::isRegistered)
+
+        assertThat(deviations)
+            .extracting("path", "expectedRole", "issue", "persistedName")
+            .containsExactlyInAnyOrder(
+                tuple("/dataEntries/jvmTypes/entries/0/type", TypeRole.VALUE, MongoTypeViolationIssue.UNREGISTERED, "unknown-jvm-value"),
+                tuple("/dataEntries/jvmTypes/entries/1/type", TypeRole.VALUE, MongoTypeViolationIssue.UNREGISTERED, "unknown-jvm-value"),
+            )
+        assertThat(source.toJson()).isEqualTo(before)
+    }
+
+    @Test
     fun `self-referential Map List and Array terminate during projection validation and alias audit`() {
         val policy = policy(maxDepth = 16, maxNodes = 256)
         val cycles = listOf(
@@ -175,8 +200,8 @@ class MongoDocumentTypePolicySharedIdentityTest {
         assertThat(deviations)
             .extracting("path", "issue", "persistedName")
             .containsExactly(
-                tuple("/second~1key~0.leaf/_class", MongoTypeAliasIssue.UNREGISTERED, "unknown-second"),
-                tuple("/first~1key~0.leaf/_class", MongoTypeAliasIssue.UNREGISTERED, "unknown-first"),
+                tuple("/second~1key~0.leaf/_class", MongoTypeViolationIssue.UNREGISTERED, "unknown-second"),
+                tuple("/first~1key~0.leaf/_class", MongoTypeViolationIssue.UNREGISTERED, "unknown-first"),
             )
     }
 
@@ -234,7 +259,7 @@ class MongoDocumentTypePolicySharedIdentityTest {
         assertThat(deviations).hasSize(1)
         assertThat(deviations.single().path).isEqualTo(expectedPath)
         assertThat(deviations.single().persistedName).isEqualTo(expectedAlias)
-        assertThat(deviations.single().issue).isEqualTo(MongoTypeAliasIssue.DISALLOWED)
+        assertThat(deviations.single().issue).isEqualTo(MongoTypeViolationIssue.DISALLOWED)
     }
 
     private fun policy(maxDepth: Int = 100, maxNodes: Int = 100_000): MongoDocumentTypePolicy {

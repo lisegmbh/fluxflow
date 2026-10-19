@@ -106,10 +106,10 @@ internal class MongoDocumentTypePolicy(
         source: Bson,
         isRegisteredValueType: (Any?) -> Boolean,
         isKnownInAnotherRoleValueType: (Any?) -> Boolean = { aliases.isRegistered(it) },
-    ): List<MongoTypeAliasDeviation> {
+    ): List<MongoTypeViolation> {
         val root = source as? Document
             ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
-        val deviations = mutableListOf<MongoTypeAliasDeviation>()
+        val deviations = mutableListOf<MongoTypeViolation>()
 
         if (root.containsKey(typeKey) && !aliases.isAliasFor(root[typeKey], targetType)) {
             deviations += deviation("/${pointerSegment(typeKey)}", null, root[typeKey], isRegisteredValueType)
@@ -137,36 +137,12 @@ internal class MongoDocumentTypePolicy(
                 }
             },
             onValueTypeName = { path, value ->
-                if (!isRegisteredValueType(value)) {
-                    val persistedName = value as? String
-                    val issue = when {
-                        persistedName.isNullOrEmpty() -> MongoTypeAliasIssue.MALFORMED
-                        isKnownInAnotherRoleValueType(value) -> MongoTypeAliasIssue.DISALLOWED
-                        else -> MongoTypeAliasIssue.UNREGISTERED
-                    }
-                    deviations += MongoTypeAliasDeviation(
-                        path.pointerString(),
-                        TypeRole.VALUE,
-                        persistedName,
-                        issue,
-                    )
-                }
+                valueTypeViolation(path, value, isRegisteredValueType, isKnownInAnotherRoleValueType)
+                    ?.let(deviations::add)
             },
             onDirectJvmEntryTypeName = { path, value ->
-                if (!isRegisteredValueType(value)) {
-                    val persistedName = value as? String
-                    val issue = when {
-                        persistedName.isNullOrEmpty() -> MongoTypeAliasIssue.MALFORMED
-                        isKnownInAnotherRoleValueType(value) -> MongoTypeAliasIssue.DISALLOWED
-                        else -> MongoTypeAliasIssue.UNREGISTERED
-                    }
-                    deviations += MongoTypeAliasDeviation(
-                        path.pointerString(),
-                        TypeRole.VALUE,
-                        persistedName,
-                        issue,
-                    )
-                }
+                valueTypeViolation(path, value, isRegisteredValueType, isKnownInAnotherRoleValueType)
+                    ?.let(deviations::add)
             },
             onLimit = ::auditLimit,
             pathBeforeNodeBudget = true,
@@ -522,14 +498,32 @@ internal class MongoDocumentTypePolicy(
         expectedRole: TypeRole?,
         alias: Any?,
         isRegisteredValueType: (Any?) -> Boolean,
-    ): MongoTypeAliasDeviation {
+    ): MongoTypeViolation {
         val persistedName = alias as? String
         val issue = when {
-            persistedName.isNullOrEmpty() -> MongoTypeAliasIssue.MALFORMED
-            aliases.isRegistered(alias) || isRegisteredValueType(alias) -> MongoTypeAliasIssue.DISALLOWED
-            else -> MongoTypeAliasIssue.UNREGISTERED
+            persistedName.isNullOrEmpty() -> MongoTypeViolationIssue.MALFORMED
+            aliases.isRegistered(alias) || isRegisteredValueType(alias) -> MongoTypeViolationIssue.DISALLOWED
+            else -> MongoTypeViolationIssue.UNREGISTERED
         }
-        return MongoTypeAliasDeviation(path, expectedRole, persistedName, issue)
+        return MongoTypeViolation(path, expectedRole, issue, persistedName)
+    }
+
+    private fun valueTypeViolation(
+        path: DocumentPath,
+        value: Any?,
+        isRegisteredValueType: (Any?) -> Boolean,
+        isKnownInAnotherRoleValueType: (Any?) -> Boolean,
+    ): MongoTypeViolation? {
+        if (isRegisteredValueType(value)) {
+            return null
+        }
+        val persistedName = value as? String
+        val issue = when {
+            persistedName.isNullOrEmpty() -> MongoTypeViolationIssue.MALFORMED
+            isKnownInAnotherRoleValueType(value) -> MongoTypeViolationIssue.DISALLOWED
+            else -> MongoTypeViolationIssue.UNREGISTERED
+        }
+        return MongoTypeViolation(path.pointerString(), TypeRole.VALUE, issue, persistedName)
     }
 
     private data class Frame(
@@ -686,19 +680,20 @@ internal class MongoDocumentTypePolicy(
     }
 }
 
-internal data class MongoTypeAliasDeviation(
+internal data class MongoTypeViolation(
     val path: String,
     val expectedRole: TypeRole?,
+    val issue: MongoTypeViolationIssue,
     val persistedName: String?,
-    val issue: MongoTypeAliasIssue,
 )
 
-internal enum class MongoTypeAliasIssue {
+internal enum class MongoTypeViolationIssue {
     UNREGISTERED,
     MALFORMED,
     DISALLOWED,
+    INCONSISTENT,
 }
 
-private fun pointerSegment(value: String): String = value
+internal fun pointerSegment(value: String): String = value
     .replace("~", "~0")
     .replace("/", "~1")

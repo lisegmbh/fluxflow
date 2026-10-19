@@ -3,8 +3,10 @@ package de.lise.fluxflow.mongo.audit
 import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoCollection
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
-import de.lise.fluxflow.mongo.MongoTypeAliasIssue
 import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
+import de.lise.fluxflow.mongo.MongoTypeViolation
+import de.lise.fluxflow.mongo.MongoTypeViolationIssue
+import de.lise.fluxflow.mongo.pointerSegment
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
@@ -151,7 +153,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
 
     private fun target(
         type: Class<*>,
-        inspect: (Document, (PendingFinding) -> Unit) -> Unit,
+        inspect: (Document, (MongoTypeViolation) -> Unit) -> Unit,
     ): AuditTarget = AuditTarget(
         type,
         access.template.getCollectionName(type),
@@ -160,28 +162,15 @@ internal class RawBsonFluxFlowMongoTypeAudit(
 
     private fun inspect(target: AuditTarget, document: Document): List<MongoTypeAuditFinding> {
         val id = documentId(document["_id"])
-        val pending = mutableListOf<PendingFinding>()
-        val add: (PendingFinding) -> Unit = pending::add
+        val pending = mutableListOf<MongoTypeViolation>()
+        val add: (MongoTypeViolation) -> Unit = pending::add
 
         access.documentTypePolicy.auditAliases(
             target.type,
             document,
             access.valueTypes::isRegistered,
             { value -> isKnownInAnotherRole(value, TypeRole.VALUE) },
-        ).forEach { deviation ->
-            add(
-                PendingFinding(
-                    deviation.path,
-                    deviation.expectedRole,
-                    when (deviation.issue) {
-                        MongoTypeAliasIssue.UNREGISTERED -> MongoTypeAuditIssue.UNREGISTERED
-                        MongoTypeAliasIssue.MALFORMED -> MongoTypeAuditIssue.MALFORMED
-                        MongoTypeAliasIssue.DISALLOWED -> MongoTypeAuditIssue.DISALLOWED
-                    },
-                    deviation.persistedName,
-                )
-            )
-        }
+        ).forEach(add)
         target.inspect(document, add)
 
         return pending.map { finding ->
@@ -190,14 +179,19 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 id,
                 finding.path,
                 finding.expectedRole,
-                finding.issue,
+                when (finding.issue) {
+                    MongoTypeViolationIssue.UNREGISTERED -> MongoTypeAuditIssue.UNREGISTERED
+                    MongoTypeViolationIssue.MALFORMED -> MongoTypeAuditIssue.MALFORMED
+                    MongoTypeViolationIssue.DISALLOWED -> MongoTypeAuditIssue.DISALLOWED
+                    MongoTypeViolationIssue.INCONSISTENT -> MongoTypeAuditIssue.INCONSISTENT
+                },
                 finding.persistedName,
             )
         }.sortedWith(compareBy { it.path })
     }
 
     /** Archived definitions retain their kind for restoration without requiring executable registration. */
-    private fun auditHistoricalStepKind(field: RawField, add: (PendingFinding) -> Unit) {
+    private fun auditHistoricalStepKind(field: RawField, add: (MongoTypeViolation) -> Unit) {
         val kind = field.value
         if (kind !is String || kind.isEmpty()) {
             add(invalid(field.path, TypeRole.STEP, kind, knownInAnotherRole = false))
@@ -207,16 +201,16 @@ internal class RawBsonFluxFlowMongoTypeAudit(
     private fun auditRoleName(
         field: RawField,
         role: TypeRole,
-        add: (PendingFinding) -> Unit,
+        add: (MongoTypeViolation) -> Unit,
         required: Boolean = false,
     ) {
         if (!field.present) {
             if (required) {
                 add(
-                    PendingFinding(
+                    MongoTypeViolation(
                         field.path,
                         role,
-                        MongoTypeAuditIssue.MALFORMED,
+                        MongoTypeViolationIssue.MALFORMED,
                         null,
                     )
                 )
@@ -235,7 +229,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
 
     private fun auditWorkflowModelConsistency(
         document: Map<*, *>,
-        add: (PendingFinding) -> Unit,
+        add: (MongoTypeViolation) -> Unit,
     ) {
         val modelTypeField = rawField(document, WorkflowDocument::class.java, "modelType")
         val modelType = identifyModelName(modelTypeField.value)
@@ -246,10 +240,10 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             ?: return
         if (modelType != discriminatorType) {
             add(
-                PendingFinding(
+                MongoTypeViolation(
                     modelTypeField.path,
                     TypeRole.MODEL,
-                    MongoTypeAuditIssue.INCONSISTENT,
+                    MongoTypeViolationIssue.INCONSISTENT,
                     modelTypeField.value as? String,
                 )
             )
@@ -258,7 +252,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
 
     private fun auditTypedRecords(
         field: RawField,
-        add: (PendingFinding) -> Unit,
+        add: (MongoTypeViolation) -> Unit,
         required: Boolean = false,
     ) {
         if (field.value == null && !required) {
@@ -272,20 +266,20 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         if (values != null && types != null) {
             (values.keys - types.keys).forEach { key ->
                 add(
-                    PendingFinding(
+                    MongoTypeViolation(
                         "${typesField.path}/${pointerSegment(key?.toString().orEmpty())}",
                         null,
-                        MongoTypeAuditIssue.MALFORMED,
+                        MongoTypeViolationIssue.MALFORMED,
                         null,
                     )
                 )
             }
             (types.keys - values.keys).forEach { key ->
                 add(
-                    PendingFinding(
+                    MongoTypeViolation(
                         "${valuesField.path}/${pointerSegment(key?.toString().orEmpty())}",
                         null,
-                        MongoTypeAuditIssue.MALFORMED,
+                        MongoTypeViolationIssue.MALFORMED,
                         null,
                     )
                 )
@@ -295,7 +289,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         val jvmTypes = auditRequiredMap(jvmTypesField, add) ?: return
         val entriesField = rawField(jvmTypes, JvmTypeMapping::class.java, "entries", jvmTypesField.path)
         if (entriesField.value != null && entriesField.value !is Iterable<*>) {
-            add(PendingFinding(entriesField.path, null, MongoTypeAuditIssue.MALFORMED, null))
+            add(MongoTypeViolation(entriesField.path, null, MongoTypeViolationIssue.MALFORMED, null))
             return
         }
         val entries = entriesField.value as? Iterable<*> ?: emptyList<Any?>()
@@ -307,7 +301,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 val referenceField = rawField(typeEntry, TypeRecordEntry::class.java, "reference", entryPath)
                 val reference = referenceString(referenceField.value)
                 if (reference == null || !references.add(reference)) {
-                    add(PendingFinding(referenceField.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                    add(MongoTypeViolation(referenceField.path, null, MongoTypeViolationIssue.MALFORMED, null))
                 }
             }
         }
@@ -319,7 +313,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         field: RawField,
         values: Map<*, *>?,
         references: Set<String>,
-        add: (PendingFinding) -> Unit,
+        add: (MongoTypeViolation) -> Unit,
     ) {
         val types = field.value as? Map<*, *> ?: return
         data class RecordFrame(val field: RawField, val payload: Any?, val payloadPresent: Boolean)
@@ -367,7 +361,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             }
             val record = current.value as? Map<*, *>
             if (record == null) {
-                add(PendingFinding(current.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                add(MongoTypeViolation(current.path, null, MongoTypeViolationIssue.MALFORMED, null))
                 continue
             }
             val firstRecordVisit = visitedRecords.put(record, true) == null
@@ -382,10 +376,10 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             }
             if (firstRecordVisit && !record.containsKey(access.typeKey)) {
                 add(
-                    PendingFinding(
+                    MongoTypeViolation(
                         "${current.path}/${pointerSegment(access.typeKey)}",
                         null,
-                        MongoTypeAuditIssue.MALFORMED,
+                        MongoTypeViolationIssue.MALFORMED,
                         null,
                     )
                 )
@@ -397,10 +391,10 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     !access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) &&
                     !access.typeAliases.isAliasFor(alias, NullTypeRecord::class.java) -> {
                     add(
-                        PendingFinding(
+                        MongoTypeViolation(
                             "${current.path}/${pointerSegment(access.typeKey)}",
                             null,
-                            MongoTypeAuditIssue.MALFORMED,
+                            MongoTypeViolationIssue.MALFORMED,
                             alias as? String,
                         )
                     )
@@ -411,7 +405,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     val value = rawField(reference, TypeReference::class.java, "value", referenceField.path)
                     val name = referenceString(value.value)
                     if (name == null || name !in references) {
-                        add(PendingFinding(value.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                        add(MongoTypeViolation(value.path, null, MongoTypeViolationIssue.MALFORMED, null))
                     }
                 }
                 access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) -> {
@@ -442,14 +436,14 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                             enqueueComponent(index, component)
                         }
                         else -> if (firstRecordVisit) {
-                            add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                            add(MongoTypeViolation(components.path, null, MongoTypeViolationIssue.MALFORMED, null))
                         }
                     }
                     if (payloadCollection != null &&
                         (components.value is Iterable<*> || components.value is Array<*>)
                     ) {
                         if (payloadCollection.size != componentCount) {
-                            add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                            add(MongoTypeViolation(components.path, null, MongoTypeViolationIssue.MALFORMED, null))
                         }
                     }
                 }
@@ -465,10 +459,10 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         else -> null
     }
 
-    private fun auditRequiredMap(field: RawField, add: (PendingFinding) -> Unit): Map<*, *>? {
+    private fun auditRequiredMap(field: RawField, add: (MongoTypeViolation) -> Unit): Map<*, *>? {
         val value = field.value as? Map<*, *>
         if (value == null) {
-            add(PendingFinding(field.path, null, MongoTypeAuditIssue.MALFORMED, null))
+            add(MongoTypeViolation(field.path, null, MongoTypeViolationIssue.MALFORMED, null))
         }
         return value
     }
@@ -481,13 +475,13 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         role: TypeRole,
         value: Any?,
         knownInAnotherRole: Boolean,
-    ): PendingFinding = PendingFinding(
+    ): MongoTypeViolation = MongoTypeViolation(
         path,
         role,
         when {
-            value !is String || value.isEmpty() -> MongoTypeAuditIssue.MALFORMED
-            knownInAnotherRole -> MongoTypeAuditIssue.DISALLOWED
-            else -> MongoTypeAuditIssue.UNREGISTERED
+            value !is String || value.isEmpty() -> MongoTypeViolationIssue.MALFORMED
+            knownInAnotherRole -> MongoTypeViolationIssue.DISALLOWED
+            else -> MongoTypeViolationIssue.UNREGISTERED
         },
         value as? String,
     )
@@ -503,10 +497,6 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         null -> "<missing>"
         else -> "<unsupported>"
     }
-
-    private fun pointerSegment(value: String): String = value
-        .replace("~", "~0")
-        .replace("/", "~1")
 
     private fun rawField(
         document: Map<*, *>?,
@@ -532,14 +522,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
     private data class AuditTarget(
         val type: Class<*>,
         val collection: String,
-        val inspect: (Document, (PendingFinding) -> Unit) -> Unit,
-    )
-
-    private data class PendingFinding(
-        val path: String,
-        val expectedRole: TypeRole?,
-        val issue: MongoTypeAuditIssue,
-        val persistedName: String?,
+        val inspect: (Document, (MongoTypeViolation) -> Unit) -> Unit,
     )
 
     private companion object {
