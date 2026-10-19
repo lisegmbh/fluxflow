@@ -330,6 +330,7 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
                 LegacyInnerNameProbe.MISSING -> removeMapped(simpleType, SimpleType::class.java, "typeName")
                 LegacyInnerNameProbe.NULL -> setMapped(simpleType, SimpleType::class.java, "typeName", null)
                 LegacyInnerNameProbe.NONSTRING -> setMapped(simpleType, SimpleType::class.java, "typeName", 42)
+                LegacyInnerNameProbe.NESTED_MAP -> setMapped(simpleType, SimpleType::class.java, "typeName", Document(extraNameField, WITNESS_NAME))
                 LegacyInnerNameProbe.KNOWN_OTHER_ROLE -> setMapped(simpleType, SimpleType::class.java, "typeName", MODEL_TYPE_ALIAS)
                 LegacyInnerNameProbe.APPLICATION_KEY -> error("handled above")
             }
@@ -351,7 +352,7 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
                 assertThat(catchThrowable { read() }).isInstanceOf(RuntimeException::class.java)
                 assertCleanInventory()
             }
-            LegacyInnerNameProbe.NULL, LegacyInnerNameProbe.NONSTRING -> {
+            LegacyInnerNameProbe.NULL, LegacyInnerNameProbe.NONSTRING, LegacyInnerNameProbe.NESTED_MAP -> {
                 val failure = catchThrowable { read() }
                 assertThat(failure).isInstanceOf(RuntimeException::class.java)
                 assertFinding(type, id.toHexString(), legacyPath, TypeRole.VALUE,
@@ -643,7 +644,7 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         NESTED_EXTRA_TYPE_NAME, LITERAL_DOT_KEY, SLASH_KEY,
     }
 
-    enum class LegacyInnerNameProbe { MISSING, NULL, NONSTRING, KNOWN_OTHER_ROLE, APPLICATION_KEY }
+    enum class LegacyInnerNameProbe { MISSING, NULL, NONSTRING, NESTED_MAP, KNOWN_OTHER_ROLE, APPLICATION_KEY }
 
     enum class AuditMapping(val modelPath: String, val modelTypePath: String, val typeKey: String,
                             val recordPaths: List<String>) {
