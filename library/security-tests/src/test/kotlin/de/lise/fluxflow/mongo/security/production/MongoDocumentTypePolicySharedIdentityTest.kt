@@ -117,6 +117,43 @@ class MongoDocumentTypePolicySharedIdentityTest {
         }
     }
 
+    @Test
+    fun `shared map under the same Static policy produces one deterministic audit deviation`() {
+        val policy = policy()
+        val shared = Document("_class", MODEL_ALIAS)
+        val source = Document("_class", WorkflowDocument::class.java.name)
+            .append("first", shared)
+            .append("second", shared)
+
+        assertThatThrownBy { policy.validate(WorkflowDocument::class.java, source) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+
+        assertSingleDeviation(policy, WorkflowDocument::class.java, source, "/second/_class", MODEL_ALIAS)
+    }
+
+    @Test
+    fun `self-referential Map List and Array terminate during projection validation and alias audit`() {
+        val policy = policy(maxDepth = 16, maxNodes = 256)
+        val cycles = listOf(
+            "Map" to ::selfReferentialMap,
+            "List" to ::selfReferentialList,
+            "Array" to ::selfReferentialArray,
+        )
+
+        cycles.forEach { (kind, newCycle) ->
+            policy.validateProjection(SimpleType::class.java, Document("payload", newCycle()))
+
+            val deviations = policy.auditAliases(
+                SimpleType::class.java,
+                Document("payload", newCycle()),
+                ValueTypeConverter(registry())::isRegistered,
+            )
+            assertThat(deviations)
+                .describedAs("%s self-cycle has no discriminator", kind)
+                .isEmpty()
+        }
+    }
+
     private fun assertSingleDeviation(
         policy: MongoDocumentTypePolicy,
         targetType: Class<*>,
@@ -131,7 +168,7 @@ class MongoDocumentTypePolicySharedIdentityTest {
         assertThat(deviations.single().issue).isEqualTo(MongoTypeAliasIssue.DISALLOWED)
     }
 
-    private fun policy(): MongoDocumentTypePolicy {
+    private fun policy(maxDepth: Int = 100, maxNodes: Int = 100_000): MongoDocumentTypePolicy {
         val registry = registry()
         val aliases = FluxFlowMongoTypeAliases(
             registry,
@@ -153,9 +190,17 @@ class MongoDocumentTypePolicySharedIdentityTest {
         )
         return MongoDocumentTypePolicy(
             aliases,
+            maxDepth = maxDepth,
+            maxNodes = maxNodes,
             isRegisteredJvmValueType = ValueTypeConverter(registry)::isRegistered,
         )
     }
+
+    private fun selfReferentialMap(): Any = linkedMapOf<String, Any?>().apply { put("self", this) }
+
+    private fun selfReferentialList(): Any = mutableListOf<Any?>().apply { add(this) }
+
+    private fun selfReferentialArray(): Any = arrayOfNulls<Any>(1).also { it[0] = it }
 
     private fun registry(): TypeRegistry = TypeRegistry.create(
         javaClass.classLoader,
