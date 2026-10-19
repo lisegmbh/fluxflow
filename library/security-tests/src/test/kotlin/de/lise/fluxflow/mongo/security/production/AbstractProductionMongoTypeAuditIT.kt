@@ -1866,6 +1866,32 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
     }
 
     @Test
+    fun `O03 public audit maps malformed model discriminator aliases to malformed findings`() {
+        val workflowId = WorkflowIdentifier("malformed-model-discriminator-workflow")
+        val workflow = workflows.create(AuditNestedTypes.Model("malformed discriminator"), workflowId)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        assertThat(audit.audit().isCompatible).isTrue()
+
+        val stored = requireNotNull(collection(WorkflowDocument::class.java)
+            .find(Document("_id", workflowId.value)).first())
+        stored.get("model", Document::class.java)["_class"] = 42
+        collection(WorkflowDocument::class.java).replaceOne(Document("_id", workflowId.value), stored)
+        val before = rawSnapshot()
+
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(tuple(collectionName(WorkflowDocument::class.java), workflowId.value,
+                "/model/_class", TypeRole.MODEL, MongoTypeAuditIssue.MALFORMED, null))
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
     fun `O03 audit rejects missing required kinds and typed record type`() {
         val stepCollection = collectionName(StepDocument::class.java)
         val jobCollection = collectionName(JobDocument::class.java)
