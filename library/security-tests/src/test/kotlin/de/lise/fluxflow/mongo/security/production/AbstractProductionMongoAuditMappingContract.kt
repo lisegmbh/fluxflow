@@ -301,6 +301,68 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
     }
 
     @ParameterizedTest(name = "{0}")
+    @EnumSource(LegacyInnerNameProbe::class)
+    fun `O03 legacy SimpleType names preserve optional and invalid value contracts`(probe: LegacyInnerNameProbe) {
+        val values = if (probe == LegacyInnerNameProbe.APPLICATION_KEY) {
+            mapOf("typeName" to "application value", "payload" to "safe value")
+        } else {
+            mapOf("payload" to "safe value")
+        }
+        val id = ObjectId()
+        val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
+        val data = StepData(id.toHexString(), workflow.value, AUDIT_STEP_KIND, "1", values, Status.Active, emptyMap())
+        mappingSteps.create(data)
+        val type = StepDocument::class.java
+        val read = { assertThat(mappingSteps.findForWorkflowAndId(workflow, StepIdentifier(data.id))).isEqualTo(data); Unit }
+        read()
+        val source = raw(type, Document("_id", id))
+        val currentParts = mappingAccess.fieldNames.fieldParts(type, "dataEntries")
+        val currentParent = currentParts.dropLast(1).fold(source) { parent, segment -> parent.get(segment, Document::class.java) }
+        currentParent.remove(currentParts.last())
+        collection(type).replaceOne(eq("_id", id), source)
+        read()
+        assertCleanInventory()
+
+        if (probe != LegacyInnerNameProbe.APPLICATION_KEY) {
+            val legacy = mapped(source, type, "dataTypeMap") as Document
+            val simpleType = legacy.get("payload", Document::class.java)
+            when (probe) {
+                LegacyInnerNameProbe.MISSING -> removeMapped(simpleType, SimpleType::class.java, "typeName")
+                LegacyInnerNameProbe.NULL -> setMapped(simpleType, SimpleType::class.java, "typeName", null)
+                LegacyInnerNameProbe.NONSTRING -> setMapped(simpleType, SimpleType::class.java, "typeName", 42)
+                LegacyInnerNameProbe.KNOWN_OTHER_ROLE -> setMapped(simpleType, SimpleType::class.java, "typeName", MODEL_TYPE_ALIAS)
+                LegacyInnerNameProbe.APPLICATION_KEY -> error("handled above")
+            }
+            collection(type).replaceOne(eq("_id", id), source)
+        }
+        val before = inventorySnapshot()
+        val legacyPath = mapping.recordPaths[5]
+        when (probe) {
+            LegacyInnerNameProbe.APPLICATION_KEY -> {
+                read()
+                assertCleanInventory()
+            }
+            LegacyInnerNameProbe.KNOWN_OTHER_ROLE -> {
+                assertUnknownType(catchThrowable { read() }, TypeRole.VALUE, MODEL_TYPE_ALIAS)
+                assertFinding(type, id.toHexString(), legacyPath, TypeRole.VALUE,
+                    MongoTypeAuditIssue.DISALLOWED, MODEL_TYPE_ALIAS)
+            }
+            LegacyInnerNameProbe.MISSING -> {
+                assertThat(catchThrowable { read() }).isInstanceOf(RuntimeException::class.java)
+                assertCleanInventory()
+            }
+            LegacyInnerNameProbe.NULL, LegacyInnerNameProbe.NONSTRING -> {
+                val failure = catchThrowable { read() }
+                assertThat(failure).isInstanceOf(RuntimeException::class.java)
+                assertFinding(type, id.toHexString(), legacyPath, TypeRole.VALUE,
+                    MongoTypeAuditIssue.MALFORMED, name = null)
+            }
+        }
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
     @EnumSource(RecordField::class)
     fun `O03 mapped record type names agree with the public persistence rejection`(field: RecordField) {
         val value = SecurityTestWorkflowValue("mapped audit")
@@ -580,6 +642,8 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
         SCALAR_COLLISION, COLLECTION_EXTRA_TYPE_NAME, NULL_COMPONENT_EXTRA_TYPE_NAME,
         NESTED_EXTRA_TYPE_NAME, LITERAL_DOT_KEY, SLASH_KEY,
     }
+
+    enum class LegacyInnerNameProbe { MISSING, NULL, NONSTRING, KNOWN_OTHER_ROLE, APPLICATION_KEY }
 
     enum class AuditMapping(val modelPath: String, val modelTypePath: String, val typeKey: String,
                             val recordPaths: List<String>) {
