@@ -143,6 +143,54 @@ abstract class AbstractProductionMongoPathFieldsIT : AbstractProductionMongoAudi
         assertThat(witness.events).isEmpty()
     }
 
+    @Test fun `path collection record component cardinality mismatch is audited at nested path`() {
+        val data = StepData(ObjectId().toHexString(), UUID.randomUUID().toString(), AUDIT_STEP_KIND, "1",
+            mapOf("nested" to listOf("first", null, listOf("nested"))), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(data.workflowId), StepIdentifier(data.id)))
+            .isEqualTo(data)
+        val collection = collection(StepDocument::class.java)
+        val valid = requireNotNull(collection.find(eq("_id", ObjectId(data.id))).first())
+        val validRecord = valid.get("records", Document::class.java)
+            .get("dataEntries", Document::class.java).get("record", Document::class.java)
+        val validValues = validRecord.get("values", Document::class.java)
+        val validNestedType = validRecord.get("types", Document::class.java).get("nested", Document::class.java)
+        assertThat(validValues.getList("nested", Any::class.java)).containsExactly("first", null, listOf("nested"))
+        assertThat(validNestedType.getList("componentTypes", Document::class.java)).hasSize(3)
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(collection.find(eq("_id", ObjectId(data.id))).first()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection.find(eq("_id", ObjectId(data.id))).first())
+        val record = stored.get("records", Document::class.java)
+            .get("dataEntries", Document::class.java).get("record", Document::class.java)
+        val values = record.get("values", Document::class.java)
+        val valueBefore = values.getList("nested", Any::class.java).toList()
+        val nestedType = record.get("types", Document::class.java).get("nested", Document::class.java)
+        val components = nestedType.getList("componentTypes", Document::class.java)
+        nestedType["componentTypes"] = components.dropLast(1)
+        assertThat(values.getList("nested", Any::class.java)).isEqualTo(valueBefore)
+        collection.replaceOne(eq("_id", ObjectId(data.id)), stored)
+        val beforeAudit = requireNotNull(collection.find(eq("_id", ObjectId(data.id))).first())
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(data.workflowId), StepIdentifier(data.id))
+        }
+        assertThat(readFailure)
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("sizes differ")
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(host.getCollectionName(StepDocument::class.java), data.id,
+                "/records/dataEntries/record/types/nested/componentTypes", null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(collection.find(eq("_id", ObjectId(data.id))).first()).isEqualTo(beforeAudit)
+        assertThat(witness.events).isEmpty()
+    }
+
     @Test fun `path namespaces never authorize their own type metadata`() {
         val id = WorkflowIdentifier(UUID.randomUUID().toString())
         workflows.create(securityTestModel(), id)
