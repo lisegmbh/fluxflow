@@ -4,6 +4,7 @@ import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
@@ -501,9 +502,9 @@ internal class MongoDocumentTypePolicy(
     ): MongoTypeViolation {
         val persistedName = alias as? String
         val issue = when {
-            persistedName.isNullOrEmpty() -> MongoTypeViolationIssue.MALFORMED
-            aliases.isRegistered(alias) || isRegisteredValueType(alias) -> MongoTypeViolationIssue.DISALLOWED
-            else -> MongoTypeViolationIssue.UNREGISTERED
+            persistedName.isNullOrEmpty() -> MongoTypeAuditIssue.MALFORMED
+            aliases.isRegistered(alias) || isRegisteredValueType(alias) -> MongoTypeAuditIssue.DISALLOWED
+            else -> MongoTypeAuditIssue.UNREGISTERED
         }
         return MongoTypeViolation(path, expectedRole, issue, persistedName)
     }
@@ -519,9 +520,9 @@ internal class MongoDocumentTypePolicy(
         }
         val persistedName = value as? String
         val issue = when {
-            persistedName.isNullOrEmpty() -> MongoTypeViolationIssue.MALFORMED
-            isKnownInAnotherRoleValueType(value) -> MongoTypeViolationIssue.DISALLOWED
-            else -> MongoTypeViolationIssue.UNREGISTERED
+            persistedName.isNullOrEmpty() -> MongoTypeAuditIssue.MALFORMED
+            isKnownInAnotherRoleValueType(value) -> MongoTypeAuditIssue.DISALLOWED
+            else -> MongoTypeAuditIssue.UNREGISTERED
         }
         return MongoTypeViolation(path.pointerString(), TypeRole.VALUE, issue, persistedName)
     }
@@ -683,16 +684,9 @@ internal class MongoDocumentTypePolicy(
 internal data class MongoTypeViolation(
     val path: String,
     val expectedRole: TypeRole?,
-    val issue: MongoTypeViolationIssue,
+    val issue: MongoTypeAuditIssue,
     val persistedName: String?,
 )
-
-internal enum class MongoTypeViolationIssue {
-    UNREGISTERED,
-    MALFORMED,
-    DISALLOWED,
-    INCONSISTENT,
-}
 
 internal fun pointerSegment(value: String): String = value
     .replace("~", "~0")

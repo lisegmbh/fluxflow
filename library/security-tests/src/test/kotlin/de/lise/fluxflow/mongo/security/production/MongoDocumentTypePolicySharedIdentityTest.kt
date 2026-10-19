@@ -2,7 +2,7 @@ package de.lise.fluxflow.mongo.security.production
 
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeAliases
 import de.lise.fluxflow.mongo.MongoDocumentTypePolicy
-import de.lise.fluxflow.mongo.MongoTypeViolationIssue
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
 import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.NullType
@@ -153,8 +153,8 @@ class MongoDocumentTypePolicySharedIdentityTest {
         assertThat(deviations)
             .extracting("path", "expectedRole", "issue", "persistedName")
             .containsExactlyInAnyOrder(
-                tuple("/dataEntries/jvmTypes/entries/0/type", TypeRole.VALUE, MongoTypeViolationIssue.UNREGISTERED, "unknown-jvm-value"),
-                tuple("/dataEntries/jvmTypes/entries/1/type", TypeRole.VALUE, MongoTypeViolationIssue.UNREGISTERED, "unknown-jvm-value"),
+                tuple("/dataEntries/jvmTypes/entries/0/type", TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, "unknown-jvm-value"),
+                tuple("/dataEntries/jvmTypes/entries/1/type", TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, "unknown-jvm-value"),
             )
         assertThat(source.toJson()).isEqualTo(before)
     }
@@ -200,8 +200,8 @@ class MongoDocumentTypePolicySharedIdentityTest {
         assertThat(deviations)
             .extracting("path", "issue", "persistedName")
             .containsExactly(
-                tuple("/second~1key~0.leaf/_class", MongoTypeViolationIssue.UNREGISTERED, "unknown-second"),
-                tuple("/first~1key~0.leaf/_class", MongoTypeViolationIssue.UNREGISTERED, "unknown-first"),
+                tuple("/second~1key~0.leaf/_class", MongoTypeAuditIssue.UNREGISTERED, "unknown-second"),
+                tuple("/first~1key~0.leaf/_class", MongoTypeAuditIssue.UNREGISTERED, "unknown-first"),
             )
     }
 
@@ -259,7 +259,7 @@ class MongoDocumentTypePolicySharedIdentityTest {
         assertThat(deviations).hasSize(1)
         assertThat(deviations.single().path).isEqualTo(expectedPath)
         assertThat(deviations.single().persistedName).isEqualTo(expectedAlias)
-        assertThat(deviations.single().issue).isEqualTo(MongoTypeViolationIssue.DISALLOWED)
+        assertThat(deviations.single().issue).isEqualTo(MongoTypeAuditIssue.DISALLOWED)
     }
 
     private fun policy(maxDepth: Int = 100, maxNodes: Int = 100_000): MongoDocumentTypePolicy {

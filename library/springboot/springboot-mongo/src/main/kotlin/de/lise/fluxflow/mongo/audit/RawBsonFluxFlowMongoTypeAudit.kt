@@ -5,7 +5,6 @@ import com.mongodb.client.MongoCollection
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
 import de.lise.fluxflow.mongo.MongoTypeViolation
-import de.lise.fluxflow.mongo.MongoTypeViolationIssue
 import de.lise.fluxflow.mongo.pointerSegment
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
@@ -179,12 +178,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 id,
                 finding.path,
                 finding.expectedRole,
-                when (finding.issue) {
-                    MongoTypeViolationIssue.UNREGISTERED -> MongoTypeAuditIssue.UNREGISTERED
-                    MongoTypeViolationIssue.MALFORMED -> MongoTypeAuditIssue.MALFORMED
-                    MongoTypeViolationIssue.DISALLOWED -> MongoTypeAuditIssue.DISALLOWED
-                    MongoTypeViolationIssue.INCONSISTENT -> MongoTypeAuditIssue.INCONSISTENT
-                },
+                finding.issue,
                 finding.persistedName,
             )
         }.sortedWith(compareBy { it.path })
@@ -210,7 +204,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     MongoTypeViolation(
                         field.path,
                         role,
-                        MongoTypeViolationIssue.MALFORMED,
+                        MongoTypeAuditIssue.MALFORMED,
                         null,
                     )
                 )
@@ -243,7 +237,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 MongoTypeViolation(
                     modelTypeField.path,
                     TypeRole.MODEL,
-                    MongoTypeViolationIssue.INCONSISTENT,
+                    MongoTypeAuditIssue.INCONSISTENT,
                     modelTypeField.value as? String,
                 )
             )
@@ -269,7 +263,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     MongoTypeViolation(
                         "${typesField.path}/${pointerSegment(key?.toString().orEmpty())}",
                         null,
-                        MongoTypeViolationIssue.MALFORMED,
+                        MongoTypeAuditIssue.MALFORMED,
                         null,
                     )
                 )
@@ -279,7 +273,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     MongoTypeViolation(
                         "${valuesField.path}/${pointerSegment(key?.toString().orEmpty())}",
                         null,
-                        MongoTypeViolationIssue.MALFORMED,
+                        MongoTypeAuditIssue.MALFORMED,
                         null,
                     )
                 )
@@ -289,7 +283,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         val jvmTypes = auditRequiredMap(jvmTypesField, add) ?: return
         val entriesField = rawField(jvmTypes, JvmTypeMapping::class.java, "entries", jvmTypesField.path)
         if (entriesField.value != null && entriesField.value !is Iterable<*>) {
-            add(MongoTypeViolation(entriesField.path, null, MongoTypeViolationIssue.MALFORMED, null))
+            add(MongoTypeViolation(entriesField.path, null, MongoTypeAuditIssue.MALFORMED, null))
             return
         }
         val entries = entriesField.value as? Iterable<*> ?: emptyList<Any?>()
@@ -301,7 +295,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 val referenceField = rawField(typeEntry, TypeRecordEntry::class.java, "reference", entryPath)
                 val reference = referenceString(referenceField.value)
                 if (reference == null || !references.add(reference)) {
-                    add(MongoTypeViolation(referenceField.path, null, MongoTypeViolationIssue.MALFORMED, null))
+                    add(MongoTypeViolation(referenceField.path, null, MongoTypeAuditIssue.MALFORMED, null))
                 }
             }
         }
@@ -361,7 +355,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             }
             val record = current.value as? Map<*, *>
             if (record == null) {
-                add(MongoTypeViolation(current.path, null, MongoTypeViolationIssue.MALFORMED, null))
+                add(MongoTypeViolation(current.path, null, MongoTypeAuditIssue.MALFORMED, null))
                 continue
             }
             val firstRecordVisit = visitedRecords.put(record, true) == null
@@ -379,7 +373,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     MongoTypeViolation(
                         "${current.path}/${pointerSegment(access.typeKey)}",
                         null,
-                        MongoTypeViolationIssue.MALFORMED,
+                        MongoTypeAuditIssue.MALFORMED,
                         null,
                     )
                 )
@@ -394,7 +388,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                         MongoTypeViolation(
                             "${current.path}/${pointerSegment(access.typeKey)}",
                             null,
-                            MongoTypeViolationIssue.MALFORMED,
+                            MongoTypeAuditIssue.MALFORMED,
                             alias as? String,
                         )
                     )
@@ -405,7 +399,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     val value = rawField(reference, TypeReference::class.java, "value", referenceField.path)
                     val name = referenceString(value.value)
                     if (name == null || name !in references) {
-                        add(MongoTypeViolation(value.path, null, MongoTypeViolationIssue.MALFORMED, null))
+                        add(MongoTypeViolation(value.path, null, MongoTypeAuditIssue.MALFORMED, null))
                     }
                 }
                 access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) -> {
@@ -436,14 +430,14 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                             enqueueComponent(index, component)
                         }
                         else -> if (firstRecordVisit) {
-                            add(MongoTypeViolation(components.path, null, MongoTypeViolationIssue.MALFORMED, null))
+                            add(MongoTypeViolation(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
                         }
                     }
                     if (payloadCollection != null &&
                         (components.value is Iterable<*> || components.value is Array<*>)
                     ) {
                         if (payloadCollection.size != componentCount) {
-                            add(MongoTypeViolation(components.path, null, MongoTypeViolationIssue.MALFORMED, null))
+                            add(MongoTypeViolation(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
                         }
                     }
                 }
@@ -462,7 +456,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
     private fun auditRequiredMap(field: RawField, add: (MongoTypeViolation) -> Unit): Map<*, *>? {
         val value = field.value as? Map<*, *>
         if (value == null) {
-            add(MongoTypeViolation(field.path, null, MongoTypeViolationIssue.MALFORMED, null))
+            add(MongoTypeViolation(field.path, null, MongoTypeAuditIssue.MALFORMED, null))
         }
         return value
     }
@@ -479,9 +473,9 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         path,
         role,
         when {
-            value !is String || value.isEmpty() -> MongoTypeViolationIssue.MALFORMED
-            knownInAnotherRole -> MongoTypeViolationIssue.DISALLOWED
-            else -> MongoTypeViolationIssue.UNREGISTERED
+            value !is String || value.isEmpty() -> MongoTypeAuditIssue.MALFORMED
+            knownInAnotherRole -> MongoTypeAuditIssue.DISALLOWED
+            else -> MongoTypeAuditIssue.UNREGISTERED
         },
         value as? String,
     )
