@@ -406,7 +406,11 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     "Mongo document exceeds the maximum depth of $MAX_RECORD_REFERENCE_DEPTH at '${current.path}'",
                 )
             }
-            val record = current.value as? Map<*, *> ?: continue
+            val record = current.value as? Map<*, *>
+            if (record == null) {
+                add(PendingFinding(current.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                continue
+            }
             if (visited.put(record, true) != null) {
                 continue
             }
@@ -446,7 +450,9 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 }
                 access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) -> {
                     val collectionType = rawField(record, CollectionTypeRecord::class.java, "collectionType", current.path)
-                    enqueue(collectionType.copy(depth = current.depth + 1))
+                    if (auditRequiredMap(collectionType, add) != null) {
+                        enqueue(collectionType.copy(depth = current.depth + 1))
+                    }
                     val components = rawField(record, CollectionTypeRecord::class.java, "componentTypes", current.path)
                     when (val values = components.value) {
                         is Iterable<*> -> values.forEachIndexed { index, value ->
@@ -455,6 +461,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                         is Array<*> -> values.forEachIndexed { index, value ->
                             enqueue(RawField(value, true, "${components.path}/$index", current.depth + 1))
                         }
+                        else -> add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
                     }
                 }
             }

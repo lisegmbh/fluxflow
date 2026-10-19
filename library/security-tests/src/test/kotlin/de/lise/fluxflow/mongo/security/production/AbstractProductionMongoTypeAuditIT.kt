@@ -955,6 +955,111 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         assertThat(witnessLoader.events).isEmpty()
     }
 
+    @Test
+    fun `O03 typed record audit reports a non-map top-level type record`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-record-non-map-top-level")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf(
+                "payload" to "persisted value",
+                "nullable" to null,
+                "nested" to listOf("first", null, listOf("nested")),
+            ), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val types = stored.get("dataEntries", Document::class.java).get("types", Document::class.java)
+        assertThat(types.get("payload")).isInstanceOf(Document::class.java)
+        types["payload"] = 42
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure)
+            .describedAs("Public read outcome for a non-map top-level TypeRecord")
+            .isNotNull
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/types/payload", null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(CollectionRecordStructureMutation::class)
+    fun `O03 typed record audit reports non-map collection record children`(mutation: CollectionRecordStructureMutation) {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-record-non-map-collection-child-${mutation.name.lowercase()}")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf(
+                "payload" to "persisted value",
+                "nullable" to null,
+                "nested" to listOf("first", null, listOf("nested")),
+            ), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val types = stored.get("dataEntries", Document::class.java).get("types", Document::class.java)
+        val nested = types.get("nested", Document::class.java)
+        val expectedPath = when (mutation) {
+            CollectionRecordStructureMutation.COLLECTION_TYPE -> {
+                assertThat(nested["collectionType"]).isInstanceOf(Document::class.java)
+                nested["collectionType"] = 42
+                "/dataEntries/types/nested/collectionType"
+            }
+            CollectionRecordStructureMutation.COMPONENTS_CONTAINER -> {
+                assertThat(nested["componentTypes"]).isInstanceOf(List::class.java)
+                nested["componentTypes"] = 42
+                "/dataEntries/types/nested/componentTypes"
+            }
+            CollectionRecordStructureMutation.COMPONENT -> {
+                val components = mutableListOf<Any?>().apply {
+                    addAll(nested.getList("componentTypes", Document::class.java))
+                }
+                assertThat(components[0]).isInstanceOf(Document::class.java)
+                components[0] = 42
+                nested["componentTypes"] = components
+                "/dataEntries/types/nested/componentTypes/0"
+            }
+        }
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure)
+            .describedAs("Public read outcome for non-map collection TypeRecord child $expectedPath")
+            .isNotNull
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                expectedPath, null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
     @ParameterizedTest(name = "{0}")
     @EnumSource(AddedTypedRecordKeySide::class)
     fun `O03 typed records report unmatched added keys on either side`(side: AddedTypedRecordKeySide) {
@@ -2079,6 +2184,8 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         assertThat(rawSnapshot()).isEqualTo(databaseBefore)
         assertThat(witnessLoader.events).isEmpty()
     }
+
+    enum class CollectionRecordStructureMutation { COLLECTION_TYPE, COMPONENTS_CONTAINER, COMPONENT }
 
     enum class InspectionBudgetCase { DEPTH, ROOT_NODES, MAP_NODES, LIST_NODES, ARRAY_NODES }
 
