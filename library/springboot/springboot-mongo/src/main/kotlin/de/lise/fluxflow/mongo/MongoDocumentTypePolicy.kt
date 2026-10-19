@@ -40,15 +40,24 @@ internal class MongoDocumentTypePolicy(
 
         validateRootAlias(targetType, root)
 
-        val pending = ArrayDeque<Frame>()
-        root.entries.asSequence()
-            .filterNot { (key, _) -> key == typeKey }
-            .forEach { (key, value) ->
-                checkNodeBudget(pending, 1)
-                pending.add(Frame(value, DocumentPath(field = key), 1, policyForRootField(targetType, key)))
-            }
-
-        validateFrames(pending)
+        walk(
+            root.entries.asSequence()
+                .filterNot { (key, _) -> key == typeKey }
+                .map { (key, value) ->
+                    PendingFrame(
+                        value,
+                        1,
+                        path = { DocumentPath(field = key) },
+                        policy = { policyForRootField(targetType, key) },
+                    )
+                },
+            onMap = { value, policy, path ->
+                validateAlias(value, policy, path)
+                validateJvmTypeName(value, policy)
+            },
+            onLimit = ::readLimit,
+            pathBeforeNodeBudget = false,
+        )
     }
 
     fun validateProjection(targetType: Class<*>, source: Bson) {
@@ -67,14 +76,24 @@ internal class MongoDocumentTypePolicy(
         }
         validateAlias(root, rootPolicy, DocumentPath(field = "projection"))
         validateJvmTypeName(root, rootPolicy)
-        val pending = ArrayDeque<Frame>()
-        root.entries.asSequence()
-            .filterNot { (key, _) -> key == typeKey }
-            .forEach { (key, value) ->
-                checkNodeBudget(pending, 1)
-                pending.add(Frame(value, DocumentPath(field = key), 1, policyForField(rootPolicy, key)))
-            }
-        validateFrames(pending)
+        walk(
+            root.entries.asSequence()
+                .filterNot { (key, _) -> key == typeKey }
+                .map { (key, value) ->
+                    PendingFrame(
+                        value,
+                        1,
+                        path = { DocumentPath(field = key) },
+                        policy = { policyForField(rootPolicy, key) },
+                    )
+                },
+            onMap = { value, policy, path ->
+                validateAlias(value, policy, path)
+                validateJvmTypeName(value, policy)
+            },
+            onLimit = ::readLimit,
+            pathBeforeNodeBudget = false,
+        )
     }
 
     /**
@@ -95,38 +114,60 @@ internal class MongoDocumentTypePolicy(
             deviations += deviation("/${pointerSegment(typeKey)}", null, root[typeKey], isRegisteredValueType)
         }
 
-        val pending = ArrayDeque<AuditFrame>()
-        root.entries.asSequence()
-            .filterNot { (key, _) -> key == typeKey }
-            .forEach { (key, value) ->
-                val path = "/${pointerSegment(key)}"
-                checkAuditNodeBudget(pending, 1, path)
-                pending.add(
-                    AuditFrame(
+        walk(
+            root.entries.asSequence()
+                .filterNot { (key, _) -> key == typeKey }
+                .map { (key, value) ->
+                    PendingFrame(
                         value,
-                        path,
                         1,
-                        policyForRootField(targetType, key),
+                        path = { DocumentPath(field = key) },
+                        policy = { policyForRootField(targetType, key) },
                     )
-                )
+                },
+            onMap = { value, policy, path ->
+                if (value.containsKey(typeKey) && !isAllowed(value[typeKey], policy)) {
+                    deviations += deviation(
+                        path.childField(typeKey, typeKey).pointerString(),
+                        expectedRole(policy),
+                        value[typeKey],
+                        isRegisteredValueType,
+                    )
+                }
+            },
+            onLimit = ::auditLimit,
+            pathBeforeNodeBudget = true,
+        )
+        return deviations
+    }
+
+    private fun walk(
+        seeds: Sequence<PendingFrame>,
+        onMap: (Map<*, *>, NodePolicy, DocumentPath) -> Unit,
+        onLimit: (DocumentPath, LimitKind) -> Nothing,
+        pathBeforeNodeBudget: Boolean,
+    ) {
+        val pending = ArrayDeque<Frame>()
+        var nodes = 1
+        fun enqueue(pendingFrame: PendingFrame) {
+            val earlyPath = if (pathBeforeNodeBudget) pendingFrame.path() else null
+            if (nodes + pending.size >= maxNodes) {
+                onLimit(earlyPath ?: DocumentPath(), LimitKind.NODE)
             }
+            val path = earlyPath ?: pendingFrame.path()
+            pending.add(Frame(pendingFrame.value, path, pendingFrame.depth, pendingFrame.policy()))
+        }
+        seeds.forEach(::enqueue)
 
         val visited = IdentityHashMap<Any, MutableSet<NodePolicy>>()
-        var nodes = 1
         while (pending.isNotEmpty()) {
             val frame = pending.removeLast()
             nodes++
             if (nodes > maxNodes) {
-                throw MongoTypeAuditInspectionException(
-                    frame.path,
-                    "Mongo document exceeds the maximum node count of $maxNodes",
-                )
+                onLimit(frame.path, LimitKind.NODE)
             }
             if (frame.depth > maxDepth) {
-                throw MongoTypeAuditInspectionException(
-                    frame.path,
-                    "Mongo document exceeds the maximum depth of $maxDepth at '${frame.path}'",
-                )
+                onLimit(frame.path, LimitKind.DEPTH)
             }
 
             when (val value = frame.value) {
@@ -134,109 +175,19 @@ internal class MongoDocumentTypePolicy(
                     if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
                         continue
                     }
-                    if (value.containsKey(typeKey) && !isAllowed(value[typeKey], frame.policy)) {
-                        deviations += deviation(
-                            "${frame.path}/${pointerSegment(typeKey)}",
-                            expectedRole(frame.policy),
-                            value[typeKey],
-                            isRegisteredValueType,
-                        )
-                    }
+                    onMap(value, frame.policy, frame.path)
                     value.entries.asSequence()
                         .filterNot { (key, _) -> key == typeKey }
                         .forEach { (key, nested) ->
-                            val path = "${frame.path}/${pointerSegment(key?.toString().orEmpty())}"
-                            checkAuditNodeBudget(pending, nodes, path)
-                            pending.add(
-                                AuditFrame(
+                            enqueue(
+                                PendingFrame(
                                     nested,
-                                    path,
                                     frame.depth + 1,
-                                    policyForField(frame.policy, key?.toString()),
-                                )
-                            )
-                        }
-                }
-
-                is Iterable<*> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
-                        continue
-                    }
-                    value.forEachIndexed { index, nested ->
-                        val path = "${frame.path}/$index"
-                        checkAuditNodeBudget(pending, nodes, path)
-                        pending.add(
-                            AuditFrame(
-                                nested,
-                                path,
-                                frame.depth + 1,
-                                frame.policy.forElement(),
-                            )
-                        )
-                    }
-                }
-
-                is Array<*> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
-                        continue
-                    }
-                    value.forEachIndexed { index, nested ->
-                        val path = "${frame.path}/$index"
-                        checkAuditNodeBudget(pending, nodes, path)
-                        pending.add(
-                            AuditFrame(
-                                nested,
-                                path,
-                                frame.depth + 1,
-                                frame.policy.forElement(),
-                            )
-                        )
-                    }
-                }
-            }
-        }
-        return deviations
-    }
-
-    private fun checkAuditNodeBudget(pending: ArrayDeque<*>, nodes: Int, path: String) {
-        if (nodes + pending.size >= maxNodes) {
-            throw MongoTypeAuditInspectionException(
-                path,
-                "Mongo document exceeds the maximum node count of $maxNodes",
-            )
-        }
-    }
-
-    private fun validateFrames(pending: ArrayDeque<Frame>) {
-        val visited = IdentityHashMap<Any, MutableSet<NodePolicy>>()
-        var nodes = 1
-        while (pending.isNotEmpty()) {
-            val frame = pending.removeLast()
-            nodes++
-            require(nodes <= maxNodes) {
-                "Mongo document exceeds the maximum node count of $maxNodes"
-            }
-            require(frame.depth <= maxDepth) {
-                "Mongo document exceeds the maximum depth of $maxDepth at '${frame.path}'"
-            }
-
-            when (val value = frame.value) {
-                is Map<*, *> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
-                        continue
-                    }
-                    validateAlias(value, frame.policy, frame.path)
-                    validateJvmTypeName(value, frame.policy)
-                    value.entries.asSequence()
-                        .filterNot { (key, _) -> key == typeKey }
-                        .forEach { (key, nested) ->
-                            checkNodeBudget(pending, nodes)
-                            pending.add(
-                                Frame(
-                                    nested,
-                                    DocumentPath(frame.path, key.toString()),
-                                    frame.depth + 1,
-                                    policyForField(frame.policy, key?.toString()),
+                                    path = {
+                                        val keyText = key?.toString()
+                                        frame.path.childField(keyText ?: "null", keyText.orEmpty())
+                                    },
+                                    policy = { policyForField(frame.policy, key?.toString()) },
                                 )
                             )
                         }
@@ -248,13 +199,12 @@ internal class MongoDocumentTypePolicy(
                     }
                     var index = 0
                     for (nested in value) {
-                        checkNodeBudget(pending, nodes)
-                        pending.add(
-                            Frame(
+                        enqueue(
+                            PendingFrame(
                                 nested,
-                                DocumentPath(frame.path, index = index),
                                 frame.depth + 1,
-                                frame.policy.forElement(),
+                                path = { frame.path.childIndex(index) },
+                                policy = { frame.policy.forElement() },
                             )
                         )
                         index++
@@ -266,13 +216,12 @@ internal class MongoDocumentTypePolicy(
                         continue
                     }
                     value.forEachIndexed { index, nested ->
-                        checkNodeBudget(pending, nodes)
-                        pending.add(
-                            Frame(
+                        enqueue(
+                            PendingFrame(
                                 nested,
-                                DocumentPath(frame.path, index = index),
                                 frame.depth + 1,
-                                frame.policy.forElement(),
+                                path = { frame.path.childIndex(index) },
+                                policy = { frame.policy.forElement() },
                             )
                         )
                     }
@@ -281,10 +230,29 @@ internal class MongoDocumentTypePolicy(
         }
     }
 
-    private fun checkNodeBudget(pending: ArrayDeque<*>, nodes: Int) {
-        require(nodes + pending.size < maxNodes) {
+    private fun readLimit(path: DocumentPath, kind: LimitKind): Nothing = when (kind) {
+        LimitKind.NODE -> throw IllegalArgumentException(
             "Mongo document exceeds the maximum node count of $maxNodes"
-        }
+        )
+        LimitKind.DEPTH -> throw IllegalArgumentException(
+            "Mongo document exceeds the maximum depth of $maxDepth at '$path'"
+        )
+    }
+
+    private fun auditLimit(path: DocumentPath, kind: LimitKind): Nothing = when (kind) {
+        LimitKind.NODE -> throw MongoTypeAuditInspectionException(
+            path.pointerString(),
+            "Mongo document exceeds the maximum node count of $maxNodes",
+        )
+        LimitKind.DEPTH -> throw MongoTypeAuditInspectionException(
+            path.pointerString(),
+            "Mongo document exceeds the maximum depth of $maxDepth at '${path.pointerString()}'",
+        )
+    }
+
+    private enum class LimitKind {
+        NODE,
+        DEPTH,
     }
 
     private fun policyForRootField(targetType: Class<*>, key: String): NodePolicy =
@@ -443,10 +411,6 @@ internal class MongoDocumentTypePolicy(
         return MongoTypeAliasDeviation(path, expectedRole, persistedName, issue)
     }
 
-    private fun pointerSegment(value: String): String = value
-        .replace("~", "~0")
-        .replace("/", "~1")
-
     private data class Frame(
         val value: Any?,
         val path: DocumentPath,
@@ -454,12 +418,25 @@ internal class MongoDocumentTypePolicy(
         val policy: NodePolicy,
     )
 
+    private data class PendingFrame(
+        val value: Any?,
+        val depth: Int,
+        val path: () -> DocumentPath,
+        val policy: () -> NodePolicy,
+    )
+
     /** Successful traversal keeps only parent links; diagnostic strings are built on failure. */
     private class DocumentPath(
         val parent: DocumentPath? = null,
         val field: String? = null,
+        private val pointerField: String? = field,
         val index: Int = -1,
     ) {
+        fun childField(readField: String, auditField: String): DocumentPath =
+            DocumentPath(this, readField, auditField)
+
+        fun childIndex(index: Int): DocumentPath = DocumentPath(this, index = index)
+
         override fun toString(): String {
             val segments = ArrayDeque<DocumentPath>()
             var current: DocumentPath? = this
@@ -480,14 +457,26 @@ internal class MongoDocumentTypePolicy(
                 }
             }
         }
-    }
 
-    private data class AuditFrame(
-        val value: Any?,
-        val path: String,
-        val depth: Int,
-        val policy: NodePolicy,
-    )
+        fun pointerString(): String {
+            val segments = ArrayDeque<DocumentPath>()
+            var current: DocumentPath? = this
+            while (current != null) {
+                segments.addFirst(current)
+                current = current.parent
+            }
+            return buildString {
+                for (segment in segments) {
+                    if (segment.field != null) {
+                        append('/')
+                        append(pointerSegment(segment.pointerField ?: segment.field))
+                    } else if (segment.index >= 0) {
+                        append('/').append(segment.index)
+                    }
+                }
+            }
+        }
+    }
 
     private sealed interface NodePolicy {
         fun forField(key: String?): NodePolicy
@@ -580,3 +569,7 @@ internal enum class MongoTypeAliasIssue {
     MALFORMED,
     DISALLOWED,
 }
+
+private fun pointerSegment(value: String): String = value
+    .replace("~", "~0")
+    .replace("/", "~1")
