@@ -873,6 +873,88 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         assertThat(witnessLoader.events).isEmpty()
     }
 
+    @Test
+    fun `O03 typed record audit reports an infrastructure discriminator at a record position`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-record-wrong-infrastructure-discriminator")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "persisted value", "nullable" to null), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val types = stored.get("dataEntries", Document::class.java).get("types", Document::class.java)
+        val payloadType = types.get("payload", Document::class.java)
+        assertThat(access.typeKey).isEqualTo("_class")
+        assertThat(payloadType).containsKey(access.typeKey)
+        val wrongAlias = TypedRecords::class.java.name
+        assertThat(access.typeAliases.isAliasFor(wrongAlias, TypedRecords::class.java)).isTrue()
+        payloadType[access.typeKey] = wrongAlias
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure)
+            .describedAs("Public read outcome for a non-TypeRecord infrastructure discriminator")
+            .isNotNull
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/types/payload/_class", null, MongoTypeAuditIssue.MALFORMED, wrongAlias)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 typed record audit reports a non-string discriminator`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-record-non-string-discriminator")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "persisted value", "nullable" to null), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val types = stored.get("dataEntries", Document::class.java).get("types", Document::class.java)
+        val payloadType = types.get("payload", Document::class.java)
+        assertThat(access.typeKey).isEqualTo("_class")
+        assertThat(payloadType).containsKey(access.typeKey)
+        payloadType[access.typeKey] = 42
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure)
+            .describedAs("Public read outcome for a non-string TypeRecord discriminator")
+            .isNotNull
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/types/payload/_class", null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
     @ParameterizedTest(name = "{0}")
     @EnumSource(AddedTypedRecordKeySide::class)
     fun `O03 typed records report unmatched added keys on either side`(side: AddedTypedRecordKeySide) {

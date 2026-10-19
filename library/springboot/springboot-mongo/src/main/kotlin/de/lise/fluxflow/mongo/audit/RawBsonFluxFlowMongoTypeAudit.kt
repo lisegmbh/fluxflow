@@ -9,6 +9,7 @@ import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
+import de.lise.fluxflow.mongo.generic.record.NullTypeRecord
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
 import de.lise.fluxflow.mongo.generic.record.TypeReference
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
@@ -421,6 +422,19 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             }
             val alias = record[access.typeKey]
             when {
+                access.typeAliases.isInfrastructure(alias) &&
+                    !access.typeAliases.isAliasFor(alias, JvmTypeRecord::class.java) &&
+                    !access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) &&
+                    !access.typeAliases.isAliasFor(alias, NullTypeRecord::class.java) -> {
+                    add(
+                        PendingFinding(
+                            "${current.path}/${pointerSegment(access.typeKey)}",
+                            null,
+                            MongoTypeAuditIssue.MALFORMED,
+                            alias as? String,
+                        )
+                    )
+                }
                 access.typeAliases.isAliasFor(alias, JvmTypeRecord::class.java) -> {
                     val referenceField = rawField(record, JvmTypeRecord::class.java, "jvmTypeReference", current.path)
                     val reference = auditRequiredMap(referenceField, add) ?: continue
