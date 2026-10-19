@@ -44,6 +44,7 @@ internal data class SecurityLiteralKeyModel(
 )
 
 internal const val AUDIT_STEP_KIND = "registered-audit-step"
+internal const val AUDIT_JOB_KIND = "registered-audit-job"
 
 internal sealed interface SecurityTestWorkflowModelType {
     val name: String
@@ -72,6 +73,7 @@ internal object AuditNestedTypes {
 }
 
 internal class RegisteredAuditStep
+internal class RegisteredAuditJob
 
 internal data class HostOnlyWorkflowModel(
     val value: String,
@@ -180,6 +182,11 @@ internal fun allowedSecurityTestEntries(): Array<TypeManifestEntry> = arrayOf(
         TypeRole.STEP,
         AUDIT_STEP_KIND,
         RegisteredAuditStep::class.java.name,
+    ),
+    securityTestEntry(
+        TypeRole.JOB,
+        AUDIT_JOB_KIND,
+        RegisteredAuditJob::class.java.name,
     ),
 )
 

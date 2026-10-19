@@ -1,19 +1,34 @@
 package de.lise.fluxflow.mongo.security.production
 
+import de.lise.fluxflow.api.job.JobIdentifier
+import de.lise.fluxflow.api.job.JobStatus
+import de.lise.fluxflow.api.step.Status
+import de.lise.fluxflow.api.step.StepIdentifier
+import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditOptions
 import de.lise.fluxflow.mongo.audit.RawBsonFluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_JOB_KIND
 import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
 import de.lise.fluxflow.mongo.security.fixtures.AuditNestedTypes
 import de.lise.fluxflow.mongo.security.fixtures.VALUE_TYPE_ALIAS
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
+import de.lise.fluxflow.persistence.job.JobData
+import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.step.StepData
+import de.lise.fluxflow.persistence.step.StepPersistence
+import de.lise.fluxflow.persistence.step.definition.DataDefinitionData
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
+import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.reflection.types.TypeRole
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.groups.Tuple.tuple
@@ -23,6 +38,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import java.time.Instant
 
 abstract class AbstractProductionMongoTypeAuditIT {
     @Autowired
@@ -30,6 +46,18 @@ abstract class AbstractProductionMongoTypeAuditIT {
 
     @Autowired
     private lateinit var audit: FluxFlowMongoTypeAudit
+
+    @Autowired
+    private lateinit var workflows: WorkflowPersistence
+
+    @Autowired
+    private lateinit var steps: StepPersistence
+
+    @Autowired
+    private lateinit var jobs: JobPersistence
+
+    @Autowired
+    private lateinit var stepDefinitions: StepDefinitionPersistence
 
     @Autowired
     @Qualifier("productionWitnessClassLoader")
@@ -153,6 +181,47 @@ abstract class AbstractProductionMongoTypeAuditIT {
     }
 
     @Test
+    fun `O03 audit accepts documents round-tripped through public persistence APIs`() {
+        val workflowId = WorkflowIdentifier("audit-public-round-trip")
+        val model = AuditNestedTypes.Model("persisted model")
+        val workflow = workflows.create(model, workflowId)
+        val step = StepData(
+            steps.randomId(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("text" to "persisted data", "nullable" to null, "list" to listOf("one", "two")),
+            Status.Active, mapOf("label" to "step metadata"),
+        )
+        val job = JobData(
+            jobs.randomId(), workflowId.value, AUDIT_JOB_KIND,
+            mapOf("argument" to "persisted argument"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled,
+        )
+        val definition = StepDefinitionData(
+            AUDIT_STEP_KIND, "1", mapOf("label" to "definition metadata"),
+            listOf(
+                DataDefinitionData(
+                    "text", String::class.java.name, mapOf("label" to "data metadata"), false,
+                ),
+            ),
+        )
+        steps.create(step)
+        jobs.create(job)
+        stepDefinitions.save(definition)
+
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(step.id))).isEqualTo(step)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(job.id))).isEqualTo(job)
+        assertThat(stepDefinitions.findForKindAndVersion(AUDIT_STEP_KIND, "1")).isEqualTo(definition)
+        val before = rawSnapshot()
+
+        val report = audit.audit()
+
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.scannedDocumentsByCollection.values.sum()).isEqualTo(4L)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
     fun `O03 audit accepts the qualified name written for a nested model`() {
         val id = "nested-model"
         val model = AuditNestedTypes.Model("nested")
@@ -220,10 +289,10 @@ abstract class AbstractProductionMongoTypeAuditIT {
                 .append("_class", StepDocument::class.java.name)
                 .append(
                     "dataEntries",
-                    Document(
-                        "jvmTypes",
-                        Document("entries", listOf(Document("reference", "type-1"))),
-                    ),
+                    typedRecords(String::class.java.name).apply {
+                        val entries = (this["jvmTypes"] as Document)["entries"] as List<*>
+                        (entries.single() as Document).remove("type")
+                    },
                 ),
         )
         collection(JobDocument::class.java).insertOne(
@@ -319,13 +388,13 @@ abstract class AbstractProductionMongoTypeAuditIT {
             )
     }
 
-    private fun typedRecords(typeName: Any?): Document = Document(
-        "jvmTypes",
-        Document(
-            "entries",
-            listOf(Document("reference", "type-1").append("type", typeName)),
-        ),
-    )
+    private fun typedRecords(typeName: Any?): Document {
+        val records = Document()
+        access.converter.write(TypedRecords.fromData(mapOf("value" to "persisted value")), records)
+        val entries = (records["jvmTypes"] as Document)["entries"] as List<*>
+        (entries.single() as Document)["type"] = typeName
+        return records
+    }
 
     private fun rawSnapshot(): Map<String, List<String>> = auditedTypes.associate { type ->
         val name = collectionName(type)
