@@ -26,7 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.mongodb.core.query.Query
 import java.util.UUID
 
-abstract class AbstractProductionMongoCustomTypeKeyIT {
+abstract class AbstractProductionMongoCustomTypeKeyIT : AbstractProductionMongoAuditMappingContract(AuditMapping.CUSTOM) {
     @Autowired
     private lateinit var workflows: WorkflowPersistence
 

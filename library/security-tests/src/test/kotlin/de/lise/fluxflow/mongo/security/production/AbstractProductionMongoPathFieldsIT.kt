@@ -42,7 +42,7 @@ import org.springframework.data.mongodb.core.mapping.MongoMappingContext
 import java.time.Instant
 import java.util.UUID
 
-abstract class AbstractProductionMongoPathFieldsIT {
+abstract class AbstractProductionMongoPathFieldsIT : AbstractProductionMongoAuditMappingContract(AuditMapping.PATH) {
     @Autowired private lateinit var workflows: WorkflowPersistence
     @Autowired private lateinit var jobs: JobPersistence
     @Autowired private lateinit var references: ScheduledJobReferencePersistence

@@ -7,6 +7,13 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
+import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
+import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
+import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
+import de.lise.fluxflow.reflection.types.TypeRole
 import de.lise.fluxflow.mongo.MongoFieldNames
 import de.lise.fluxflow.mongo.bootstrapping.MigrateDataTypesMapBootstrapAction
 import de.lise.fluxflow.mongo.bootstrapping.MigrateMetadataTypesMapBootstrapAction
@@ -20,11 +27,13 @@ import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.catchThrowable
 import org.bson.Document
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
@@ -32,14 +41,55 @@ import org.springframework.data.mongodb.core.mapping.MongoMappingContext
 import java.time.Instant
 import java.util.UUID
 
-abstract class AbstractProductionMongoLegacyTypeMapsIT {
+abstract class AbstractProductionMongoLegacyTypeMapsIT(private val expectedTypeNamePath: String) {
     @Autowired private lateinit var access: FluxFlowMongoAccess
     @Autowired private lateinit var steps: StepPersistence
     @Autowired private lateinit var jobs: JobPersistence
+    @Autowired private lateinit var audit: FluxFlowMongoTypeAudit
+    @Autowired @Qualifier("productionWitnessClassLoader") private lateinit var witness: WitnessClassLoader
     private val fields get() = MongoFieldNames(access.converter.mappingContext)
 
     @BeforeEach fun clear() {
         listOf(StepDocument::class.java, JobDocument::class.java).forEach { collection(it).deleteMany(Document()) }
+    }
+
+    @Test
+    fun `O03 audit follows mapped legacy type names including nested field paths`() {
+        val data = StepData(ObjectId().toHexString(), UUID.randomUUID().toString(), AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "safe legacy value"), Status.Active, emptyMap())
+        steps.create(data)
+        val type = StepDocument::class.java
+        val source = raw(type, data.id)
+        remove(source, type, "dataEntries")
+        replace(type, data.id, source)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(data.workflowId), StepIdentifier(data.id)))
+            .isEqualTo(data)
+        val valid = raw(type, data.id)
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(raw(type, data.id)).isEqualTo(valid)
+        assertThat(witness.events).isEmpty()
+
+        val spec = (fields.read(source, type, "dataTypeMap") as Document).get("payload", Document::class.java)
+        val parts = fields.fieldParts(SimpleType::class.java, "typeName")
+        val parent = parts.dropLast(1).fold(spec) { current, part -> current.get(part, Document::class.java) }
+        parent[parts.last()] = WITNESS_NAME
+        replace(type, data.id, source)
+        val corrupted = raw(type, data.id)
+
+        assertUnknownType(catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(data.workflowId), StepIdentifier(data.id))
+        }, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(access.template.getCollectionName(type), data.id, expectedTypeNamePath,
+                TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(raw(type, data.id)).isEqualTo(corrupted)
+        assertThat(witness.events).isEmpty()
     }
 
     @Test

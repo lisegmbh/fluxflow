@@ -9,6 +9,7 @@ import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowValue
 import de.lise.fluxflow.mongo.security.fixtures.MODEL_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
 import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
@@ -18,6 +19,8 @@ import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.bootstrapping.MigrateToTypeRecordsBootstrapAction
 import de.lise.fluxflow.mongo.bootstrapping.PartialFailureAction
 import de.lise.fluxflow.persistence.job.JobData
@@ -31,6 +34,7 @@ import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.catchThrowable
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
@@ -53,7 +57,10 @@ import com.mongodb.client.model.Updates.set
 import java.time.Instant
 import java.util.UUID
 
-abstract class AbstractProductionMongoMappedFieldsIT {
+abstract class AbstractProductionMongoMappedFieldsIT : AbstractProductionMongoAuditMappingContract(AuditMapping.SNAKE) {
+    @Autowired
+    private lateinit var audit: FluxFlowMongoTypeAudit
+
     @Autowired
     private lateinit var steps: StepPersistence
 
@@ -85,6 +92,47 @@ abstract class AbstractProductionMongoMappedFieldsIT {
     fun clearDocuments() {
         listOf(StepDocument::class.java, JobDocument::class.java, StepDefinitionDocument::class.java)
             .forEach { hostTemplate.getCollection(hostTemplate.getCollectionName(it)).deleteMany(Document()) }
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 audit reports a rejected JVM type at its mapped BSON path without materializing or writing`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = StepData(id, workflowId, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to SecurityTestWorkflowValue("audit")), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id)))
+            .isEqualTo(data)
+        val collectionName = hostTemplate.getCollectionName(StepDocument::class.java)
+        val collection = hostTemplate.getCollection(collectionName)
+        val valid = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+        val entries = valid.get("data_entries", Document::class.java)
+            .get("jvm_types", Document::class.java).getList("entries", Document::class.java)
+        assertThat(entries).hasSize(1)
+        val initialReport = audit.audit()
+        assertThat(initialReport.complete).isTrue()
+        assertThat(initialReport.isCompatible).isTrue()
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(valid)
+        assertThat(witnessLoader.events).isEmpty()
+
+        collection.updateOne(eq("_id", ObjectId(id)), set("data_entries.jvm_types.entries.0.type", WITNESS_NAME))
+        val corrupted = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+
+        val failure = catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))
+        }
+        assertUnknownType(failure, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName, id, "/data_entries/jvm_types/entries/0/type",
+                TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(corrupted)
         assertThat(witnessLoader.events).isEmpty()
     }
 

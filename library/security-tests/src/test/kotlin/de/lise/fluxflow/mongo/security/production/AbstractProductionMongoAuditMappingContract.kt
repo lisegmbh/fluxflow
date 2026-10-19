@@ -1,0 +1,259 @@
+package de.lise.fluxflow.mongo.security.production
+
+import com.mongodb.client.model.Filters.eq
+import de.lise.fluxflow.api.job.JobIdentifier
+import de.lise.fluxflow.api.job.JobStatus
+import de.lise.fluxflow.api.step.Status
+import de.lise.fluxflow.api.step.StepIdentifier
+import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
+import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
+import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
+import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.job.JobDocument
+import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
+import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
+import de.lise.fluxflow.mongo.security.fixtures.*
+import de.lise.fluxflow.mongo.step.StepDocument
+import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
+import de.lise.fluxflow.mongo.workflow.WorkflowDocument
+import de.lise.fluxflow.persistence.job.JobData
+import de.lise.fluxflow.persistence.job.JobPersistence
+import de.lise.fluxflow.persistence.step.StepData
+import de.lise.fluxflow.persistence.step.StepPersistence
+import de.lise.fluxflow.persistence.step.definition.DataDefinitionData
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
+import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import de.lise.fluxflow.reflection.types.TypeRole
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.catchThrowable
+import org.bson.Document
+import org.bson.types.ObjectId
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
+import java.time.Instant
+import java.util.UUID
+
+/** Public audit/persistence contracts shared by the existing host-mapping contexts. */
+abstract class AbstractProductionMongoAuditMappingContract(private val mapping: AuditMapping) {
+    @Autowired private lateinit var mappingAccess: FluxFlowMongoAccess
+    @Autowired private lateinit var mappingAudit: FluxFlowMongoTypeAudit
+    @Autowired private lateinit var mappingSteps: StepPersistence
+    @Autowired private lateinit var mappingJobs: JobPersistence
+    @Autowired private lateinit var mappingDefinitions: StepDefinitionPersistence
+    @Autowired private lateinit var mappingWorkflows: WorkflowPersistence
+    @Autowired @Qualifier("productionWitnessClassLoader") private lateinit var mappingWitness: WitnessClassLoader
+
+    @BeforeEach
+    fun clearAuditMappingDocuments() {
+        roots.forEach { collection(it).deleteMany(Document()) }
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(RecordField::class)
+    fun `O03 mapped record type names agree with the public persistence rejection`(field: RecordField) {
+        val value = SecurityTestWorkflowValue("mapped audit")
+        val id = ObjectId()
+        val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
+        val (type, read) = when (field) {
+            RecordField.STEP_DATA, RecordField.STEP_METADATA, RecordField.LEGACY_STEP_DATA, RecordField.LEGACY_STEP_METADATA -> {
+                val data = StepData(id.toHexString(), workflow.value, AUDIT_STEP_KIND, "1",
+                    mapOf("payload" to value), Status.Active, mapOf("payload" to value))
+                mappingSteps.create(data)
+                StepDocument::class.java to { assertThat(mappingSteps.findForWorkflowAndId(workflow, StepIdentifier(data.id))).isEqualTo(data); Unit }
+            }
+            RecordField.JOB_PARAMETERS, RecordField.LEGACY_JOB_PARAMETERS -> {
+                val data = JobData(id.toHexString(), workflow.value, AUDIT_JOB_KIND,
+                    mapOf("payload" to value), Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+                mappingJobs.create(data)
+                JobDocument::class.java to { assertThat(mappingJobs.findForWorkflowAndId(workflow, JobIdentifier(data.id))).isEqualTo(data); Unit }
+            }
+            else -> {
+                val data = StepDefinitionData(AUDIT_STEP_KIND, "1", mapOf("payload" to value),
+                    listOf(DataDefinitionData("payload", String::class.java.name, mapOf("payload" to value), false)))
+                mappingDefinitions.save(data)
+                StepDefinitionDocument::class.java to { assertThat(mappingDefinitions.findForKindAndVersion(data.kind, data.version)).isEqualTo(data); Unit }
+            }
+        }
+        val storedId = if (type == StepDefinitionDocument::class.java) raw(type, Document()).get("_id") else id
+        val filter = eq("_id", storedId)
+        read()
+        assertCleanInventory()
+        val source = raw(type, Document("_id", storedId))
+        val record = when (field) {
+            RecordField.DEFINITION_DATA_METADATA -> {
+                val data = mapped(source, type, "data") as List<*>
+                mapped(data.single() as Document, DataDefinitionDocument::class.java, "metadata") as Document
+            }
+            else -> mapped(source, type, field.property) as Document
+        }
+        if (field.legacy) {
+            val spec = record.get("payload", Document::class.java)
+            setMapped(spec, SimpleType::class.java, "typeName", WITNESS_NAME)
+        } else {
+            val jvm = mapped(record, TypedRecords::class.java, "jvmTypes") as Document
+            val entries = mapped(jvm, JvmTypeMapping::class.java, "entries") as List<*>
+            assertThat(entries).hasSize(1)
+            setMapped(entries.single() as Document, TypeRecordEntry::class.java, "type", WITNESS_NAME)
+        }
+        collection(type).replaceOne(filter, source)
+        val before = inventorySnapshot()
+
+        assertUnknownType(catchThrowable { read() }, TypeRole.VALUE, WITNESS_NAME)
+        assertFinding(type, storedId.toString(), mapping.recordPaths[field.ordinal], TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED)
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(ModelTypeDeviation::class)
+    fun `O03 mapped model type inventory remains independent from the trusted discriminator`(deviation: ModelTypeDeviation) {
+        val id = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = securityTestModel()
+        mappingWorkflows.create(model, id)
+        assertThat(mappingWorkflows.find(id)?.model).isEqualTo(model)
+        assertCleanInventory()
+        val source = raw(WorkflowDocument::class.java, Document("_id", id.value))
+        val persistedName = if (deviation == ModelTypeDeviation.INCONSISTENT) SecurityTestWorkflowSubtype::class.java.name else WITNESS_NAME
+        setMapped(source, WorkflowDocument::class.java, "modelType", persistedName)
+        collection(WorkflowDocument::class.java).replaceOne(eq("_id", id.value), source)
+        val before = inventorySnapshot()
+
+        assertThat(mappingWorkflows.find(id)?.model).isEqualTo(model)
+        assertFinding(WorkflowDocument::class.java, id.value, mapping.modelTypePath, TypeRole.MODEL,
+            if (deviation == ModelTypeDeviation.INCONSISTENT) MongoTypeAuditIssue.INCONSISTENT else MongoTypeAuditIssue.UNREGISTERED,
+            persistedName)
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 mapped workflow root discriminators reject unknown models in reads and audits`() {
+        val id = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = securityTestModel()
+        mappingWorkflows.create(model, id)
+        assertThat(mappingWorkflows.find(id)?.model).isEqualTo(model)
+        assertCleanInventory()
+        val source = raw(WorkflowDocument::class.java, Document("_id", id.value))
+        (mapped(source, WorkflowDocument::class.java, "model") as Document)[mapping.typeKey] = WITNESS_NAME
+        collection(WorkflowDocument::class.java).replaceOne(eq("_id", id.value), source)
+        val before = inventorySnapshot()
+
+        assertUnknownType(catchThrowable { mappingWorkflows.find(id) }, TypeRole.MODEL, WITNESS_NAME)
+        assertFinding(WorkflowDocument::class.java, id.value, "${mapping.modelPath}/${mapping.typeKey}", TypeRole.MODEL,
+            MongoTypeAuditIssue.UNREGISTERED)
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 literal dotted keys retain their BSON pointer segment`() {
+        assertNestedFinding(escaped = false)
+    }
+
+    @Test
+    fun `O03 audit escapes slash and tilde in nested BSON pointer segments`() {
+        assertNestedFinding(escaped = true)
+    }
+
+    private fun assertNestedFinding(escaped: Boolean) {
+        val id = WorkflowIdentifier(UUID.randomUUID().toString())
+        val model = SecurityLiteralKeyModel(SecurityTestWorkflowValue("literal"))
+        mappingWorkflows.create(model, id)
+        assertThat(mappingWorkflows.find(id)?.model).isEqualTo(model)
+        assertCleanInventory()
+        val source = raw(WorkflowDocument::class.java, Document("_id", id.value))
+        val root = mapped(source, WorkflowDocument::class.java, "model") as Document
+        assertThat(root).containsKey("literal.payload").doesNotContainKey("literal")
+        val payload = root.get("literal.payload", Document::class.java)
+        val suffix = if (escaped) {
+            payload["slash/~"] = Document(mapping.typeKey, WITNESS_NAME)
+            "/literal.payload/slash~1~0/${mapping.typeKey}"
+        } else {
+            payload[mapping.typeKey] = WITNESS_NAME
+            "/literal.payload/${mapping.typeKey}"
+        }
+        collection(WorkflowDocument::class.java).replaceOne(eq("_id", id.value), source)
+        val before = inventorySnapshot()
+
+        assertUnknownType(catchThrowable { mappingWorkflows.find(id) }, TypeRole.VALUE, WITNESS_NAME)
+        assertFinding(WorkflowDocument::class.java, id.value, mapping.modelPath + suffix, TypeRole.VALUE,
+            MongoTypeAuditIssue.UNREGISTERED)
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    private fun assertCleanInventory() {
+        val before = inventorySnapshot()
+        assertThat(mappingAudit.audit().isCompatible).isTrue()
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    private fun assertFinding(type: Class<*>, id: String, path: String, role: TypeRole, issue: MongoTypeAuditIssue,
+                              name: String = WITNESS_NAME) {
+        val report = mappingAudit.audit()
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(mappingAccess.template.getCollectionName(type), id, path, role, issue, name)
+    }
+
+    private fun mapped(document: Document, type: Class<*>, property: String): Any? =
+        mappingAccess.fieldNames.read(document, type, property)
+
+    private fun setMapped(document: Document, type: Class<*>, property: String, value: Any?) {
+        val parts = mappingAccess.fieldNames.fieldParts(type, property)
+        val parent = parts.dropLast(1).fold(document) { current, segment -> current.get(segment, Document::class.java) }
+        parent[parts.last()] = value
+    }
+
+    private fun collection(type: Class<*>) = mappingAccess.template.getCollection(mappingAccess.template.getCollectionName(type))
+    private fun raw(type: Class<*>, filter: Document) = requireNotNull(collection(type).find(filter).first())
+    private fun inventorySnapshot(): Map<String, List<String>> = roots.associate {
+        mappingAccess.template.getCollectionName(it) to collection(it).find().map { value -> value.toJson() }.sorted()
+    }
+
+    enum class RecordField(val property: String, val legacy: Boolean = false) {
+        STEP_DATA("dataEntries"), STEP_METADATA("metadataEntries"), JOB_PARAMETERS("parameterEntries"),
+        DEFINITION_METADATA("metadata"), DEFINITION_DATA_METADATA("data"),
+        LEGACY_STEP_DATA("dataTypeMap", true), LEGACY_STEP_METADATA("metadataTypeMap", true),
+        LEGACY_JOB_PARAMETERS("parameterTypeMap", true),
+    }
+
+    enum class ModelTypeDeviation { INCONSISTENT, UNREGISTERED }
+
+    enum class AuditMapping(val modelPath: String, val modelTypePath: String, val typeKey: String,
+                            val recordPaths: List<String>) {
+        DEFAULT("/model", "/modelType", "_class", listOf(
+            "/dataEntries/jvmTypes/entries/0/type", "/metadataEntries/jvmTypes/entries/0/type", "/parameterEntries/jvmTypes/entries/0/type",
+            "/metadata/jvmTypes/entries/0/type", "/data/0/metadata/jvmTypes/entries/0/type",
+            "/dataTypeMap/payload/typeName", "/metadataTypeMap/payload/typeName", "/parameterTypeMap/payload/typeName")),
+        SNAKE("/model", "/model_type", "_class", listOf(
+            "/data_entries/jvm_types/entries/0/type", "/metadata_entries/jvm_types/entries/0/type", "/parameter_entries/jvm_types/entries/0/type",
+            "/metadata/jvm_types/entries/0/type", "/data/0/metadata/jvm_types/entries/0/type",
+            "/data_type_map/payload/type_name", "/metadata_type_map/payload/type_name", "/parameter_type_map/payload/type_name")),
+        PATH("/payload/model", "/modelType", "_class", listOf(
+            "/records/dataEntries/record/jvmTypes/entries/0/type", "/records/metadataEntries/record/jvmTypes/entries/0/type", "/parameterEntries/record/jvmTypes/entries/0/type",
+            "/records/metadata/record/jvmTypes/entries/0/type", "/schema/data/0/definition/metadata/record/jvmTypes/entries/0/type",
+            "/dataTypeMap/payload/typeName", "/metadataTypeMap/payload/typeName", "/parameterTypeMap/payload/typeName")),
+        CUSTOM("/model", "/modelType", "@type", DEFAULT.recordPaths),
+    }
+
+    companion object {
+        private val roots = listOf(WorkflowDocument::class.java, StepDocument::class.java,
+            JobDocument::class.java, StepDefinitionDocument::class.java)
+    }
+}

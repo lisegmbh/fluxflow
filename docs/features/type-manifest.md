@@ -216,6 +216,8 @@ is explicit; FluxFlow does not run it automatically during startup or normal wor
 It reads the mapped workflow, step, job, and step-definition collections through the synchronous
 Mongo driver, without mapping BSON to application objects, activating workflow elements, invoking
 constructors, or writing to the database.
+Field lookups and finding paths use the same host mapping metadata as guarded reads, including
+field naming strategies, nested PATH mappings and literal dotted KEY fields.
 
 ```kotlin
 import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit

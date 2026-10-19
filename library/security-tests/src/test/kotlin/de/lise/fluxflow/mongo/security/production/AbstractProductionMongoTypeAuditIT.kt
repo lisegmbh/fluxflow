@@ -40,7 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import java.time.Instant
 
-abstract class AbstractProductionMongoTypeAuditIT {
+abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAuditMappingContract(AuditMapping.DEFAULT) {
     @Autowired
     private lateinit var access: FluxFlowMongoAccess
 

@@ -55,6 +55,7 @@ class FluxFlowMongoAccess internal constructor(
     internal val valueTypes: ValueTypeConverter
     internal val typeRegistry: TypeRegistry = registry
     internal val typeAliases: FluxFlowMongoTypeAliases
+    internal val fieldNames: MongoFieldNames
     internal val documentTypePolicy: MongoDocumentTypePolicy
 
     private val repositoryFactory: MongoRepositoryFactory
@@ -96,10 +97,11 @@ class FluxFlowMongoAccess internal constructor(
         val converterCustomization = FluxFlowMongoConverterCustomization(isolatedConverter)
         converterCustomizers.orderedStream().forEach { it.customize(converterCustomization) }
         valueTypes = ValueTypeConverter.withHostConversions(registry, isolatedConverter.conversionService)
+        fieldNames = MongoFieldNames(hostConverter.mappingContext)
         documentTypePolicy = MongoDocumentTypePolicy(
             typeAliases,
             typeKey,
-            fieldNames = MongoFieldNames(hostConverter.mappingContext),
+            fieldNames = fieldNames,
             isRegisteredJvmValueType = valueTypes::isRegistered,
         )
         converter = GuardedMongoConverter(isolatedConverter, documentTypePolicy)

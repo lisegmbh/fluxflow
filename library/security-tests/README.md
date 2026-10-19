@@ -90,6 +90,15 @@ The complete report set must contain the required suites in both compatibility
 lines. Green R01/R02 reports prove that activation rejects the report witnesses. Green
 R03 reports prove the same at the production Mongo conversion boundary.
 
+The shared `AbstractProductionMongoAuditMappingContract` exercises O03 in the default,
+snake-case, nested PATH and custom-type-key contexts through their existing Boot 3 and
+Boot 4 suites. `O03 mapped record type names agree with the public persistence rejection`
+covers step data/metadata, job parameters, definition/data-definition metadata and legacy
+type maps. Separate cases cover model-type consistency, MODEL discriminators, literal
+KEY fields and JSON pointer escaping. Expected paths are independent schema literals;
+public persistence reads, unchanged raw BSON and empty witness events establish the
+materialization and read-only boundaries.
+
 V01 and V02 use a separate enum witness because enum constant access initializes its class even
 when Mongo stores the value itself as a string. The production contract mutates only the legacy
 `typeName` or the matching typed-record JVM entry, then reads through the real persistence bean.
