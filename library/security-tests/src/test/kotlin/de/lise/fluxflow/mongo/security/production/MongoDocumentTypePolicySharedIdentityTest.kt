@@ -3,6 +3,7 @@ package de.lise.fluxflow.mongo.security.production
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeAliases
 import de.lise.fluxflow.mongo.MongoDocumentTypePolicy
 import de.lise.fluxflow.mongo.MongoTypeAliasIssue
+import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
 import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.NullType
 import de.lise.fluxflow.mongo.generic.SimpleType
@@ -20,6 +21,8 @@ import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.reflection.types.TypeRole
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.catchThrowable
+import org.assertj.core.groups.Tuple.tuple
 import org.bson.Document
 import org.junit.jupiter.api.Test
 
@@ -152,6 +155,50 @@ class MongoDocumentTypePolicySharedIdentityTest {
                 .describedAs("%s self-cycle has no discriminator", kind)
                 .isEmpty()
         }
+    }
+
+    @Test
+    fun `invalid siblings preserve read failure order and audit JSON pointer order`() {
+        val policy = policy()
+        val source = Document("_class", WorkflowDocument::class.java.name)
+            .append("first/key~.leaf", Document("_class", "unknown-first"))
+            .append("second/key~.leaf", Document("_class", "unknown-second"))
+
+        val readFailure = catchThrowable { policy.validate(WorkflowDocument::class.java, source) }
+        assertThat(readFailure).isExactlyInstanceOf(IllegalArgumentException::class.java)
+        assertThat(readFailure?.message)
+            .isEqualTo("Mongo type metadata is not allowed at 'second/key~.leaf._class'")
+        assertThat(readFailure?.suppressed?.map(Throwable::message))
+            .containsExactly("Invalid Mongo type at 'second/key~.leaf._class'")
+
+        val deviations = policy.auditAliases(WorkflowDocument::class.java, source, ValueTypeConverter(registry())::isRegistered)
+        assertThat(deviations)
+            .extracting("path", "issue", "persistedName")
+            .containsExactly(
+                tuple("/second~1key~0.leaf/_class", MongoTypeAliasIssue.UNREGISTERED, "unknown-second"),
+                tuple("/first~1key~0.leaf/_class", MongoTypeAliasIssue.UNREGISTERED, "unknown-first"),
+            )
+    }
+
+    @Test
+    fun `read and audit report their budget paths for the same in-memory graph`() {
+        val policy = policy(maxDepth = 2, maxNodes = 32)
+        val source = Document("_class", WorkflowDocument::class.java.name)
+            .append("model", Document("inner", Document("deep/key~.leaf", "value")))
+
+        val readFailure = catchThrowable { policy.validate(WorkflowDocument::class.java, source) }
+        assertThat(readFailure).isExactlyInstanceOf(IllegalArgumentException::class.java)
+        assertThat(readFailure?.message)
+            .isEqualTo("Mongo document exceeds the maximum depth of 2 at 'model.inner.deep/key~.leaf'")
+
+        val auditFailure = catchThrowable {
+            policy.auditAliases(WorkflowDocument::class.java, source, ValueTypeConverter(registry())::isRegistered)
+        }
+        assertThat(auditFailure).isExactlyInstanceOf(MongoTypeAuditInspectionException::class.java)
+        assertThat((auditFailure as MongoTypeAuditInspectionException).path)
+            .isEqualTo("/model/inner/deep~1key~0.leaf")
+        assertThat(auditFailure.message)
+            .isEqualTo("Mongo document exceeds the maximum depth of 2 at '/model/inner/deep~1key~0.leaf'")
     }
 
     private fun assertSingleDeviation(
