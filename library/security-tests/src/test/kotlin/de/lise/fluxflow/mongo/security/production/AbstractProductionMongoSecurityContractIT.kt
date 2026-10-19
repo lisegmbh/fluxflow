@@ -625,6 +625,10 @@ abstract class AbstractProductionMongoSecurityContractIT {
         )
         assertThat(contextAAccess.converter).isNotSameAs(contextBAccess.converter)
         assertThat(contextAAccess.template).isNotSameAs(contextBAccess.template)
+        val contextARegistryEntries = contextAAccess.typeRegistry.entries.toList()
+        val contextBRegistryEntries = contextBAccess.typeRegistry.entries.toList()
+        val contextALookups = contextALoader.fixtureLookups.toList()
+        val contextBLookups = contextBLoader.fixtureLookups.toList()
 
         val contextAId = UUID.randomUUID().toString()
         val contextBId = UUID.randomUUID().toString()
@@ -715,6 +719,10 @@ abstract class AbstractProductionMongoSecurityContractIT {
         assertThat(contextALoader.events).isEmpty()
         assertThat(contextBLoader.events).isEmpty()
         assertThat(witnessLoader.events).isEmpty()
+        assertThat(contextAAccess.typeRegistry.entries).containsExactlyElementsOf(contextARegistryEntries)
+        assertThat(contextBAccess.typeRegistry.entries).containsExactlyElementsOf(contextBRegistryEntries)
+        assertThat(contextALoader.fixtureLookups).containsExactlyElementsOf(contextALookups)
+        assertThat(contextBLoader.fixtureLookups).containsExactlyElementsOf(contextBLookups)
     }
 
     @Test
@@ -1985,6 +1993,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
 
     private fun assertJvmMetadataRejected(read: () -> Unit) {
         val loader = WitnessClassLoader()
+        val registryEntries = fluxFlowMongoAccess.typeRegistry.entries.toList()
         val thread = Thread.currentThread()
         val previousLoader = thread.contextClassLoader
         val failure = try {
@@ -1996,6 +2005,7 @@ abstract class AbstractProductionMongoSecurityContractIT {
         assertThat(loader.fixtureLookups)
             .describedAs("Unregistered JVM metadata must be rejected before a fixture class lookup")
             .isEmpty()
+        assertThat(fluxFlowMongoAccess.typeRegistry.entries).containsExactlyElementsOf(registryEntries)
         assertThat(loader.events)
             .describedAs("Unregistered JVM metadata must not initialize an enum")
             .isEmpty()
