@@ -2,15 +2,24 @@ package de.lise.fluxflow.springboot.configuration
 
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobStatus
+import de.lise.fluxflow.api.step.Status
+import de.lise.fluxflow.api.step.stateful.StepActivationException
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.engine.job.JobActivationException
+import de.lise.fluxflow.engine.step.StepActivationService
+import de.lise.fluxflow.engine.step.RestoringStepActivationService
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
 import de.lise.fluxflow.persistence.job.JobData
+import de.lise.fluxflow.persistence.step.StepData
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
+import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
 import de.lise.fluxflow.reflection.types.TypeManifestEntry
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.types.TypeRegistration
+import de.lise.fluxflow.springboot.types.TypeRegistrationContributor
 import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.job.Job
@@ -29,6 +38,44 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 
 class BasicConfigurationActivationTest {
+    @Test
+    fun `default primary activation bean keeps constructor failures visible`() {
+        val kind = ContextFailingStep::class.java.name
+        val persistence = mock<StepDefinitionPersistence> {
+            on { findForKindAndVersion(kind, "") } doReturn
+                StepDefinitionData(kind, "", emptyMap(), emptyList())
+        }
+        AnnotationConfigApplicationContext().use { context ->
+            context.setAllowCircularReferences(false)
+            context.beanFactory.registerSingleton("a01DefinitionPersistence", persistence)
+            context.beanFactory.registerSingleton("a01Registrations", TypeRegistrationContributor {
+                listOf(TypeRegistration(TypeRole.STEP, kind, ContextFailingStep::class))
+            })
+            context.register(BasicConfiguration::class.java)
+            context.addBeanFactoryPostProcessor { beanFactory ->
+                beanFactory.beanDefinitionNames.forEach {
+                    beanFactory.getBeanDefinition(it).isLazyInit = true
+                }
+            }
+            context.refresh()
+            val service = context.getBean(StepActivationService::class.java)
+            val workflow = mock<Workflow<Any>> {
+                on { model } doReturn Any()
+                on { identifier } doReturn WorkflowIdentifier("workflow")
+            }
+            val data = StepData("broken-step", "workflow", kind, "", emptyMap(), Status.Active, emptyMap())
+
+            val failure = catchThrowable { service.activateFromPersistence(workflow, data) }
+
+            assertThat(service).isInstanceOf(RestoringStepActivationService::class.java)
+            assertThat(failure)
+                .isInstanceOf(StepActivationException::class.java)
+                .hasMessage("Unable to activate step #broken-step with kind '$kind'")
+            assertThat(generateSequence(failure) { it.cause }.toList())
+                .anyMatch { it is IllegalStateException && it.message == "context constructor unavailable" }
+        }
+    }
+
     @Test
     fun `registry should initialize with the default provider without circular dependencies`() {
         AnnotationConfigApplicationContext().use { context ->
@@ -118,6 +165,12 @@ class BasicConfigurationActivationTest {
     @Job("context-job")
     class ContextJob {
         fun execute() = Unit
+    }
+
+    class ContextFailingStep {
+        init {
+            throw IllegalStateException("context constructor unavailable")
+        }
     }
 }
 

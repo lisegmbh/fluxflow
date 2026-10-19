@@ -90,7 +90,8 @@ class DefaultStepActivationServiceTest {
         }.exceptionOrNull()
 
         assertThat(failure)
-            .isExactlyInstanceOf(StepActivationException::class.java)
+            .isExactlyInstanceOf(TechnicalStepActivationException::class.java)
+            .isInstanceOf(StepActivationException::class.java)
             .hasMessage("Unable to activate step #step-id with kind '${ThrowingStep::class.java.name}'")
         assertThat(generateSequence(failure) { it.cause }.toList())
             .anyMatch { it is IllegalStateException && it.message == "step constructor failed" }

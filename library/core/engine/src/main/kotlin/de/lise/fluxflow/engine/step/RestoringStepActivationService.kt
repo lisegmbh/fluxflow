@@ -15,8 +15,10 @@ import org.slf4j.LoggerFactory
  *
  * @param baseStepActivationService The basic activation service to be decorated.
  * @param stepDefinitionService The service to be used to obtain pre-persisted step definitions.
- * @param handleAnyException If set to `false`, this service will only handle [StepActivationException]s.
- * Otherwise, it will try to catch and handle any caught [Exception].
+ * @param handleAnyException If set to `false`, this service handles [StepActivationException]s,
+ * except technical construction or definition-building failures normalized by the default activation service.
+ * Those failures remain visible as [StepActivationException]s with their original cause.
+ * If set to `true`, this service also tries to restore steps after those failures and any caught [Exception].
  */
 class RestoringStepActivationService(
     private val baseStepActivationService: StepActivationService,
@@ -40,6 +42,16 @@ class RestoringStepActivationService(
                 workflow,
                 stepData
             )
+        } catch (e: TechnicalStepActivationException) {
+            if (handleAnyException) {
+                activateStepByRestoringFromPersistedDefinition(
+                    workflow,
+                    stepData,
+                    e
+                )
+            } else {
+                throw e
+            }
         } catch (e: StepActivationException) {
             activateStepByRestoringFromPersistedDefinition(
                 workflow,

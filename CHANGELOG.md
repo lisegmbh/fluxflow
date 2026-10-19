@@ -58,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    registrations. Unknown kinds fail before their classes can be initialized or constructed.
    Existing fully qualified kinds remain supported when present in the generated manifest or an
    explicit context-local registration.
+   Technical step construction and definition-building failures remain visible when general
+   exception restoration is disabled, while unknown kinds and incompatible versions retain
+   the persisted-definition fallback. Technical failures keep the `StepActivationException`
+   contract and their original cause. [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 2. **Fail-closed Mongo type materialization**<br/>
    FluxFlow Mongo reads now validate model and value type metadata synchronously against the
    context-local trusted type registry before Spring Data resolves a class. Repository, FlowQuery,

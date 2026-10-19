@@ -67,9 +67,9 @@ class DefaultStepActivationService(
                 } catch (exception: StepActivationException) {
                     throw exception
                 } catch (exception: Exception) {
-                    throw StepActivationException(stepData.id, stepData.kind, exception)
+                    throw TechnicalStepActivationException(stepData.id, stepData.kind, exception)
                 } catch (error: LinkageError) {
-                    throw StepActivationException(stepData.id, stepData.kind, error)
+                    throw TechnicalStepActivationException(stepData.id, stepData.kind, error)
                 }
                 stepDefinition.toInvokableStepDefinition(instance)
             }
@@ -159,9 +159,9 @@ class DefaultStepActivationService(
         } catch (exception: StepActivationException) {
             throw exception
         } catch (exception: Exception) {
-            throw StepActivationException(stepData.id, stepData.kind, exception)
+            throw TechnicalStepActivationException(stepData.id, stepData.kind, exception)
         } catch (error: LinkageError) {
-            throw StepActivationException(stepData.id, stepData.kind, error)
+            throw TechnicalStepActivationException(stepData.id, stepData.kind, error)
         }
     }
 
