@@ -152,6 +152,22 @@ internal class MongoDocumentTypePolicy(
                     )
                 }
             },
+            onDirectJvmEntryTypeName = { path, value ->
+                if (!isRegisteredValueType(value)) {
+                    val persistedName = value as? String
+                    val issue = when {
+                        persistedName.isNullOrEmpty() -> MongoTypeAliasIssue.MALFORMED
+                        isKnownInAnotherRoleValueType(value) -> MongoTypeAliasIssue.DISALLOWED
+                        else -> MongoTypeAliasIssue.UNREGISTERED
+                    }
+                    deviations += MongoTypeAliasDeviation(
+                        path.pointerString(),
+                        TypeRole.VALUE,
+                        persistedName,
+                        issue,
+                    )
+                }
+            },
             onLimit = ::auditLimit,
             pathBeforeNodeBudget = true,
             auditTypeNameValues = true,
@@ -163,6 +179,7 @@ internal class MongoDocumentTypePolicy(
         seeds: Sequence<PendingFrame>,
         onMap: (Map<*, *>, NodePolicy, DocumentPath) -> Unit,
         onValueTypeName: (DocumentPath, Any?) -> Unit = { _, _ -> },
+        onDirectJvmEntryTypeName: (DocumentPath, Any?) -> Unit = { _, _ -> },
         onLimit: (DocumentPath, LimitKind) -> Nothing,
         pathBeforeNodeBudget: Boolean,
         auditTypeNameValues: Boolean = false,
@@ -175,14 +192,17 @@ internal class MongoDocumentTypePolicy(
                 onLimit(earlyPath ?: DocumentPath(), LimitKind.NODE)
             }
             val path = earlyPath ?: pendingFrame.path()
+            val policy = pendingFrame.policy()
             pending.add(
                 Frame(
                     pendingFrame.value,
                     path,
                     pendingFrame.depth,
-                    pendingFrame.policy(),
+                    policy,
                     pendingFrame.auditTypeNameScope,
                     pendingFrame.inspectAliases,
+                    pendingFrame.directJvmEntryContainer && policy == NodePolicy.JvmTypeEntry,
+                    pendingFrame.directJvmEntrySlot,
                 )
             )
         }
@@ -197,6 +217,28 @@ internal class MongoDocumentTypePolicy(
             }
             if (frame.depth > maxDepth) {
                 onLimit(frame.path, LimitKind.DEPTH)
+            }
+
+            if (auditTypeNameValues && frame.directJvmEntrySlot) {
+                val entry = frame.value as? Map<*, *>
+                val typePresent = if (entry == null) {
+                    false
+                } else {
+                    fieldNames?.contains(entry, TypeRecordEntry::class.java, "type")
+                        ?: entry.containsKey("type")
+                }
+                val typeParts = fieldNames?.fieldParts(TypeRecordEntry::class.java, "type") ?: listOf("type")
+                var typePath = frame.path
+                typeParts.forEach { part ->
+                    typePath = typePath.childField(part, part)
+                }
+                val typeName = if (entry != null && typePresent) {
+                    fieldNames?.read(entry, TypeRecordEntry::class.java, "type") ?:
+                        if (fieldNames == null) entry["type"] else null
+                } else {
+                    null
+                }
+                onDirectJvmEntryTypeName(typePath, typeName)
             }
 
             when (val value = frame.value) {
@@ -233,6 +275,7 @@ internal class MongoDocumentTypePolicy(
                                 !(key == typeKey && scanTypeNameSubtree && !isStructuredValue(nested))
                         }
                         .forEach { (key, nested) ->
+                            val basePolicy = (frame.policy as? NodePolicy.Namespace)?.base ?: frame.policy
                             val childTypeNameScope = when {
                                 auditTypeNameValues && frame.policy == NodePolicy.TypeMap -> true
                                 frame.auditTypeNameScope &&
@@ -252,6 +295,8 @@ internal class MongoDocumentTypePolicy(
                                     policy = { policyForField(frame.policy, key?.toString()) },
                                     auditTypeNameScope = childTypeNameScope,
                                     inspectAliases = frame.inspectAliases && key != typeKey,
+                                    directJvmEntryContainer = auditTypeNameValues &&
+                                        basePolicy == NodePolicy.JvmTypes,
                                 )
                             )
                         }
@@ -260,7 +305,7 @@ internal class MongoDocumentTypePolicy(
                 is Iterable<*> -> {
                     val firstAliasVisit = frame.inspectAliases &&
                         visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)
-                    if (!firstAliasVisit && !frame.auditTypeNameScope) {
+                    if (!firstAliasVisit && !frame.auditTypeNameScope && !frame.directJvmEntryContainer) {
                         continue
                     }
                     var index = 0
@@ -273,6 +318,7 @@ internal class MongoDocumentTypePolicy(
                                 policy = { frame.policy.forElement() },
                                 auditTypeNameScope = frame.auditTypeNameScope,
                                 inspectAliases = frame.inspectAliases,
+                                directJvmEntrySlot = frame.directJvmEntryContainer,
                             )
                         )
                         index++
@@ -493,6 +539,8 @@ internal class MongoDocumentTypePolicy(
         val policy: NodePolicy,
         val auditTypeNameScope: Boolean,
         val inspectAliases: Boolean,
+        val directJvmEntryContainer: Boolean,
+        val directJvmEntrySlot: Boolean,
     )
 
     private data class PendingFrame(
@@ -502,6 +550,8 @@ internal class MongoDocumentTypePolicy(
         val policy: () -> NodePolicy,
         val auditTypeNameScope: Boolean = false,
         val inspectAliases: Boolean = true,
+        val directJvmEntryContainer: Boolean = false,
+        val directJvmEntrySlot: Boolean = false,
     )
 
     /** Successful traversal keeps only parent links; diagnostic strings are built on failure. */

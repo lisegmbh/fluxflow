@@ -303,12 +303,6 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         entries.forEachIndexed { index, entry ->
             val typeEntry = entry as? Map<*, *>
             val entryPath = "${entriesField.path}/$index"
-            val type = rawField(typeEntry, TypeRecordEntry::class.java, "type", entryPath)
-            auditValueName(
-                type.path,
-                type.value,
-                add,
-            )
             if (typeEntry != null) {
                 val referenceField = rawField(typeEntry, TypeRecordEntry::class.java, "reference", entryPath)
                 val reference = referenceString(referenceField.value)
@@ -481,12 +475,6 @@ internal class RawBsonFluxFlowMongoTypeAudit(
 
     private fun identifyModelName(value: Any?): Class<*>? =
         (value as? String)?.let { modelTypesByName[it]?.singleOrNull() }
-
-    private fun auditValueName(path: String, value: Any?, add: (PendingFinding) -> Unit) {
-        if (!access.valueTypes.isRegistered(value)) {
-            add(invalid(path, TypeRole.VALUE, value, isKnownInAnotherRole(value, TypeRole.VALUE)))
-        }
-    }
 
     private fun invalid(
         path: String,
