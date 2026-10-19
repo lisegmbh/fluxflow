@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    required Expand -> Deploy -> Migrate -> Contract sequence for type changes.
    Audit field lookups and finding paths honor the host's field naming strategy, nested PATH
    mappings and literal dotted KEY names through the same metadata used by guarded reads.
+   Legacy type-map application keys such as `typeName` no longer cause false malformed findings;
+   nested infrastructure type names remain subject to registry validation.
    [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 
 ### Changed

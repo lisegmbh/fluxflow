@@ -72,6 +72,30 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
     }
 
     @Test
+    fun `O03 audit accepts a legacy application key named typeName`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("legacy-typeName-workflow")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("typeName" to "application value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        stored.remove("dataEntries")
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val before = rawSnapshot()
+
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
     fun `O03 audit reports persisted type deviations without hydration or writes`() {
         val workflowId = "audit-workflow"
         val stepId = ObjectId()

@@ -10,6 +10,7 @@ import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
@@ -38,6 +39,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import java.time.Instant
@@ -56,6 +59,76 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
     @BeforeEach
     fun clearAuditMappingDocuments() {
         roots.forEach { collection(it).deleteMany(Document()) }
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}: {1}")
+    @MethodSource("legacyApplicationKeyCases")
+    fun `O03 legacy application keys preserve inner type checks through public fallback reads`(
+        position: LegacyPosition,
+        mutation: LegacyMutation,
+    ) {
+        val values: Map<String, Any?> = linkedMapOf(
+            "typeName" to "application value", "type_name" to "mapped application value",
+            "collectionType" to listOf("one", null, listOf("two")), "componentTypes" to "application components",
+            "nullable" to null, "slash/key" to "slash", "literal.key" to "literal dot",
+        )
+        val id = ObjectId()
+        val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
+        val (type, read) = if (position == LegacyPosition.JOB_PARAMETERS) {
+            val data = JobData(id.toHexString(), workflow.value, AUDIT_JOB_KIND, values,
+                Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+            mappingJobs.create(data)
+            JobDocument::class.java to { assertThat(mappingJobs.findForWorkflowAndId(workflow, JobIdentifier(data.id))).isEqualTo(data); Unit }
+        } else {
+            val data = StepData(id.toHexString(), workflow.value, AUDIT_STEP_KIND, "1",
+                if (position == LegacyPosition.STEP_DATA) values else emptyMap(), Status.Active,
+                if (position == LegacyPosition.STEP_METADATA) values.filterValues { it != null }.mapValues { requireNotNull(it.value) } else emptyMap())
+            mappingSteps.create(data)
+            StepDocument::class.java to { assertThat(mappingSteps.findForWorkflowAndId(workflow, StepIdentifier(data.id))).isEqualTo(data); Unit }
+        }
+        read()
+        val source = raw(type, Document("_id", id))
+        val recordParts = mappingAccess.fieldNames.fieldParts(type, position.currentProperty)
+        val recordParent = recordParts.dropLast(1).fold(source) { parent, segment -> parent.get(segment, Document::class.java) }
+        recordParent.remove(recordParts.last())
+        collection(type).replaceOne(eq("_id", id), source)
+        read()
+        assertCleanInventory()
+        val legacy = mapped(source, type, position.legacyProperty) as Document
+        assertThat(legacy).containsKeys("collectionType", "componentTypes", "slash/key", "literal~key")
+        val collisionKey = if (mapping == AuditMapping.SNAKE) "type_name" else "typeName"
+        val scalarName = if (mapping == AuditMapping.SNAKE) "type_name" else "typeName"
+        val collectionComponents = if (mapping == AuditMapping.SNAKE) "component_types" else "componentTypes"
+        val collectionSpec = legacy.get("collectionType", Document::class.java)
+        val (target, suffix) = when (mutation) {
+            LegacyMutation.SCALAR_COLLISION -> legacy.get(collisionKey, Document::class.java) to "/$collisionKey/$scalarName"
+            LegacyMutation.COLLECTION_EXTRA_TYPE_NAME -> collectionSpec to "/collectionType/$scalarName"
+            LegacyMutation.NULL_COMPONENT_EXTRA_TYPE_NAME -> {
+                val components = mapped(collectionSpec, CollectionType::class.java, "componentTypes") as List<*>
+                components[1] as Document to "/collectionType/$collectionComponents/1/$scalarName"
+            }
+            LegacyMutation.NESTED_EXTRA_TYPE_NAME -> {
+                val nested = Document()
+                collectionSpec["extra"] = nested
+                nested to "/collectionType/extra/$scalarName"
+            }
+            LegacyMutation.LITERAL_DOT_KEY -> legacy.get("literal~key", Document::class.java) to "/literal~0key/$scalarName"
+            LegacyMutation.SLASH_KEY -> legacy.get("slash/key", Document::class.java) to "/slash~1key/$scalarName"
+        }
+        val nameParts = mappingAccess.fieldNames.fieldParts(SimpleType::class.java, "typeName")
+        var nameParent = target
+        nameParts.dropLast(1).forEach { segment ->
+            nameParent = nameParent.get(segment, Document::class.java) ?: Document().also { nameParent[segment] = it }
+        }
+        nameParent[nameParts.last()] = WITNESS_NAME
+        collection(type).replaceOne(eq("_id", id), source)
+        val before = inventorySnapshot()
+
+        assertUnknownType(catchThrowable { read() }, TypeRole.VALUE, WITNESS_NAME)
+        val rootPath = mapping.recordPaths[5 + position.ordinal].substringBefore("/payload/")
+        assertFinding(type, id.toHexString(), rootPath + suffix, TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED)
+        assertThat(inventorySnapshot()).isEqualTo(before)
         assertThat(mappingWitness.events).isEmpty()
     }
 
@@ -235,6 +308,16 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
 
     enum class ModelTypeDeviation { INCONSISTENT, UNREGISTERED }
 
+    enum class LegacyPosition(val legacyProperty: String, val currentProperty: String) {
+        STEP_DATA("dataTypeMap", "dataEntries"), STEP_METADATA("metadataTypeMap", "metadataEntries"),
+        JOB_PARAMETERS("parameterTypeMap", "parameterEntries"),
+    }
+
+    enum class LegacyMutation {
+        SCALAR_COLLISION, COLLECTION_EXTRA_TYPE_NAME, NULL_COMPONENT_EXTRA_TYPE_NAME,
+        NESTED_EXTRA_TYPE_NAME, LITERAL_DOT_KEY, SLASH_KEY,
+    }
+
     enum class AuditMapping(val modelPath: String, val modelTypePath: String, val typeKey: String,
                             val recordPaths: List<String>) {
         DEFAULT("/model", "/modelType", "_class", listOf(
@@ -253,6 +336,11 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
     }
 
     companion object {
+        @JvmStatic
+        fun legacyApplicationKeyCases(): List<Arguments> = LegacyPosition.entries.flatMap { position ->
+            LegacyMutation.entries.map { mutation -> Arguments.of(position, mutation) }
+        }
+
         private val roots = listOf(WorkflowDocument::class.java, StepDocument::class.java,
             JobDocument::class.java, StepDefinitionDocument::class.java)
     }

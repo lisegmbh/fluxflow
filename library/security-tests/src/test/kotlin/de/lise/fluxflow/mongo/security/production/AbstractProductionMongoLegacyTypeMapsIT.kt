@@ -13,6 +13,8 @@ import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
 import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_JOB_KIND
+import de.lise.fluxflow.mongo.security.production.AbstractProductionMongoAuditMappingContract.LegacyPosition
 import de.lise.fluxflow.reflection.types.TypeRole
 import de.lise.fluxflow.mongo.MongoFieldNames
 import de.lise.fluxflow.mongo.bootstrapping.MigrateDataTypesMapBootstrapAction
@@ -32,6 +34,8 @@ import org.bson.Document
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.BeanPostProcessor
@@ -51,6 +55,62 @@ abstract class AbstractProductionMongoLegacyTypeMapsIT(private val expectedTypeN
 
     @BeforeEach fun clear() {
         listOf(StepDocument::class.java, JobDocument::class.java).forEach { collection(it).deleteMany(Document()) }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LegacyPosition::class)
+    fun `O03 legacy application keys keep mapped inner type name checks`(position: LegacyPosition) {
+        val pathMapping = expectedTypeNamePath == "/types/dataTypeMap/payload/jvm/name"
+        val key = if (pathMapping) "typeName" else "type_name"
+        val values: Map<String, Any?> = linkedMapOf("typeName" to "dynamic", "type_name" to "mapped dynamic",
+            "collectionType" to listOf("one", null, listOf("two")), "componentTypes" to "application value",
+            "nullable" to null, "literal.key" to "literal", "slash/key" to "slash")
+        val id = ObjectId().toHexString()
+        val workflowId = WorkflowIdentifier(UUID.randomUUID().toString())
+        val (type, read) = if (position == LegacyPosition.JOB_PARAMETERS) {
+            val data = JobData(id, workflowId.value, AUDIT_JOB_KIND, values,
+                Instant.parse("2026-10-05T12:00:00Z"), null, JobStatus.Scheduled)
+            jobs.create(data)
+            JobDocument::class.java to { assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(id))).isEqualTo(data); Unit }
+        } else {
+            val data = StepData(id, workflowId.value, AUDIT_STEP_KIND, "1",
+                if (position == LegacyPosition.STEP_DATA) values else emptyMap(), Status.Active,
+                if (position == LegacyPosition.STEP_METADATA) values.filterValues { it != null }.mapValues { requireNotNull(it.value) } else emptyMap())
+            steps.create(data)
+            StepDocument::class.java to { assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(id))).isEqualTo(data); Unit }
+        }
+        read()
+        val source = raw(type, id)
+        remove(source, type, position.currentProperty)
+        replace(type, id, source)
+        read()
+        val valid = raw(type, id)
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(raw(type, id)).isEqualTo(valid)
+        assertThat(witness.events).isEmpty()
+        val spec = (fields.read(source, type, position.legacyProperty) as Document).get(key, Document::class.java)
+        val parts = fields.fieldParts(SimpleType::class.java, "typeName")
+        val parent = parts.dropLast(1).fold(spec) { current, part -> current.get(part, Document::class.java) }
+        parent[parts.last()] = WITNESS_NAME
+        replace(type, id, source)
+        val corrupted = raw(type, id)
+
+        assertUnknownType(catchThrowable { read() }, TypeRole.VALUE, WITNESS_NAME)
+        val expected = when (position) {
+            LegacyPosition.STEP_DATA -> if (pathMapping) "/types/dataTypeMap/typeName/jvm/name" else "/data_type_map/type_name/type_name"
+            LegacyPosition.STEP_METADATA -> if (pathMapping) "/types/metadataTypeMap/typeName/jvm/name" else "/metadata_type_map/type_name/type_name"
+            LegacyPosition.JOB_PARAMETERS -> if (pathMapping) "/types/parameterTypeMap/typeName/jvm/name" else "/parameter_type_map/type_name/type_name"
+        }
+        val report = audit.audit()
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(access.template.getCollectionName(type), id, expected,
+                TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(raw(type, id)).isEqualTo(corrupted)
+        assertThat(witness.events).isEmpty()
     }
 
     @Test

@@ -224,6 +224,18 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         field: RawField,
         add: (PendingFinding) -> Unit,
     ) {
+        // Type-map keys belong to the application; only their values describe infrastructure types.
+        val types = field.value as? Map<*, *> ?: return
+        types.forEach { (key, value) ->
+            val path = "${field.path}/${pointerSegment(key?.toString().orEmpty())}"
+            auditInfrastructureTypeNames(RawField(value, true, path), add)
+        }
+    }
+
+    private fun auditInfrastructureTypeNames(
+        field: RawField,
+        add: (PendingFinding) -> Unit,
+    ) {
         when (val value = field.value) {
             is Map<*, *> -> {
                 val typeName = rawField(value, SimpleType::class.java, "typeName", field.path)
@@ -234,15 +246,15 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 value.forEach { (key, nested) ->
                     if (literalTypeName == null || key != literalTypeName) {
                         val nestedPath = "${field.path}/${pointerSegment(key?.toString().orEmpty())}"
-                        auditLegacyTypeNames(RawField(nested, true, nestedPath), add)
+                        auditInfrastructureTypeNames(RawField(nested, true, nestedPath), add)
                     }
                 }
             }
             is Iterable<*> -> value.forEachIndexed { index, nested ->
-                auditLegacyTypeNames(RawField(nested, true, "${field.path}/$index"), add)
+                auditInfrastructureTypeNames(RawField(nested, true, "${field.path}/$index"), add)
             }
             is Array<*> -> value.forEachIndexed { index, nested ->
-                auditLegacyTypeNames(RawField(nested, true, "${field.path}/$index"), add)
+                auditInfrastructureTypeNames(RawField(nested, true, "${field.path}/$index"), add)
             }
         }
     }
