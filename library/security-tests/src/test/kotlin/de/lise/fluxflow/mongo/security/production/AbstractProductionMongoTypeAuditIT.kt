@@ -669,6 +669,45 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         MISSING_ENTRY_REFERENCE, NULL_ENTRY_REFERENCE, MISSING_USE_VALUE, NULL_USE_VALUE,
     }
 
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(JvmEntryTypeProbe::class)
+    fun `O03 public read rejects missing and null JVM entry types scoped to the direct entry`(probe: JvmEntryTypeProbe) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val entry = fixture.records.get("jvmTypes", Document::class.java)
+            .getList("entries", Document::class.java).single()
+        when (probe) {
+            JvmEntryTypeProbe.MISSING -> entry.remove("type")
+            JvmEntryTypeProbe.NULL -> entry["type"] = null
+        }
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+        assertThat(readFailure)
+            .describedAs("Public read must reject %s JVM entry type", probe)
+            .isInstanceOf(RuntimeException::class.java)
+
+        val report = audit.audit()
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .describedAs("Public read outcome: %s", readFailure?.javaClass?.name ?: "success")
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(tuple(
+                collectionName(fixture.type),
+                fixture.id.toString(),
+                "/dataEntries/jvmTypes/entries/0/type",
+                TypeRole.VALUE,
+                MongoTypeAuditIssue.MALFORMED,
+                null,
+            ))
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class JvmEntryTypeProbe { MISSING, NULL }
+
     @Test
     fun `O03 typed records report a missing values key against the public writer baseline`() {
         val id = ObjectId()
