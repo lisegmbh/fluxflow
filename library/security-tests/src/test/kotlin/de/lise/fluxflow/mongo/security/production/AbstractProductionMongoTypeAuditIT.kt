@@ -669,6 +669,270 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         MISSING_ENTRY_REFERENCE, NULL_ENTRY_REFERENCE, MISSING_USE_VALUE, NULL_USE_VALUE,
     }
 
+    @Test
+    fun `O03 typed records report a missing values key against the public writer baseline`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-records-missing-value")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "persisted value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val records = stored.get("dataEntries", Document::class.java)
+        records.get("values", Document::class.java).remove("payload")
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/values/payload", MongoTypeAuditIssue.MALFORMED)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 typed records report a missing types key against the public writer baseline`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-records-missing-type")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "persisted value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val records = stored.get("dataEntries", Document::class.java)
+        records.get("types", Document::class.java).remove("payload")
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/types/payload", MongoTypeAuditIssue.MALFORMED)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(AddedTypedRecordKeySide::class)
+    fun `O03 typed records report unmatched added keys on either side`(side: AddedTypedRecordKeySide) {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-records-added-key-${side.name.lowercase()}")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "persisted value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val records = stored.get("dataEntries", Document::class.java)
+        val expectedPath = when (side) {
+            AddedTypedRecordKeySide.VALUES -> {
+                records.get("values", Document::class.java)["extra"] = "untyped value"
+                "/dataEntries/types/extra"
+            }
+            AddedTypedRecordKeySide.TYPES -> {
+                val payloadType = records.get("types", Document::class.java).get("payload", Document::class.java)
+                records.get("types", Document::class.java)["extra"] = Document(payloadType)
+                "/dataEntries/values/extra"
+            }
+        }
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(), expectedPath,
+                MongoTypeAuditIssue.MALFORMED)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class AddedTypedRecordKeySide { VALUES, TYPES }
+
+    @Test
+    fun `O03 typed record keyset findings escape application keys as JSON pointers`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-records-escaped-key")
+        val applicationKey = "slash/key.tilde"
+        val persistedKey = "slash/key~tilde"
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf(applicationKey to "persisted value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val values = stored.get("dataEntries", Document::class.java).get("values", Document::class.java)
+        assertThat(values).containsKey(persistedKey).doesNotContainKey(applicationKey)
+        values.remove(persistedKey)
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/values/slash~1key~0tilde", MongoTypeAuditIssue.MALFORMED)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 job parameter typed records enforce value and type keysets`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("job-parameter-keyset")
+        val data = JobData(id.toHexString(), workflowId.value, AUDIT_JOB_KIND, mapOf("payload" to "persisted value"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+        jobs.create(data)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(JobDocument::class.java).find(Document("_id", id)).first())
+        stored.get("parameterEntries", Document::class.java).get("values", Document::class.java).remove("payload")
+        collection(JobDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            jobs.findForWorkflowAndId(workflowId, JobIdentifier(data.id))
+        }
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(collectionName(JobDocument::class.java), id.toHexString(),
+                "/parameterEntries/values/payload", MongoTypeAuditIssue.MALFORMED)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 typed records report independent data and metadata keyset findings`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-records-sibling-findings")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("dataKey" to "data value"), Status.Active, mapOf("metadataKey" to "metadata value"))
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        stored.get("dataEntries", Document::class.java).get("values", Document::class.java).remove("dataKey")
+        stored.get("metadataEntries", Document::class.java).get("values", Document::class.java).remove("metadataKey")
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(
+                tuple(collectionName(StepDocument::class.java), id.toHexString(),
+                    "/dataEntries/values/dataKey", MongoTypeAuditIssue.MALFORMED),
+                tuple(collectionName(StepDocument::class.java), id.toHexString(),
+                    "/metadataEntries/values/metadataKey", MongoTypeAuditIssue.MALFORMED),
+            )
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 typed record keyset and type-name findings remain independent`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-records-independent-findings")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "persisted value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val records = stored.get("dataEntries", Document::class.java)
+        records["values"] = null
+        records.get("types", Document::class.java).get("payload", Document::class.java)["typeName"] = WITNESS_NAME
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        assertUnknownType(catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(
+                tuple(collectionName(StepDocument::class.java), id.toHexString(),
+                    "/dataEntries/types/payload/typeName", TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME),
+                tuple(collectionName(StepDocument::class.java), id.toHexString(),
+                    "/dataEntries/values", null, MongoTypeAuditIssue.MALFORMED, null),
+            )
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
     @ParameterizedTest(name = "opaque reference '{0}'")
     @ValueSource(strings = ["opaque-reference", "", "   "])
     fun `O03 arbitrary string references including empty and whitespace remain readable`(reference: String) {

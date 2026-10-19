@@ -41,8 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Audit finding limits now truncate only when an additional finding exists; exactly the configured
    number can complete. Scan counts distinguish unvisited collections from attempted collections.
    Required typed-record containers now report malformed mapped paths without hiding independent
-   type-name findings. Non-null JVM-entry containers must be sequences; optional step/job legacy
-   fallbacks and missing or null JVM-entry defaults remain supported.
+   type-name findings. Present `values` and `types` maps now require matching keys, with findings
+   at the mapped missing-entry paths. Non-null JVM-entry containers must be sequences; optional
+   step/job legacy fallbacks and missing or null JVM-entry defaults remain supported.
    Used JVM references now require a mapping, and duplicate references are reported even when
    unused. Reference checks preserve matching primitive scalar, BSON `ObjectId` and BSON
    `Document` forms without hydration; Document JSON uses the standard UUID string codec. The

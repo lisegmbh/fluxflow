@@ -306,9 +306,32 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             return
         }
         val records = auditRequiredMap(field, add) ?: return
-        auditRequiredMap(rawField(records, TypedRecords::class.java, "values", field.path), add)
+        val valuesField = rawField(records, TypedRecords::class.java, "values", field.path)
+        val values = auditRequiredMap(valuesField, add)
         val typesField = rawField(records, TypedRecords::class.java, "types", field.path)
-        auditRequiredMap(typesField, add)
+        val types = auditRequiredMap(typesField, add)
+        if (values != null && types != null) {
+            (values.keys - types.keys).forEach { key ->
+                add(
+                    PendingFinding(
+                        "${typesField.path}/${pointerSegment(key?.toString().orEmpty())}",
+                        null,
+                        MongoTypeAuditIssue.MALFORMED,
+                        null,
+                    )
+                )
+            }
+            (types.keys - values.keys).forEach { key ->
+                add(
+                    PendingFinding(
+                        "${valuesField.path}/${pointerSegment(key?.toString().orEmpty())}",
+                        null,
+                        MongoTypeAuditIssue.MALFORMED,
+                        null,
+                    )
+                )
+            }
+        }
         auditLegacyTypeNames(typesField, add)
         val jvmTypesField = rawField(records, TypedRecords::class.java, "jvmTypes", field.path)
         val jvmTypes = auditRequiredMap(jvmTypesField, add) ?: return

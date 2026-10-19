@@ -257,8 +257,10 @@ An existing typed-record container requires `jvmTypes`, `values` and `types` map
 or non-map required containers produce `MALFORMED` findings at their mapped field paths, without
 an expected registry role or persisted type name. Empty maps remain valid. Step and job record
 fields may be absent or null when their legacy fallback applies; definition and data-definition
-metadata containers are required. Missing or null JVM mapping `entries` retains its empty-list
-default; a non-null value must be a sequence, otherwise the mapped `entries` path is malformed.
+metadata containers are required. When both `values` and `types` maps are present, their keys must
+match; missing counterparts are reported at the mapped path under the other map. Missing or null
+JVM mapping `entries` retains its empty-list default; a non-null value must be a sequence,
+otherwise the mapped `entries` path is malformed.
 JVM mapping references must be unique, including unused entries, and every used reference must
 have a mapping. Reference failures are structural `MALFORMED` findings with no registry role or
 persisted type name. References need not be UUIDs or nonblank strings; matching reference values
