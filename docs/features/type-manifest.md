@@ -259,6 +259,15 @@ an expected registry role or persisted type name. Empty maps remain valid. Step 
 fields may be absent or null when their legacy fallback applies; definition and data-definition
 metadata containers are required. Missing or null JVM mapping `entries` retains its empty-list
 default; a non-null value must be a sequence, otherwise the mapped `entries` path is malformed.
+JVM mapping references must be unique, including unused entries, and every used reference must
+have a mapping. Reference failures are structural `MALFORMED` findings with no registry role or
+persisted type name. References need not be UUIDs or nonblank strings; matching reference values
+are compared using the string representation of supported primitive scalar forms, BSON
+`ObjectId` values and BSON `Document` values. Document JSON uses a private codec registry with
+the standard UUID string codec, matching Spring Data's UUID-to-string conversion without invoking
+the host converter. The bounded document preflight runs first, and the record-reference pass
+applies its own depth and node limits as well. The audit does not invoke the mapping converter or
+application conversions to resolve these references.
 
 The historical `kind` in a persisted step definition is descriptive: it must be a nonempty string,
 but does not require an active STEP registration. A retained definition can therefore support

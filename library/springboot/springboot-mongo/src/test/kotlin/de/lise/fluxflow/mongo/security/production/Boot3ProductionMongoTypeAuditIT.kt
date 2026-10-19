@@ -14,4 +14,6 @@ import org.springframework.boot.test.context.SpringBootTest
         ProductionMongoSecurityConfiguration::class,
     ],
 )
-class Boot3ProductionMongoTypeAuditIT : AbstractProductionMongoTypeAuditIT()
+class Boot3ProductionMongoTypeAuditIT : AbstractProductionMongoTypeAuditIT() {
+    override val supportsUuidDocumentReferenceWrite: Boolean = true
+}

@@ -1,12 +1,16 @@
 package de.lise.fluxflow.mongo.audit
 
+import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoCollection
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.MongoTypeAliasIssue
 import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.record.CollectionTypeRecord
+import de.lise.fluxflow.mongo.generic.record.JvmTypeRecord
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
+import de.lise.fluxflow.mongo.generic.record.TypeReference
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.step.StepDocument
@@ -14,8 +18,17 @@ import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.reflection.types.TypeRole
+import org.bson.BsonReader
+import org.bson.BsonWriter
 import org.bson.Document
+import org.bson.codecs.Codec
+import org.bson.codecs.DecoderContext
+import org.bson.codecs.EncoderContext
+import org.bson.codecs.configuration.CodecRegistries
 import org.bson.types.ObjectId
+import java.util.ArrayDeque
+import java.util.IdentityHashMap
+import java.util.UUID
 
 /**
  * Uses the synchronous driver directly so the scan never invokes the mapping converter.
@@ -300,21 +313,113 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         val jvmTypesField = rawField(records, TypedRecords::class.java, "jvmTypes", field.path)
         val jvmTypes = auditRequiredMap(jvmTypesField, add) ?: return
         val entriesField = rawField(jvmTypes, JvmTypeMapping::class.java, "entries", jvmTypesField.path)
-        val entries = entriesField.value as? Iterable<*>
-        if (entries == null) {
-            if (entriesField.value != null) {
-                add(PendingFinding(entriesField.path, null, MongoTypeAuditIssue.MALFORMED, null))
-            }
+        if (entriesField.value != null && entriesField.value !is Iterable<*>) {
+            add(PendingFinding(entriesField.path, null, MongoTypeAuditIssue.MALFORMED, null))
             return
         }
+        val entries = entriesField.value as? Iterable<*> ?: emptyList<Any?>()
+        val references = mutableSetOf<String>()
         entries.forEachIndexed { index, entry ->
-            val type = rawField(entry as? Map<*, *>, TypeRecordEntry::class.java, "type", "${entriesField.path}/$index")
+            val typeEntry = entry as? Map<*, *>
+            val entryPath = "${entriesField.path}/$index"
+            val type = rawField(typeEntry, TypeRecordEntry::class.java, "type", entryPath)
             auditValueName(
                 type.path,
                 type.value,
                 add,
             )
+            if (typeEntry != null) {
+                val referenceField = rawField(typeEntry, TypeRecordEntry::class.java, "reference", entryPath)
+                val reference = referenceString(referenceField.value)
+                if (reference == null || !references.add(reference)) {
+                    add(PendingFinding(referenceField.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                }
+            }
         }
+        auditRecordReferences(typesField, references, add)
+    }
+
+    /** The document preflight validates the source graph; this focused second pass also enforces its own budget. */
+    private fun auditRecordReferences(
+        field: RawField,
+        references: Set<String>,
+        add: (PendingFinding) -> Unit,
+    ) {
+        val types = field.value as? Map<*, *> ?: return
+        val pending = ArrayDeque<RawField>()
+        var nodes = 1
+        fun enqueue(rawField: RawField) {
+            if (rawField.depth > MAX_RECORD_REFERENCE_DEPTH) {
+                throw MongoTypeAuditInspectionException(
+                    rawField.path,
+                    "Mongo document exceeds the maximum depth of $MAX_RECORD_REFERENCE_DEPTH at '${rawField.path}'",
+                )
+            }
+            if (nodes + pending.size >= MAX_RECORD_REFERENCE_NODES) {
+                throw MongoTypeAuditInspectionException(
+                    rawField.path,
+                    "Mongo document exceeds the maximum node count of $MAX_RECORD_REFERENCE_NODES",
+                )
+            }
+            pending.add(rawField)
+        }
+        types.forEach { (key, value) ->
+            enqueue(RawField(value, true, "${field.path}/${pointerSegment(key?.toString().orEmpty())}", depth = 1))
+        }
+        val visited = IdentityHashMap<Any, Boolean>()
+        while (pending.isNotEmpty()) {
+            val current = pending.removeLast()
+            nodes++
+            if (nodes > MAX_RECORD_REFERENCE_NODES) {
+                throw MongoTypeAuditInspectionException(
+                    current.path,
+                    "Mongo document exceeds the maximum node count of $MAX_RECORD_REFERENCE_NODES",
+                )
+            }
+            if (current.depth > MAX_RECORD_REFERENCE_DEPTH) {
+                throw MongoTypeAuditInspectionException(
+                    current.path,
+                    "Mongo document exceeds the maximum depth of $MAX_RECORD_REFERENCE_DEPTH at '${current.path}'",
+                )
+            }
+            val record = current.value as? Map<*, *> ?: continue
+            if (visited.put(record, true) != null) {
+                continue
+            }
+            val alias = record[access.typeKey]
+            when {
+                access.typeAliases.isAliasFor(alias, JvmTypeRecord::class.java) -> {
+                    val referenceField = rawField(record, JvmTypeRecord::class.java, "jvmTypeReference", current.path)
+                    val reference = auditRequiredMap(referenceField, add) ?: continue
+                    val value = rawField(reference, TypeReference::class.java, "value", referenceField.path)
+                    val name = referenceString(value.value)
+                    if (name == null || name !in references) {
+                        add(PendingFinding(value.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                    }
+                }
+                access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) -> {
+                    val collectionType = rawField(record, CollectionTypeRecord::class.java, "collectionType", current.path)
+                    enqueue(collectionType.copy(depth = current.depth + 1))
+                    val components = rawField(record, CollectionTypeRecord::class.java, "componentTypes", current.path)
+                    when (val values = components.value) {
+                        is Iterable<*> -> values.forEachIndexed { index, value ->
+                            enqueue(RawField(value, true, "${components.path}/$index", current.depth + 1))
+                        }
+                        is Array<*> -> values.forEachIndexed { index, value ->
+                            enqueue(RawField(value, true, "${components.path}/$index", current.depth + 1))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun referenceString(value: Any?): String? = when (value) {
+        is String -> value
+        is Boolean, is Byte, is Short, is Int, is Long, is Float, is Double -> value.toString()
+        is ObjectId -> value.toHexString()
+        is Document -> value.toJson(auditDocumentCodecRegistry.get(Document::class.java))
+        else -> null
     }
 
     private fun auditRequiredMap(field: RawField, add: (PendingFinding) -> Unit): Map<*, *>? {
@@ -384,6 +489,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
         val value: Any?,
         val present: Boolean,
         val path: String,
+        val depth: Int = 1,
     )
 
     private data class AuditTarget(
@@ -400,6 +506,22 @@ internal class RawBsonFluxFlowMongoTypeAudit(
     )
 
     private companion object {
+        const val MAX_RECORD_REFERENCE_DEPTH = 100
+        const val MAX_RECORD_REFERENCE_NODES = 100_000
+        private val auditDocumentCodecRegistry = CodecRegistries.fromRegistries(
+            CodecRegistries.fromCodecs(object : Codec<UUID> {
+                override fun encode(writer: BsonWriter, value: UUID, encoderContext: EncoderContext) {
+                    writer.writeString(value.toString())
+                }
+
+                override fun getEncoderClass(): Class<UUID> = UUID::class.java
+
+                override fun decode(reader: BsonReader, decoderContext: DecoderContext): UUID =
+                    throw IllegalStateException("decode not supported")
+            }),
+            MongoClientSettings.getDefaultCodecRegistry(),
+        )
+
         val FindingOrder = compareBy<MongoTypeAuditFinding> { it.collection }
             .thenBy { it.documentId }
             .thenBy { it.path }

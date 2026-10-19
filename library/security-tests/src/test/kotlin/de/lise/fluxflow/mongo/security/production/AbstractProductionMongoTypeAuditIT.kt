@@ -16,6 +16,7 @@ import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditOptions
 import de.lise.fluxflow.mongo.audit.RawBsonFluxFlowMongoTypeAudit
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
+import de.lise.fluxflow.mongo.generic.ValueTypeConversionException
 import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
@@ -36,10 +37,12 @@ import de.lise.fluxflow.persistence.step.definition.StepDefinitionData
 import de.lise.fluxflow.persistence.step.definition.StepDefinitionPersistence
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.types.UnknownTypeException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
 import org.assertj.core.groups.Tuple.tuple
 import org.bson.Document
+import org.bson.codecs.configuration.CodecConfigurationException
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -51,8 +54,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.data.mapping.model.MappingInstantiationException
 import java.time.Instant
+import java.util.UUID
 
 abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAuditMappingContract(AuditMapping.DEFAULT) {
+    protected open val supportsUuidDocumentReferenceWrite: Boolean = true
+
     @Autowired
     private lateinit var access: FluxFlowMongoAccess
 
@@ -389,6 +395,349 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
             .describedAs("Structural audit after public read failed with %s", readFailure?.javaClass?.name)
             .singleElement().extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
             .containsExactly(collectionName(fixture.type), fixture.id.toString(), path, null, MongoTypeAuditIssue.MALFORMED, null)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(ReferenceScalarProbe::class)
+    fun `O03 public reference scalar conversion preserves matching mappings and uses`(probe: ReferenceScalarProbe) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val use = fixture.records.get("types", Document::class.java).get("payload", Document::class.java)
+            .get("jvmTypeReference", Document::class.java)
+        val entry = fixture.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java).single()
+        assertThat(entry.getString("reference")).isEqualTo(use.getString("value"))
+        entry["reference"] = if (probe.side == ReferenceSide.USE) probe.stringValue else probe.rawValue
+        use["value"] = if (probe.side == ReferenceSide.ENTRY) probe.stringValue else probe.rawValue
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        fixture.read()
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.failures).isEmpty()
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class ReferenceSide { ENTRY, USE, BOTH }
+
+    enum class ReferenceScalarProbe(val rawValue: Any, val stringValue: String, val side: ReferenceSide) {
+        INTEGER_ENTRY(42, "42", ReferenceSide.ENTRY), INTEGER_USE(42, "42", ReferenceSide.USE), INTEGER_BOTH(42, "42", ReferenceSide.BOTH),
+        BOOLEAN_ENTRY(true, "true", ReferenceSide.ENTRY), BOOLEAN_USE(true, "true", ReferenceSide.USE), BOOLEAN_BOTH(true, "true", ReferenceSide.BOTH),
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(ReferenceBsonProbe::class)
+    fun `O03 public reference BSON conversion preserves matching mappings and uses`(probe: ReferenceBsonProbe) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val use = fixture.records.get("types", Document::class.java).get("payload", Document::class.java)
+            .get("jvmTypeReference", Document::class.java)
+        val entry = fixture.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java).single()
+        assertThat(entry.getString("reference")).isEqualTo(use.getString("value"))
+        entry["reference"] = if (probe.side == ReferenceSide.USE) probe.stringValue else probe.rawValue()
+        use["value"] = if (probe.side == ReferenceSide.ENTRY) probe.stringValue else probe.rawValue()
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        fixture.read()
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.failures).isEmpty()
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class ReferenceBsonProbe(val rawValue: () -> Any, val stringValue: String, val side: ReferenceSide) {
+        DOCUMENT_ENTRY({ Document() }, "{}", ReferenceSide.ENTRY),
+        DOCUMENT_USE({ Document() }, "{}", ReferenceSide.USE),
+        DOCUMENT_BOTH({ Document() }, "{}", ReferenceSide.BOTH),
+        OBJECT_ID_ENTRY({ ObjectId("000000000000000000000042") }, "000000000000000000000042", ReferenceSide.ENTRY),
+        OBJECT_ID_USE({ ObjectId("000000000000000000000042") }, "000000000000000000000042", ReferenceSide.USE),
+        OBJECT_ID_BOTH({ ObjectId("000000000000000000000042") }, "000000000000000000000042", ReferenceSide.BOTH),
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(DocumentReferenceSide::class)
+    fun `O03 Document reference with UUID matches the public Spring conversion in either direction`(side: DocumentReferenceSide) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val use = fixture.records.get("types", Document::class.java).get("payload", Document::class.java)
+            .get("jvmTypeReference", Document::class.java)
+        val entry = fixture.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java).single()
+        val bsonReference = Document("uuid", UUID.fromString("00000000-0000-0000-0000-000000000001"))
+        val springReference = requireNotNull(access.converter.conversionService.convert(bsonReference, String::class.java))
+        entry["reference"] = if (side == DocumentReferenceSide.ENTRY_IS_STRING) springReference else bsonReference
+        use["value"] = if (side == DocumentReferenceSide.USE_IS_STRING) springReference else bsonReference
+        val beforeWrite = rawSnapshot()
+        if (!supportsUuidDocumentReferenceWrite) {
+            val writeFailure = catchThrowable {
+                collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+            }
+            assertThat(writeFailure).isInstanceOf(CodecConfigurationException::class.java)
+            assertThat(rawSnapshot()).isEqualTo(beforeWrite)
+            assertThat(witnessLoader.events).isEmpty()
+        } else {
+            collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+            val persisted = requireNotNull(collection(fixture.type).find(Document("_id", fixture.id)).first())
+            val persistedEntryReference = persisted.get("dataEntries", Document::class.java)
+                .get("jvmTypes", Document::class.java).getList("entries", Document::class.java).single().get("reference")
+            val persistedUseReference = persisted.get("dataEntries", Document::class.java)
+                .get("types", Document::class.java).get("payload", Document::class.java)
+                .get("jvmTypeReference", Document::class.java).get("value")
+            if (side == DocumentReferenceSide.ENTRY_IS_STRING) {
+                assertThat(persistedEntryReference).isInstanceOf(String::class.java)
+                assertThat(persistedUseReference).isInstanceOf(Document::class.java)
+            } else {
+                assertThat(persistedEntryReference).isInstanceOf(Document::class.java)
+                assertThat(persistedUseReference).isInstanceOf(String::class.java)
+            }
+            val before = rawSnapshot()
+
+            fixture.read()
+            val report = audit.audit()
+
+            assertThat(springReference).isNotEmpty()
+            assertThat(report.complete).isTrue()
+            assertThat(report.isCompatible).isTrue()
+            assertThat(report.findings).isEmpty()
+            assertThat(report.failures).isEmpty()
+            assertThat(rawSnapshot()).isEqualTo(before)
+            assertThat(witnessLoader.events).isEmpty()
+        }
+    }
+
+    enum class DocumentReferenceSide { ENTRY_IS_STRING, USE_IS_STRING }
+
+    @Test
+    fun `O03 Document reference typeName key remains reference data during legacy type name audit`() {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val use = fixture.records.get("types", Document::class.java).get("payload", Document::class.java)
+            .get("jvmTypeReference", Document::class.java)
+        val entry = fixture.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java).single()
+        val bsonReference = Document("typeName", "opaque-reference")
+        val springReference = requireNotNull(access.converter.conversionService.convert(bsonReference, String::class.java))
+        entry["reference"] = bsonReference
+        use["value"] = bsonReference
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+        val report = audit.audit()
+
+        assertThat(springReference).isNotEmpty()
+        assertThat(readFailure).isInstanceOf(UnknownTypeException::class.java)
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(fixture.type), fixture.id.toString(),
+                "/dataEntries/types/payload/jvmTypeReference/value/typeName", TypeRole.VALUE,
+                MongoTypeAuditIssue.UNREGISTERED, "opaque-reference")
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 audit locates a used JVM reference whose writer mapping was removed`() {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val reference = fixture.records.get("types", Document::class.java).get("payload", Document::class.java)
+            .get("jvmTypeReference", Document::class.java).getString("value")
+        val entries = fixture.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java)
+        assertThat(entries).hasSize(1)
+        assertThat(entries.single().getString("reference")).isEqualTo(reference)
+        val used = entries.single { it.getString("reference") == reference }
+        assertThat(entries.remove(used)).isTrue()
+        assertThat(entries).isEmpty()
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .describedAs("Reference audit after public read failed with %s", readFailure?.javaClass?.name)
+            .singleElement().extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(fixture.type), fixture.id.toString(),
+                "/dataEntries/types/payload/jvmTypeReference/value", null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(allVisitedCounts(StepDocument::class.java to 1L))
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 audit allows unique unused JVM references and rejects duplicate used or unused references`() {
+        val unused = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val unusedEntries = unused.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java)
+        val extra = Document(unusedEntries.single()).append("reference", "unused-reference")
+        unusedEntries.add(extra)
+        collection(unused.type).replaceOne(Document("_id", unused.id), unused.source)
+        unused.read()
+
+        assertThat(audit.audit().isCompatible).isTrue()
+
+        val usedDuplicate = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "used value"))
+        val usedEntries = usedDuplicate.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java)
+        usedEntries.add(Document(usedEntries.single()))
+        collection(usedDuplicate.type).replaceOne(Document("_id", usedDuplicate.id), usedDuplicate.source)
+        val usedReport = audit.audit()
+
+        assertThat(usedReport.isCompatible).isFalse()
+        assertThat(usedReport.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(collectionName(usedDuplicate.type), usedDuplicate.id.toString(),
+                "/dataEntries/jvmTypes/entries/1/reference", MongoTypeAuditIssue.MALFORMED)
+        collection(usedDuplicate.type).deleteOne(Document("_id", usedDuplicate.id))
+
+        val unusedDuplicate = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "another value"))
+        val unusedEntriesWithDuplicate = unusedDuplicate.records.get("jvmTypes", Document::class.java)
+            .getList("entries", Document::class.java)
+        val unusedEntry = Document(unusedEntriesWithDuplicate.single()).append("reference", "unused-duplicate")
+        unusedEntriesWithDuplicate.add(unusedEntry)
+        unusedEntriesWithDuplicate.add(Document(unusedEntry))
+        collection(unusedDuplicate.type).replaceOne(Document("_id", unusedDuplicate.id), unusedDuplicate.source)
+        val unusedReport = audit.audit()
+
+        assertThat(unusedReport.isCompatible).isFalse()
+        assertThat(unusedReport.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(collectionName(unusedDuplicate.type), unusedDuplicate.id.toString(),
+                "/dataEntries/jvmTypes/entries/2/reference", MongoTypeAuditIssue.MALFORMED)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(ReferenceShapeProbe::class)
+    fun `O03 public read records missing and null reference behavior before audit`(probe: ReferenceShapeProbe) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val use = fixture.records.get("types", Document::class.java).get("payload", Document::class.java)
+            .get("jvmTypeReference", Document::class.java)
+        val entry = fixture.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java).single()
+        when (probe) {
+            ReferenceShapeProbe.MISSING_ENTRY_REFERENCE -> entry.remove("reference")
+            ReferenceShapeProbe.NULL_ENTRY_REFERENCE -> entry["reference"] = null
+            ReferenceShapeProbe.MISSING_USE_VALUE -> use.remove("value")
+            ReferenceShapeProbe.NULL_USE_VALUE -> use["value"] = null
+        }
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+        assertThat(readFailure)
+            .describedAs("Public read must reject %s before the audit runs", probe)
+            .isNotNull
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        val path = when (probe) {
+            ReferenceShapeProbe.MISSING_ENTRY_REFERENCE, ReferenceShapeProbe.NULL_ENTRY_REFERENCE ->
+                "/dataEntries/jvmTypes/entries/0/reference"
+            ReferenceShapeProbe.MISSING_USE_VALUE, ReferenceShapeProbe.NULL_USE_VALUE ->
+                "/dataEntries/types/payload/jvmTypeReference/value"
+        }
+        val expectedFindings = if (probe == ReferenceShapeProbe.MISSING_ENTRY_REFERENCE ||
+            probe == ReferenceShapeProbe.NULL_ENTRY_REFERENCE) {
+            listOf(
+                tuple(collectionName(fixture.type), fixture.id.toString(), path, MongoTypeAuditIssue.MALFORMED),
+                tuple(collectionName(fixture.type), fixture.id.toString(),
+                    "/dataEntries/types/payload/jvmTypeReference/value", MongoTypeAuditIssue.MALFORMED),
+            )
+        } else {
+            listOf(tuple(collectionName(fixture.type), fixture.id.toString(), path, MongoTypeAuditIssue.MALFORMED))
+        }
+        assertThat(report.findings)
+            .describedAs("Public read outcome: %s", readFailure?.javaClass?.name ?: "success")
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactlyElementsOf(expectedFindings)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class ReferenceShapeProbe {
+        MISSING_ENTRY_REFERENCE, NULL_ENTRY_REFERENCE, MISSING_USE_VALUE, NULL_USE_VALUE,
+    }
+
+    @ParameterizedTest(name = "opaque reference '{0}'")
+    @ValueSource(strings = ["opaque-reference", "", "   "])
+    fun `O03 arbitrary string references including empty and whitespace remain readable`(reference: String) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val use = fixture.records.get("types", Document::class.java).get("payload", Document::class.java)
+            .get("jvmTypeReference", Document::class.java)
+        val entry = fixture.records.get("jvmTypes", Document::class.java).getList("entries", Document::class.java).single()
+        entry["reference"] = reference
+        use["value"] = reference
+        collection(fixture.type).replaceOne(Document("_id", fixture.id), fixture.source)
+
+        fixture.read()
+        val report = audit.audit()
+
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.failures).isEmpty()
+    }
+
+    @Test
+    fun `O03 nested collection reference use is audited recursively and isolated from another typed container`() {
+        val stepId = ObjectId()
+        val workflowId = WorkflowIdentifier("nested-reference-isolation")
+        val stepData = StepData(stepId.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("nested" to listOf("first", null, listOf("second"))), Status.Active, emptyMap())
+        steps.create(stepData)
+
+        val jobId = ObjectId()
+        val jobData = JobData(jobId.toHexString(), workflowId.value, AUDIT_JOB_KIND, mapOf("payload" to "other container"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+        jobs.create(jobData)
+
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(stepData.id))).isEqualTo(stepData)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(jobData.id))).isEqualTo(jobData)
+        assertThat(audit.audit().isCompatible).isTrue()
+
+        val stepStored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", stepId)).first())
+        val stepRecords = stepStored.get("dataEntries", Document::class.java)
+        val stepEntries = stepRecords.get("jvmTypes", Document::class.java).getList("entries", Document::class.java)
+        val stepTypes = stepRecords.get("types", Document::class.java)
+        val nestedRecord = stepTypes.get("nested", Document::class.java)
+        val nestedUse = nestedRecord.getList("componentTypes", Document::class.java)[2]
+            .getList("componentTypes", Document::class.java)[0]
+            .get("jvmTypeReference", Document::class.java)
+        val nestedReference = nestedUse.getString("value")
+        val removed = stepEntries.single { it.getString("reference") == nestedReference }
+        assertThat(stepEntries.remove(removed)).isTrue()
+        collection(StepDocument::class.java).replaceOne(Document("_id", stepId), stepStored)
+        val before = rawSnapshot()
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(stepData.id))
+        }
+        val report = audit.audit()
+
+        assertThat(report.isCompatible).isFalse()
+        assertThat(readFailure).isInstanceOf(ValueTypeConversionException::class.java)
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(
+                tuple(collectionName(StepDocument::class.java), stepId.toHexString(),
+                    "/dataEntries/types/nested/componentTypes/0/jvmTypeReference/value", MongoTypeAuditIssue.MALFORMED),
+                tuple(collectionName(StepDocument::class.java), stepId.toHexString(),
+                    "/dataEntries/types/nested/componentTypes/2/componentTypes/0/jvmTypeReference/value",
+                    MongoTypeAuditIssue.MALFORMED),
+            )
+        assertThat(report.findings).noneMatch { finding ->
+            finding.collection == collectionName(JobDocument::class.java) && finding.documentId == jobId.toHexString()
+        }
+        assertThat(rawSnapshot()).isEqualTo(before)
     }
 
     @Test
