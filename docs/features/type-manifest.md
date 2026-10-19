@@ -241,8 +241,8 @@ class TypeInventoryCheck(
 }
 ```
 
-The audit checks persisted step and job kinds, workflow model names and discriminators, nested
-Mongo discriminators, legacy `typeName` fields, and current typed-record JVM type entries against
+The audit checks kinds in persisted step and job documents, workflow model names and discriminators,
+nested Mongo discriminators, legacy `typeName` fields, and current typed-record JVM type entries against
 the immutable registry of the running application. Fixed scalar and container workflow models that
 the guarded converter already supports are accepted without application registrations. Findings
 contain the collection, document ID, JSON-pointer-style field path, expected role when one applies,
@@ -252,6 +252,12 @@ persisted name when it is a string, and one of these issues:
 - `MALFORMED`: required type metadata is missing, empty, or is not a string.
 - `DISALLOWED`: a name is known in another role or is not permitted at that document location.
 - `INCONSISTENT`: two registered fields in one document identify different model classes.
+
+The historical `kind` in a persisted step definition is descriptive: it must be a nonempty string,
+but does not require an active STEP registration. A retained definition can therefore support
+restoration after its executable kind is retired. This exception applies only to definition
+kinds; step and job documents still require exact registrations, and definition metadata still
+requires permitted VALUE types. Missing, null, empty or nonstring definition kinds are malformed.
 
 `scannedDocumentsByCollection` reports how many documents were inspected. `complete` is `false`
 when `maxFindings` stops the scan, a collection cannot be read, or a document exceeds the traversal
@@ -288,9 +294,10 @@ candidate application artifact and configuration:
    It should cover workflow resume and restored steps, custom step and job kinds, representative
    queries, job execution, and model/value types supplied by other artifacts.
 
-Every historical custom key that can still be read needs an exact declaration for its matching
-role; entries from legacy value maps and typed records use the `value` role. Applications with
-dynamic or erased model types need explicit entries. The in-repository consumer fixtures exercise
+Historical custom type keys used to materialize models or values, or activate steps and jobs,
+need exact declarations for their matching roles; entries from legacy value maps and typed records
+use the `value` role. Historical step-definition kinds follow the descriptive exception above.
+Applications with dynamic or erased model types need explicit entries. The in-repository consumer fixtures exercise
 this contract on both supported Spring Boot lines, but they do not replace an inventory or
 acceptance run against the actual application and its data.
 

@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    registry, independently of the JVM mapping entries, matching the guarded read contract.
    Documents exceeding an audit traversal budget now produce a malformed finding with their
    ID and field path, mark the report incomplete, and allow subsequent documents to be inspected.
+   Archived step definitions no longer require an active STEP registration for their historical
+   kind. Required kind strings and all persisted value type metadata remain validated.
    [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 
 ### Changed

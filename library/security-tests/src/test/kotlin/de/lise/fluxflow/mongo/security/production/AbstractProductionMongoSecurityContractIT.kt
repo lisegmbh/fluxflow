@@ -13,13 +13,26 @@ import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.step.Status
+import de.lise.fluxflow.api.step.RestoredStep
 import de.lise.fluxflow.api.step.StepIdentifier
+import de.lise.fluxflow.api.step.stateful.StatefulStep
+import de.lise.fluxflow.api.step.stateful.StatefulStepDefinition
+import de.lise.fluxflow.api.versioning.DefaultCompatibilityTester
+import de.lise.fluxflow.api.versioning.VersionCompatibility
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.engine.step.DefaultStepActivationService
+import de.lise.fluxflow.engine.step.RestoringStepActivationService
+import de.lise.fluxflow.engine.step.StepTypeResolverImpl
+import de.lise.fluxflow.engine.step.definition.StepDefinitionService
+import de.lise.fluxflow.engine.workflow.WorkflowDefinitionImpl
+import de.lise.fluxflow.engine.workflow.WorkflowImpl
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.FluxFlowMongoConverterCustomizer
 import de.lise.fluxflow.mongo.FluxFlowMongoTemplateCustomizer
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeMapperFactory
 import de.lise.fluxflow.mongo.FluxFlowMongoTypeAliases
+import de.lise.fluxflow.mongo.audit.RawBsonFluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
@@ -34,6 +47,8 @@ import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.ENUM_WITNESS_NAME
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.fixtures.HostOnlyWorkflowModel
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_JOB_KIND
 import de.lise.fluxflow.mongo.security.fixtures.MODEL_TYPE_ALIAS
 import de.lise.fluxflow.mongo.security.fixtures.DUAL_MODEL_ALIAS
 import de.lise.fluxflow.mongo.security.fixtures.DUAL_VALUE_ALIAS
@@ -57,6 +72,8 @@ import de.lise.fluxflow.mongo.security.fixtures.securityTestModel
 import de.lise.fluxflow.mongo.security.fixtures.securityTestRegistry
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionMongoPersistence
+import de.lise.fluxflow.mongo.step.definition.StepDefinitionRepository
 import de.lise.fluxflow.mongo.workflow.WorkflowDocument
 import de.lise.fluxflow.persistence.job.JobPersistence
 import de.lise.fluxflow.persistence.job.JobData
@@ -72,6 +89,18 @@ import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.reflection.types.TypeManifestException
 import de.lise.fluxflow.reflection.types.TypeRegistry
 import de.lise.fluxflow.reflection.types.TypeRole
+import de.lise.fluxflow.reflection.activation.parameter.PriorityParameterResolver
+import de.lise.fluxflow.springboot.ioc.SpringIocProvider
+import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
+import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
+import de.lise.fluxflow.stereotyped.step.StepDefinitionBuilder
+import de.lise.fluxflow.stereotyped.step.action.ActionDefinitionBuilder
+import de.lise.fluxflow.stereotyped.step.action.ActionFunctionResolverImpl
+import de.lise.fluxflow.stereotyped.step.automation.AutomationDefinitionBuilder
+import de.lise.fluxflow.stereotyped.step.data.DataDefinitionBuilder
+import de.lise.fluxflow.stereotyped.step.data.DataListenerDefinitionBuilder
+import de.lise.fluxflow.stereotyped.versioning.VersionBuilder
+import de.lise.fluxflow.validation.noop.NoOpDataValidationBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.bson.Document
@@ -82,6 +111,8 @@ import org.bson.BsonString
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.ApplicationEvent
@@ -1342,6 +1373,232 @@ abstract class AbstractProductionMongoSecurityContractIT {
     }
 
     @Test
+    fun `O05 contracted registries accept archived definitions of retired step kinds`() {
+        val expandedEntries = allowedSecurityTestEntries().toList()
+        val contractedEntries = expandedEntries.filterNot { it.role == TypeRole.STEP && it.key == AUDIT_STEP_KIND }
+        assertThat(expandedEntries.size - contractedEntries.size).isEqualTo(1)
+        val expandedRegistry = securityTestRegistry(witnessLoader, *expandedEntries.toTypedArray())
+        val contractedRegistry = securityTestRegistry(witnessLoader, *contractedEntries.toTypedArray())
+        val expandedSnapshot = expandedRegistry.entries.toList()
+        val contractedSnapshot = contractedRegistry.entries.toList()
+        assertThat(contractedSnapshot).containsExactlyElementsOf(
+            expandedSnapshot.filterNot { it.role == TypeRole.STEP && it.key == AUDIT_STEP_KIND },
+        )
+        assertUnknownType(catchFailure { contractedRegistry.resolve(TypeRole.STEP, AUDIT_STEP_KIND) }, TypeRole.STEP, AUDIT_STEP_KIND)
+        val expanded = productionAccess(expandedRegistry)
+        val contracted = productionAccess(contractedRegistry)
+        val expandedDefinitions = StepDefinitionMongoPersistence(
+            expanded.repository(StepDefinitionRepository::class.java), expanded.template, expanded.valueTypes,
+        )
+        val contractedDefinitions = StepDefinitionMongoPersistence(
+            contracted.repository(StepDefinitionRepository::class.java), contracted.template, contracted.valueTypes,
+        )
+        val definition = StepDefinitionData(
+            AUDIT_STEP_KIND, "1", mapOf("label" to SecurityTestWorkflowValue("archived metadata")), emptyList(),
+        )
+        assertThat(expandedDefinitions.save(definition)).isEqualTo(definition)
+        assertThat(expandedDefinitions.findForKindAndVersion(AUDIT_STEP_KIND, "1")).isEqualTo(definition)
+        assertThat(RawBsonFluxFlowMongoTypeAudit(expanded).audit().isCompatible).isTrue()
+        assertThat(contractedDefinitions.findForKindAndVersion(AUDIT_STEP_KIND, "1")).isEqualTo(definition)
+        listOf(WorkflowDocument::class.java, StepDocument::class.java, JobDocument::class.java).forEach {
+            assertThat(collection(it).countDocuments()).isZero()
+        }
+        val before = collection(StepDefinitionDocument::class.java).find().map { it.toJson() }.toList()
+
+        val report = RawBsonFluxFlowMongoTypeAudit(contracted).audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.scannedDocumentsByCollection.values.sum()).isEqualTo(1L)
+        assertThat(collection(StepDefinitionDocument::class.java).find().map { it.toJson() }.toList()).isEqualTo(before)
+        assertThat(expandedRegistry.entries).containsExactlyElementsOf(expandedSnapshot)
+        assertThat(contractedRegistry.entries).containsExactlyElementsOf(contractedSnapshot)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O05 contracted definitions restore retired steps through real services without executable actions`() {
+        val fixture = contractedArchive()
+        val workflowId = WorkflowIdentifier("contracted-restore-workflow")
+        val workflow = WorkflowImpl(
+            WorkflowDefinitionImpl<SecurityTestWorkflowModel>(emptyList()), workflowId, securityTestModel(), emptyMap(),
+        )
+        val data = StepData(
+            ObjectId().toHexString(), workflowId.value, fixture.definition.kind, fixture.definition.version,
+            emptyMap(), Status.Active, mapOf("snapshot" to "persisted step metadata"),
+        )
+        val continuationBuilder = ContinuationBuilder()
+        val metadataBuilder = MetadataBuilder()
+        val parameterResolver = PriorityParameterResolver(emptyList())
+        val builder = StepDefinitionBuilder(
+            VersionBuilder(),
+            ActionDefinitionBuilder(continuationBuilder, metadataBuilder, ActionFunctionResolverImpl(parameterResolver)),
+            DataDefinitionBuilder(
+                DataListenerDefinitionBuilder(continuationBuilder, parameterResolver), NoOpDataValidationBuilder(), metadataBuilder,
+            ),
+            metadataBuilder,
+            AutomationDefinitionBuilder(continuationBuilder, parameterResolver),
+        )
+        val base = DefaultStepActivationService(
+            SpringIocProvider(applicationContext),
+            builder,
+            StepTypeResolverImpl(requireNotNull(applicationContext.classLoader), fixture.registry),
+            VersionCompatibility.Unknown,
+            DefaultCompatibilityTester(),
+        )
+        val restoring = RestoringStepActivationService(base, StepDefinitionService(fixture.definitions), false)
+        assertUnknownType(catchFailure { base.activateFromPersistence(workflow, data) }, TypeRole.STEP, data.kind)
+        val before = auditedSnapshot()
+        assertThat(RawBsonFluxFlowMongoTypeAudit(fixture.contracted).audit().isCompatible).isTrue()
+
+        val restored = restoring.activateFromPersistence(workflow, data)
+
+        assertThat(restored).isInstanceOf(RestoredStep::class.java).isInstanceOf(StatefulStep::class.java)
+        assertThat(restored.identifier.value).isEqualTo(data.id)
+        assertThat(restored.version.version).isEqualTo(data.version)
+        assertThat(restored.status).isEqualTo(data.status)
+        assertThat(restored.metadata).isEqualTo(data.metadata)
+        assertThat(restored.workflow).isSameAs(workflow)
+        assertThat(restored.definition.kind.value).isEqualTo(data.kind)
+        assertThat(restored.definition.metadata).isEqualTo(fixture.definition.metadata)
+        assertThat((restored as StatefulStep).actions).isEmpty()
+        val definition = restored.definition as StatefulStepDefinition
+        assertThat(definition.actions).isEmpty()
+        assertThat(definition.onCreatedAutomations).isEmpty()
+        assertThat(definition.onCompletedAutomations).isEmpty()
+        assertThat(auditedSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = TypeRole::class, names = ["STEP", "JOB"])
+    fun `O05 active step and job kinds remain strict after their registration is retired`(role: TypeRole) {
+        val fixture = contractedArchive(role)
+        val id = ObjectId().toHexString()
+        val workflowId = "retired-active-kind-workflow"
+        val targetType: Class<*>
+        when (role) {
+            TypeRole.STEP -> {
+                val document = StepDocument(id, workflowId, fixture.definition.kind, "1", emptyMap(), emptyMap(), Status.Active)
+                fixture.expanded.template.save(document)
+                val read = requireNotNull(fixture.expanded.template.findById(id, StepDocument::class.java))
+                assertThat(read.toStepData(fixture.expanded.valueTypes))
+                    .isEqualTo(StepData(id, workflowId, fixture.definition.kind, "1", emptyMap(), Status.Active, emptyMap()))
+                targetType = StepDocument::class.java
+            }
+            TypeRole.JOB -> {
+                val scheduled = Instant.parse("2026-09-10T10:00:00Z")
+                val document = JobDocument(id, workflowId, fixture.definition.kind, emptyMap(), scheduled, null, JobStatus.Scheduled)
+                fixture.expanded.template.save(document)
+                val read = requireNotNull(fixture.expanded.template.findById(id, JobDocument::class.java))
+                assertThat(read.toJobData(fixture.expanded.valueTypes))
+                    .isEqualTo(JobData(id, workflowId, fixture.definition.kind, emptyMap(), scheduled, null, JobStatus.Scheduled))
+                targetType = JobDocument::class.java
+            }
+            else -> error("Only executable step and job roles are tested")
+        }
+        assertThat(RawBsonFluxFlowMongoTypeAudit(fixture.expanded).audit().isCompatible).isTrue()
+        val before = auditedSnapshot()
+
+        val report = RawBsonFluxFlowMongoTypeAudit(fixture.contracted).audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(fixture.contracted.template.getCollectionName(targetType), id, "/kind", role,
+                MongoTypeAuditIssue.UNREGISTERED, fixture.definition.kind)
+        assertThat(report.scannedDocumentsByCollection.values.sum()).isEqualTo(2L)
+        assertThat(fixture.definitions.findForKindAndVersion(fixture.definition.kind, "1")).isEqualTo(fixture.definition)
+        assertThat(auditedSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(HistoricalKindForm::class)
+    fun `O05 historical step kinds retain their required string shape`(form: HistoricalKindForm) {
+        val fixture = contractedArchive()
+        val stored = requireNotNull(collection(StepDefinitionDocument::class.java).find().first())
+        when (form) {
+            HistoricalKindForm.MISSING -> stored.remove("kind")
+            HistoricalKindForm.NULL -> stored["kind"] = null
+            HistoricalKindForm.EMPTY -> stored["kind"] = ""
+            HistoricalKindForm.NONSTRING -> stored["kind"] = 42
+        }
+        collection(StepDefinitionDocument::class.java).replaceOne(eq("_id", stored["_id"]), stored)
+        val before = auditedSnapshot()
+
+        val report = RawBsonFluxFlowMongoTypeAudit(fixture.contracted).audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(fixture.contracted.template.getCollectionName(StepDefinitionDocument::class.java),
+                (stored["_id"] as ObjectId).toHexString(), "/kind", TypeRole.STEP, MongoTypeAuditIssue.MALFORMED,
+                if (form == HistoricalKindForm.EMPTY) "" else null)
+        assertThat(auditedSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(HistoricalKindValue::class)
+    fun `O05 historical kind strings do not require executable registrations`(value: HistoricalKindValue) {
+        val fixture = contractedArchive()
+        val kind = when (value) {
+            HistoricalKindValue.WHITESPACE -> " \t "
+            HistoricalKindValue.OTHER_ROLE -> VALUE_TYPE_ALIAS
+            HistoricalKindValue.UNTRUSTED_CLASS_NAME -> WITNESS_NAME
+        }
+        val definition = fixture.definition.copy(kind = kind, version = "7")
+        assertThat(fixture.definitions.save(definition)).isEqualTo(definition)
+        assertThat(fixture.definitions.findForKindAndVersion(kind, "7")).isEqualTo(definition)
+        val before = auditedSnapshot()
+
+        val report = RawBsonFluxFlowMongoTypeAudit(fixture.contracted).audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.scannedDocumentsByCollection.values.sum()).isEqualTo(2L)
+        assertThat(auditedSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O05 archived definitions still reject unregistered value metadata after contraction`() {
+        val fixture = contractedArchive()
+        val stored = requireNotNull(collection(StepDefinitionDocument::class.java).find().first())
+        stored.get("metadata", Document::class.java).get("jvmTypes", Document::class.java)
+            .getList("entries", Document::class.java).single()["type"] = WITNESS_NAME
+        collection(StepDefinitionDocument::class.java).replaceOne(eq("_id", stored["_id"]), stored)
+        val before = auditedSnapshot()
+
+        assertUnknownType(catchFailure { fixture.definitions.findForKindAndVersion(fixture.definition.kind, "1") }, TypeRole.VALUE, WITNESS_NAME)
+        val report = RawBsonFluxFlowMongoTypeAudit(fixture.contracted).audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(fixture.contracted.template.getCollectionName(StepDefinitionDocument::class.java),
+                (stored["_id"] as ObjectId).toHexString(), "/metadata/jvmTypes/entries/0/type", TypeRole.VALUE,
+                MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(auditedSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class HistoricalKindForm { MISSING, NULL, EMPTY, NONSTRING }
+
+    enum class HistoricalKindValue { WHITESPACE, OTHER_ROLE, UNTRUSTED_CLASS_NAME }
+
+    @Test
     fun `O05 expand readers accept old and future models before future writes begin`() {
         val oldModelType = SecurityTestWorkflowModel::class.java.name
         val futureModelType = SecurityTestWorkflowSubtype::class.java.name
@@ -1844,6 +2101,51 @@ abstract class AbstractProductionMongoSecurityContractIT {
     )
 
     private fun workflowCollection() = collection(WorkflowDocument::class.java)
+
+    private fun contractedArchive(role: TypeRole = TypeRole.STEP): ContractedArchive {
+        val kind = if (role == TypeRole.STEP) AUDIT_STEP_KIND else AUDIT_JOB_KIND
+        val entries = allowedSecurityTestEntries().toList()
+        val remaining = entries.filterNot { it.role == role && it.key == kind }
+        assertThat(entries.size - remaining.size).isEqualTo(1)
+        val expandedRegistry = securityTestRegistry(witnessLoader, *entries.toTypedArray())
+        val contractedRegistry = securityTestRegistry(witnessLoader, *remaining.toTypedArray())
+        assertThat(contractedRegistry.entries).containsExactlyElementsOf(
+            expandedRegistry.entries.filterNot { it.role == role && it.key == kind },
+        )
+        val expanded = productionAccess(expandedRegistry)
+        val contracted = productionAccess(contractedRegistry)
+        val expandedDefinitions = StepDefinitionMongoPersistence(
+            expanded.repository(StepDefinitionRepository::class.java), expanded.template, expanded.valueTypes,
+        )
+        val definitions = StepDefinitionMongoPersistence(
+            contracted.repository(StepDefinitionRepository::class.java), contracted.template, contracted.valueTypes,
+        )
+        val definition = StepDefinitionData(kind, "1", mapOf("label" to SecurityTestWorkflowValue("archived metadata")), emptyList())
+        assertThat(expandedDefinitions.save(definition)).isEqualTo(definition)
+        assertThat(expandedDefinitions.findForKindAndVersion(kind, "1")).isEqualTo(definition)
+        assertThat(definitions.findForKindAndVersion(kind, "1")).isEqualTo(definition)
+        assertThat(RawBsonFluxFlowMongoTypeAudit(expanded).audit().isCompatible).isTrue()
+        assertThat(RawBsonFluxFlowMongoTypeAudit(contracted).audit().isCompatible).isTrue()
+        listOf(WorkflowDocument::class.java, StepDocument::class.java, JobDocument::class.java).forEach {
+            assertThat(collection(it).countDocuments()).isZero()
+        }
+        assertThat(witnessLoader.events).isEmpty()
+        return ContractedArchive(expanded, contracted, contractedRegistry, definitions, definition)
+    }
+
+    private data class ContractedArchive(
+        val expanded: FluxFlowMongoAccess,
+        val contracted: FluxFlowMongoAccess,
+        val registry: TypeRegistry,
+        val definitions: StepDefinitionMongoPersistence,
+        val definition: StepDefinitionData,
+    )
+
+    private fun auditedSnapshot(): Map<String, List<String>> = listOf(
+        WorkflowDocument::class.java, StepDocument::class.java, JobDocument::class.java, StepDefinitionDocument::class.java,
+    ).associate { type ->
+        fluxFlowMongoAccess.template.getCollectionName(type) to collection(type).find().map { it.toJson() }.sorted()
+    }
 
     private fun productionAccess(registry: TypeRegistry): FluxFlowMongoAccess =
         FluxFlowMongoAccess(

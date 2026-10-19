@@ -127,6 +127,18 @@ The companion cases `O03 ordinary type findings leave a fully inspected audit co
 cover exact depth/node limits, root/map/list/array queues, escaped diagnostic paths,
 unchanged read/projection exceptions and resource handling at eight driver failure points.
 
+`AbstractProductionMongoSecurityContractIT.O05 contracted registries accept archived definitions of retired step kinds`
+checks that an archived definition remains readable and audit-compatible after removing only
+its STEP registration. This exception concerns the historical definition kind; executable
+step/job kinds and the definition's VALUE metadata retain their registration requirements.
+
+The companion cases `O05 contracted definitions restore retired steps through real services without executable actions`,
+`O05 active step and job kinds remain strict after their registration is retired`,
+`O05 historical step kinds retain their required string shape`,
+`O05 historical kind strings do not require executable registrations` and
+`O05 archived definitions still reject unregistered value metadata after contraction`
+cover the real restore path, active-role rejection, malformed kinds and retained VALUE checks.
+
 `O03 legacy application keys preserve inner type checks through public fallback reads`
 checks all three legacy type maps with colliding application keys, nested collection/null
 descriptions, additional infrastructure type names and escaped BSON keys. The companion

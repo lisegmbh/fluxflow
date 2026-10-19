@@ -124,7 +124,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             auditTypedRecords(rawField(document, JobDocument::class.java, "parameterEntries"), add)
         },
         target(StepDefinitionDocument::class.java) { document, add ->
-            auditRoleName(rawField(document, StepDefinitionDocument::class.java, "kind"), TypeRole.STEP, add, required = true)
+            auditHistoricalStepKind(rawField(document, StepDefinitionDocument::class.java, "kind"), add)
             auditTypedRecords(rawField(document, StepDefinitionDocument::class.java, "metadata"), add)
             val data = rawField(document, StepDefinitionDocument::class.java, "data")
             (data.value as? Iterable<*>)?.forEachIndexed { index, entry ->
@@ -181,6 +181,14 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 finding.persistedName,
             )
         }.sortedWith(compareBy { it.path })
+    }
+
+    /** Archived definitions retain their kind for restoration without requiring executable registration. */
+    private fun auditHistoricalStepKind(field: RawField, add: (PendingFinding) -> Unit) {
+        val kind = field.value
+        if (kind !is String || kind.isEmpty()) {
+            add(invalid(field.path, TypeRole.STEP, kind, knownInAnotherRole = false))
+        }
     }
 
     private fun auditRoleName(
