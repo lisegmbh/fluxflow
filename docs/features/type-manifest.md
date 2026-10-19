@@ -260,7 +260,9 @@ fields may be absent or null when their legacy fallback applies; definition and 
 metadata containers are required. When both `values` and `types` maps are present, their keys must
 match; missing counterparts are reported at the mapped path under the other map. Missing or null
 JVM mapping `entries` retains its empty-list default; a non-null value must be a sequence,
-otherwise the mapped `entries` path is malformed.
+otherwise the mapped `entries` path is malformed. Each persisted `TypeRecord` map must include
+the configured Mongo type discriminator; missing discriminators are reported as `MALFORMED` at
+the escaped discriminator path.
 JVM mapping references must be unique, including unused entries, and every used reference must
 have a mapping. Reference failures are structural `MALFORMED` findings with no registry role or
 persisted type name. References need not be UUIDs or nonblank strings; matching reference values

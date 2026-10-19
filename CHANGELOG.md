@@ -43,7 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Required typed-record containers now report malformed mapped paths without hiding independent
    type-name findings. Present `values` and `types` maps now require matching keys, with findings
    at the mapped missing-entry paths. Non-null JVM-entry containers must be sequences; optional
-   step/job legacy fallbacks and missing or null JVM-entry defaults remain supported.
+   step/job legacy fallbacks and missing or null JVM-entry defaults remain supported. Missing
+   type discriminators on persisted `TypeRecord` maps are reported at the escaped discriminator path.
    Used JVM references now require a mapping, and duplicate references are reported even when
    unused. Reference checks preserve matching primitive scalar, BSON `ObjectId` and BSON
    `Document` forms without hydration; Document JSON uses the standard UUID string codec. The

@@ -409,6 +409,16 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             if (visited.put(record, true) != null) {
                 continue
             }
+            if (!record.containsKey(access.typeKey)) {
+                add(
+                    PendingFinding(
+                        "${current.path}/${pointerSegment(access.typeKey)}",
+                        null,
+                        MongoTypeAuditIssue.MALFORMED,
+                        null,
+                    )
+                )
+            }
             val alias = record[access.typeKey]
             when {
                 access.typeAliases.isAliasFor(alias, JvmTypeRecord::class.java) -> {
