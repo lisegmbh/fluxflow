@@ -1146,6 +1146,112 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         assertThat(witnessLoader.events).isEmpty()
     }
 
+    @Test
+    fun `O03 typed record audit reports nested component cardinality mismatch`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-record-nested-component-cardinality")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf(
+                "payload" to "persisted value",
+                "nullable" to null,
+                "nested" to listOf("first", null, listOf("nested")),
+            ), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val entries = stored.get("dataEntries", Document::class.java)
+        val values = entries.get("values", Document::class.java)
+        val nestedValues = values.getList("nested", Any::class.java)
+        val types = entries.get("types", Document::class.java)
+        val nestedType = types.get("nested", Document::class.java)
+        val nestedCollectionType = nestedType.getList("componentTypes", Document::class.java)[2]
+        val innerComponents = nestedCollectionType.getList("componentTypes", Document::class.java)
+        assertThat(nestedValues).containsExactly("first", null, listOf("nested"))
+        assertThat(nestedValues[2]).isEqualTo(listOf("nested"))
+        assertThat(innerComponents).hasSize(1)
+        nestedCollectionType["componentTypes"] = emptyList<Document>()
+        assertThat(values.getList("nested", Any::class.java)).isEqualTo(nestedValues)
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure)
+            .describedAs("Public read outcome for nested TypeRecord cardinality mismatch")
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("sizes differ")
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(StepDocument::class.java), id.toHexString(),
+                "/dataEntries/types/nested/componentTypes/2/componentTypes", null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 nested cardinality and missing JVM mapping findings are independent`() {
+        val id = ObjectId()
+        val workflowId = WorkflowIdentifier("typed-record-nested-cardinality-and-unmapped-reference")
+        val data = StepData(id.toHexString(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf(
+                "payload" to "persisted value",
+                "nullable" to null,
+                "nested" to listOf("first", null, listOf("nested")),
+            ), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", id)).first())
+        val entries = stored.get("dataEntries", Document::class.java)
+        val values = entries.get("values", Document::class.java)
+        val nestedValues = values.getList("nested", Any::class.java)
+        val types = entries.get("types", Document::class.java)
+        val nestedType = types.get("nested", Document::class.java)
+        val components = nestedType.getList("componentTypes", Document::class.java)
+        val firstJvmUse = components[0].get("jvmTypeReference", Document::class.java)
+        assertThat(firstJvmUse.getString("value")).isNotBlank()
+        firstJvmUse["value"] = "unmapped-${UUID.randomUUID()}"
+        nestedType["componentTypes"] = components.dropLast(1)
+        assertThat(values.getList("nested", Any::class.java)).isEqualTo(nestedValues)
+        collection(StepDocument::class.java).replaceOne(Document("_id", id), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))
+        }
+        assertThat(readFailure)
+            .describedAs("Public read outcome for independent cardinality and missing JVM mapping deviations")
+            .isNotNull
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactlyInAnyOrder(
+                tuple(collectionName(StepDocument::class.java), id.toHexString(),
+                    "/dataEntries/types/nested/componentTypes", MongoTypeAuditIssue.MALFORMED),
+                tuple(collectionName(StepDocument::class.java), id.toHexString(),
+                    "/dataEntries/types/nested/componentTypes/0/jvmTypeReference/value", MongoTypeAuditIssue.MALFORMED),
+            )
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
     @ParameterizedTest(name = "{0}")
     @EnumSource(AddedTypedRecordKeySide::class)
     fun `O03 typed records report unmatched added keys on either side`(side: AddedTypedRecordKeySide) {

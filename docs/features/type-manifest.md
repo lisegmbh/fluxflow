@@ -266,8 +266,10 @@ the configured Mongo type discriminator and identify a supported `JvmTypeRecord`
 aliases for unrelated classes are reported as `MALFORMED` at the escaped discriminator path.
 TypeRecord values and a collection record's `collectionType` must be maps; `componentTypes` must
 be a sequence. Invalid forms are reported as `MALFORMED` at their mapped paths.
-For a matching top-level `values` entry that is a collection, its size must match the number of
-`componentTypes`; a mismatch is reported once at the mapped `componentTypes` path.
+For a matching `values` entry that is a collection, each collection record compares its size with
+the number of `componentTypes`; nested collection records receive the corresponding raw collection
+element and are checked the same way. A mismatch is reported once at that record's mapped
+`componentTypes` path.
 JVM mapping references must be unique, including unused entries, and every used reference must
 have a mapping. Reference failures are structural `MALFORMED` findings with no registry role or
 persisted type name. References need not be UUIDs or nonblank strings; matching reference values

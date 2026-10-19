@@ -332,31 +332,6 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     )
                 )
             }
-            types.forEach { (key, rawType) ->
-                if (!values.containsKey(key)) {
-                    return@forEach
-                }
-                val typeRecord = rawType as? Map<*, *> ?: return@forEach
-                if (!access.typeAliases.isAliasFor(typeRecord[access.typeKey], CollectionTypeRecord::class.java)) {
-                    return@forEach
-                }
-                val value = values[key] as? Collection<*> ?: return@forEach
-                val recordPath = "${typesField.path}/${pointerSegment(key?.toString().orEmpty())}"
-                val components = rawField(
-                    typeRecord,
-                    CollectionTypeRecord::class.java,
-                    "componentTypes",
-                    recordPath,
-                )
-                val componentCount = when (val componentValues = components.value) {
-                    is Collection<*> -> componentValues.size
-                    is Array<*> -> componentValues.size
-                    else -> null
-                } ?: return@forEach
-                if (value.size != componentCount) {
-                    add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
-                }
-            }
         }
         auditLegacyTypeNames(typesField, add)
         val jvmTypesField = rawField(records, TypedRecords::class.java, "jvmTypes", field.path)
@@ -385,19 +360,21 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 }
             }
         }
-        auditRecordReferences(typesField, references, add)
+        auditRecordReferences(typesField, values, references, add)
     }
 
     /** The document preflight validates the source graph; this focused second pass also enforces its own budget. */
     private fun auditRecordReferences(
         field: RawField,
+        values: Map<*, *>?,
         references: Set<String>,
         add: (PendingFinding) -> Unit,
     ) {
         val types = field.value as? Map<*, *> ?: return
-        val pending = ArrayDeque<RawField>()
+        data class RecordFrame(val field: RawField, val payload: Any?, val payloadPresent: Boolean)
+        val pending = ArrayDeque<RecordFrame>()
         var nodes = 1
-        fun enqueue(rawField: RawField) {
+        fun enqueue(rawField: RawField, payload: Any? = null, payloadPresent: Boolean = false) {
             if (rawField.depth > MAX_RECORD_REFERENCE_DEPTH) {
                 throw MongoTypeAuditInspectionException(
                     rawField.path,
@@ -410,14 +387,20 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     "Mongo document exceeds the maximum node count of $MAX_RECORD_REFERENCE_NODES",
                 )
             }
-            pending.add(rawField)
+            pending.add(RecordFrame(rawField, payload, payloadPresent))
         }
         types.forEach { (key, value) ->
-            enqueue(RawField(value, true, "${field.path}/${pointerSegment(key?.toString().orEmpty())}", depth = 1))
+            enqueue(
+                RawField(value, true, "${field.path}/${pointerSegment(key?.toString().orEmpty())}", depth = 1),
+                values?.get(key),
+                values?.containsKey(key) == true,
+            )
         }
-        val visited = IdentityHashMap<Any, Boolean>()
+        val visitedRecords = IdentityHashMap<Any, Boolean>()
+        val visitedPayloadPairs = IdentityHashMap<Any, IdentityHashMap<Any, Boolean>>()
         while (pending.isNotEmpty()) {
-            val current = pending.removeLast()
+            val frame = pending.removeLast()
+            val current = frame.field
             nodes++
             if (nodes > MAX_RECORD_REFERENCE_NODES) {
                 throw MongoTypeAuditInspectionException(
@@ -436,10 +419,17 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                 add(PendingFinding(current.path, null, MongoTypeAuditIssue.MALFORMED, null))
                 continue
             }
-            if (visited.put(record, true) != null) {
+            val firstRecordVisit = visitedRecords.put(record, true) == null
+            val payloadCollection = if (frame.payloadPresent) frame.payload as? Collection<*> else null
+            val newPayloadPair = if (payloadCollection == null) {
+                false
+            } else {
+                visitedPayloadPairs.getOrPut(record) { IdentityHashMap() }.put(payloadCollection, true) == null
+            }
+            if (!firstRecordVisit && !newPayloadPair) {
                 continue
             }
-            if (!record.containsKey(access.typeKey)) {
+            if (firstRecordVisit && !record.containsKey(access.typeKey)) {
                 add(
                     PendingFinding(
                         "${current.path}/${pointerSegment(access.typeKey)}",
@@ -451,7 +441,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             }
             val alias = record[access.typeKey]
             when {
-                access.typeAliases.isInfrastructure(alias) &&
+                firstRecordVisit && access.typeAliases.isInfrastructure(alias) &&
                     !access.typeAliases.isAliasFor(alias, JvmTypeRecord::class.java) &&
                     !access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) &&
                     !access.typeAliases.isAliasFor(alias, NullTypeRecord::class.java) -> {
@@ -464,7 +454,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                         )
                     )
                 }
-                access.typeAliases.isAliasFor(alias, JvmTypeRecord::class.java) -> {
+                firstRecordVisit && access.typeAliases.isAliasFor(alias, JvmTypeRecord::class.java) -> {
                     val referenceField = rawField(record, JvmTypeRecord::class.java, "jvmTypeReference", current.path)
                     val reference = auditRequiredMap(referenceField, add) ?: continue
                     val value = rawField(reference, TypeReference::class.java, "value", referenceField.path)
@@ -474,19 +464,42 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     }
                 }
                 access.typeAliases.isAliasFor(alias, CollectionTypeRecord::class.java) -> {
-                    val collectionType = rawField(record, CollectionTypeRecord::class.java, "collectionType", current.path)
-                    if (auditRequiredMap(collectionType, add) != null) {
-                        enqueue(collectionType.copy(depth = current.depth + 1))
+                    if (firstRecordVisit) {
+                        val collectionType = rawField(record, CollectionTypeRecord::class.java, "collectionType", current.path)
+                        if (auditRequiredMap(collectionType, add) != null) {
+                            enqueue(collectionType.copy(depth = current.depth + 1))
+                        }
                     }
                     val components = rawField(record, CollectionTypeRecord::class.java, "componentTypes", current.path)
-                    when (val values = components.value) {
-                        is Iterable<*> -> values.forEachIndexed { index, value ->
-                            enqueue(RawField(value, true, "${components.path}/$index", current.depth + 1))
+                    var componentCount = 0
+                    val valueIterator = payloadCollection?.iterator()
+                    fun enqueueComponent(index: Int, component: Any?) {
+                        val hasPayload = valueIterator?.hasNext() == true
+                        val nestedPayload = if (hasPayload) valueIterator?.next() else null
+                        enqueue(
+                            RawField(component, true, "${components.path}/$index", current.depth + 1),
+                            nestedPayload,
+                            hasPayload,
+                        )
+                        componentCount++
+                    }
+                    when (val componentValues = components.value) {
+                        is Iterable<*> -> componentValues.forEachIndexed { index, component ->
+                            enqueueComponent(index, component)
                         }
-                        is Array<*> -> values.forEachIndexed { index, value ->
-                            enqueue(RawField(value, true, "${components.path}/$index", current.depth + 1))
+                        is Array<*> -> componentValues.forEachIndexed { index, component ->
+                            enqueueComponent(index, component)
                         }
-                        else -> add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                        else -> if (firstRecordVisit) {
+                            add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                        }
+                    }
+                    if (payloadCollection != null &&
+                        (components.value is Iterable<*> || components.value is Array<*>)
+                    ) {
+                        if (payloadCollection.size != componentCount) {
+                            add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                        }
                     }
                 }
             }
