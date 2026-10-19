@@ -259,8 +259,18 @@ restoration after its executable kind is retired. This exception applies only to
 kinds; step and job documents still require exact registrations, and definition metadata still
 requires permitted VALUE types. Missing, null, empty or nonstring definition kinds are malformed.
 
-`scannedDocumentsByCollection` reports how many documents were inspected. `complete` is `false`
-when `maxFindings` stops the scan, a collection cannot be read, or a document exceeds the traversal
+`scannedDocumentsByCollection` reports how many documents were inspected in each attempted collection,
+including a document containing a finding that proves truncation. Collections that were not visited
+have no entry. A zero count with a failure does not prove that the collection was empty.
+
+`maxFindings` bounds retained findings: exactly that many findings can still produce a complete scan.
+Only a real additional finding stops the scan as truncated, without adding it to the report. The
+audit may read all remaining healthy documents and collections to prove completeness, so this
+option does not bound database I/O. Acquired cursors are closed even after truncation; failures
+during closing still make the report incomplete.
+
+`complete` is `false` when an additional finding truncates the scan, a collection cannot be read,
+or a document exceeds the traversal
 depth or node budget. A document budget violation produces a `MALFORMED` finding with its ID and
 the field path where inspection stopped; the audit continues with later documents. Unexpected
 inspection errors and driver or cursor failures remain collection failures, listed in `failures`.

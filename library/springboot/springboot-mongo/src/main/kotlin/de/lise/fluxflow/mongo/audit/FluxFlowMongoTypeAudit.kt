@@ -7,6 +7,10 @@ interface FluxFlowMongoTypeAudit {
     fun audit(options: MongoTypeAuditOptions = MongoTypeAuditOptions()): MongoTypeAuditReport
 }
 
+/**
+ * @param maxFindings Maximum number of retained findings. Only an additional finding truncates the scan;
+ * proving completeness may require reading all remaining documents, so this does not bound database I/O.
+ */
 data class MongoTypeAuditOptions(
     val batchSize: Int = 500,
     val maxFindings: Int = 10_000,
@@ -17,6 +21,11 @@ data class MongoTypeAuditOptions(
     }
 }
 
+/**
+ * @param scannedDocumentsByCollection Counts for attempted collections, including the document that proves truncation.
+ * Missing collections were not visited. A zero count with a failure does not establish an empty collection.
+ * @param complete Whether inspection finished without truncation, document-budget violations or collection failures.
+ */
 data class MongoTypeAuditReport(
     val findings: List<MongoTypeAuditFinding>,
     val scannedDocumentsByCollection: Map<String, Long>,

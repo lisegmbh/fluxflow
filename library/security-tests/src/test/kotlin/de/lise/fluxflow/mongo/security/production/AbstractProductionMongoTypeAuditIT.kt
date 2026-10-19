@@ -45,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -474,6 +475,309 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
     }
 
     @Test
+    fun `O03 audit stays complete when the final finding exactly reaches its output limit`() {
+        val workflowId = WorkflowIdentifier("exact-finding-limit-workflow")
+        val workflow = workflows.create(AuditNestedTypes.Model("exact limit"), workflowId)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        val valid = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(valid)
+        val stored = requireNotNull(collection(WorkflowDocument::class.java).find(Document("_id", workflowId.value)).first())
+        stored["modelType"] = 42
+        collection(WorkflowDocument::class.java).replaceOne(Document("_id", workflowId.value), stored)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        val before = rawSnapshot()
+
+        val report = audit.audit(MongoTypeAuditOptions(maxFindings = 1))
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(WorkflowDocument::class.java), workflowId.value, "/modelType",
+                TypeRole.MODEL, MongoTypeAuditIssue.MALFORMED, null)
+        val visited = auditedTypes.associate { type ->
+            collectionName(type) to if (type == WorkflowDocument::class.java) 1L else 0L
+        }.toSortedMap()
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(visited)
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 audit proves an additional finding before capping and does not revisit the cursor`() {
+        val workflowId = WorkflowIdentifier("additional-finding-limit-workflow")
+        val job = JobData(
+            jobs.randomId(), workflowId.value, AUDIT_JOB_KIND, mapOf("argument" to "safe value"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled,
+        )
+        jobs.create(job)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(job.id))).isEqualTo(job)
+        val databaseBefore = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+        val name = collectionName(JobDocument::class.java)
+        assertThat(name).isEqualTo(auditedTypes.map(::collectionName).min())
+        val first = requireNotNull(collection(JobDocument::class.java).find(Document("_id", ObjectId(job.id))).first())
+            .apply { this["kind"] = WITNESS_NAME }
+        val secondId = ObjectId()
+        assertThat(job.id).isLessThan(secondId.toHexString())
+        val second = Document.parse(first.toJson()).apply { this["_id"] = secondId }
+        val documents = listOf(first, second)
+        val before = documents.map { it.toJson() }
+        val (source, cursor) = cursorCollection(documents)
+        var yielded = 0
+        Mockito.doAnswer { documents[yielded++] }.`when`(cursor).next()
+        Mockito.doAnswer {
+            check(yielded < documents.size) { "Unexpected hasNext after the additional finding" }
+            true
+        }.`when`(cursor).hasNext()
+        val requestedCollections = mutableListOf<String>()
+        val cursorAudit = RawBsonFluxFlowMongoTypeAudit(access) { requested ->
+            requestedCollections += requested
+            if (requested == name) source else access.template.getCollection(requested)
+        }
+
+        val report = cursorAudit.audit(MongoTypeAuditOptions(maxFindings = 1))
+
+        assertThat(report.complete).isFalse()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(name, job.id, "/kind", TypeRole.JOB, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(mapOf(name to 2L))
+        assertThat(requestedCollections).containsExactly(name)
+        Mockito.verify(cursor, Mockito.times(2)).next()
+        Mockito.verify(cursor, Mockito.times(2)).hasNext()
+        Mockito.verify(cursor).close()
+        assertThat(documents.map { it.toJson() }).isEqualTo(before)
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 an empty completed audit records every visited collection`() {
+        val before = rawSnapshot()
+
+        val report = audit.audit(MongoTypeAuditOptions(batchSize = 1, maxFindings = 1))
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).isEmpty()
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(allVisitedCounts())
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0} findings at limit 2")
+    @ValueSource(ints = [1, 2, 3])
+    fun `O03 real batch one scans distinguish below exact and exceeded finding limits`(count: Int) {
+        val ids = (1..count).map { "batch-one-limit-$it" }
+        ids.forEach { id ->
+            val identifier = WorkflowIdentifier(id)
+            val workflow = workflows.create(AuditNestedTypes.Model(id), identifier)
+            assertThat(workflows.find(identifier)).isEqualTo(workflow)
+        }
+        assertThat(audit.audit().isCompatible).isTrue()
+        ids.forEach { id ->
+            val stored = requireNotNull(collection(WorkflowDocument::class.java).find(Document("_id", id)).first())
+            stored["modelType"] = 42
+            collection(WorkflowDocument::class.java).replaceOne(Document("_id", id), stored)
+        }
+        val before = rawSnapshot()
+
+        val report = audit.audit(MongoTypeAuditOptions(batchSize = 1, maxFindings = 2))
+
+        assertThat(report.complete).isEqualTo(count <= 2)
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactlyElementsOf(ids.take(2).map { id ->
+                tuple(collectionName(WorkflowDocument::class.java), id, "/modelType", TypeRole.MODEL, MongoTypeAuditIssue.MALFORMED, null)
+            })
+        assertThat(report.scannedDocumentsByCollection)
+            .containsExactlyEntriesOf(allVisitedCounts(WorkflowDocument::class.java to count.toLong()))
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LimitSuffix::class)
+    fun `O03 scans healthy suffixes and later collections after reaching the finding limit`(suffix: LimitSuffix) {
+        val workflowId = WorkflowIdentifier("limit-suffix-workflow")
+        val workflow = workflows.create(AuditNestedTypes.Model("later collection"), workflowId)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        val records = (1..3).map { index ->
+            JobData(jobs.randomId(), workflowId.value, AUDIT_JOB_KIND, mapOf("argument" to "safe $index"),
+                Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+        }
+        records.forEach { record ->
+            jobs.create(record)
+            assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(record.id))).isEqualTo(record)
+        }
+        assertThat(records.map { it.id }).isSorted()
+        assertThat(audit.audit().isCompatible).isTrue()
+        val first = requireNotNull(collection(JobDocument::class.java).find(Document("_id", ObjectId(records.first().id))).first())
+        first["kind"] = WITNESS_NAME
+        collection(JobDocument::class.java).replaceOne(Document("_id", first["_id"]), first)
+        if (suffix == LimitSuffix.ADDITIONAL_FINDING_IN_LATER_COLLECTION) {
+            val later = requireNotNull(collection(WorkflowDocument::class.java).find(Document("_id", workflowId.value)).first())
+            later["modelType"] = 42
+            collection(WorkflowDocument::class.java).replaceOne(Document("_id", workflowId.value), later)
+        }
+        val before = rawSnapshot()
+
+        val report = audit.audit(MongoTypeAuditOptions(batchSize = 1, maxFindings = 1))
+
+        assertThat(report.complete).isEqualTo(suffix == LimitSuffix.HEALTHY)
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName(JobDocument::class.java), records.first().id, "/kind", TypeRole.JOB,
+                MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(
+            allVisitedCounts(JobDocument::class.java to 3L, WorkflowDocument::class.java to 1L),
+        )
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 multiple findings in one document cap in deterministic pointer order`() {
+        val workflowId = WorkflowIdentifier("one-document-multiple-findings")
+        val workflow = workflows.create(AuditNestedTypes.Model("safe model"), workflowId)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        assertThat(audit.audit().isCompatible).isTrue()
+        val stored = requireNotNull(collection(WorkflowDocument::class.java).find(Document("_id", workflowId.value)).first())
+        stored["modelType"] = 42
+        stored.get("model", Document::class.java)["_class"] = WITNESS_NAME
+        collection(WorkflowDocument::class.java).replaceOne(Document("_id", workflowId.value), stored)
+        val before = rawSnapshot()
+        assertThat(audit.audit().findings).extracting("path", "issue")
+            .containsExactly(tuple("/model/_class", MongoTypeAuditIssue.UNREGISTERED), tuple("/modelType", MongoTypeAuditIssue.MALFORMED))
+
+        val report = audit.audit(MongoTypeAuditOptions(maxFindings = 1))
+
+        assertThat(report.complete).isFalse()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(workflowId.value, "/model/_class", TypeRole.MODEL, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(allVisitedCounts(WorkflowDocument::class.java to 1L))
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LimitDriverFailure::class)
+    fun `O03 driver failures after the output limit retain findings and visited counts`(failure: LimitDriverFailure) {
+        val workflowId = WorkflowIdentifier("limit-driver-workflow")
+        val job = JobData(jobs.randomId(), workflowId.value, AUDIT_JOB_KIND, mapOf("argument" to "safe value"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+        jobs.create(job)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(job.id))).isEqualTo(job)
+        val databaseBefore = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        val first = requireNotNull(collection(JobDocument::class.java).find(Document("_id", ObjectId(job.id))).first())
+            .apply { this["kind"] = WITNESS_NAME }
+        val capped = failure == LimitDriverFailure.CLOSE_AFTER_ADDITIONAL_FINDING
+        val documents = if (capped) listOf(first, Document.parse(first.toJson()).apply { this["_id"] = ObjectId() }) else listOf(first)
+        val before = documents.map { it.toJson() }
+        val driverFailure = if (failure == LimitDriverFailure.HAS_NEXT_AFTER_LIMIT) DriverFailure.HAS_NEXT else DriverFailure.CLOSE
+        val (source, cursor) = cursorCollection(documents, driverFailure)
+        val name = collectionName(JobDocument::class.java)
+        assertThat(name).isEqualTo(auditedTypes.map(::collectionName).min())
+        val requestedCollections = mutableListOf<String>()
+        val cursorAudit = RawBsonFluxFlowMongoTypeAudit(access) { requested ->
+            requestedCollections += requested
+            if (requested == name) source else access.template.getCollection(requested)
+        }
+
+        val report = cursorAudit.audit(MongoTypeAuditOptions(maxFindings = 1))
+
+        assertThat(report.complete).isFalse()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).singleElement().extracting("collection", "cause")
+            .containsExactly(name, "IllegalArgumentException: driver $driverFailure failed")
+        assertThat(report.findings).singleElement()
+            .extracting("documentId", "path", "issue", "persistedName")
+            .containsExactly(job.id, "/kind", MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        val expectedCounts = if (capped) sortedMapOf(name to 2L) else allVisitedCounts(JobDocument::class.java to 1L)
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(expectedCounts)
+        assertThat(requestedCollections).containsExactlyElementsOf(expectedCounts.keys)
+        Mockito.verify(cursor, Mockito.times(if (capped) 2 else 1)).next()
+        Mockito.verify(cursor, Mockito.times(2)).hasNext()
+        Mockito.verify(cursor).close()
+        assertThat(documents.map { it.toJson() }).isEqualTo(before)
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 a budget finding at the output limit keeps a completed suffix incomplete`() {
+        val workflowId = WorkflowIdentifier("limit-budget-workflow")
+        val job = JobData(jobs.randomId(), workflowId.value, AUDIT_JOB_KIND, mapOf("argument" to "safe value"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled)
+        jobs.create(job)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(job.id))).isEqualTo(job)
+        val databaseBefore = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        val bad = requireNotNull(collection(JobDocument::class.java).find(Document("_id", ObjectId(job.id))).first())
+        val healthy = Document.parse(bad.toJson()).apply { this["_id"] = ObjectId() }
+        var nested = Document("leaf", "safe value")
+        repeat(105) { nested = Document("next", nested) }
+        bad["deep"] = nested
+        val documents = listOf(bad, healthy)
+        val before = documents.map { it.toJson() }
+        val (source, cursor) = cursorCollection(documents)
+        val name = collectionName(JobDocument::class.java)
+        val cursorAudit = RawBsonFluxFlowMongoTypeAudit(access) { requested ->
+            if (requested == name) source else access.template.getCollection(requested)
+        }
+
+        val report = cursorAudit.audit(MongoTypeAuditOptions(maxFindings = 1))
+
+        assertThat(report.complete).isFalse()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement().extracting("documentId", "path", "issue")
+            .containsExactly(job.id, "/deep" + "/next".repeat(100), MongoTypeAuditIssue.MALFORMED)
+        assertThat(report.scannedDocumentsByCollection).containsExactlyEntriesOf(allVisitedCounts(JobDocument::class.java to 2L))
+        Mockito.verify(cursor, Mockito.times(2)).next()
+        Mockito.verify(cursor, Mockito.times(3)).hasNext()
+        Mockito.verify(cursor).close()
+        assertThat(documents.map { it.toJson() }).isEqualTo(before)
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(InvalidAuditOption::class)
+    fun `O03 audit options reject nonpositive batch sizes and finding limits`(option: InvalidAuditOption) {
+        val failure = catchThrowable {
+            when (option) {
+                InvalidAuditOption.ZERO_BATCH -> MongoTypeAuditOptions(batchSize = 0)
+                InvalidAuditOption.NEGATIVE_BATCH -> MongoTypeAuditOptions(batchSize = -1)
+                InvalidAuditOption.ZERO_LIMIT -> MongoTypeAuditOptions(maxFindings = 0)
+                InvalidAuditOption.NEGATIVE_LIMIT -> MongoTypeAuditOptions(maxFindings = -1)
+            }
+        }
+
+        assertThat(failure).isExactlyInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    enum class LimitSuffix { HEALTHY, ADDITIONAL_FINDING_IN_LATER_COLLECTION }
+
+    enum class LimitDriverFailure { HAS_NEXT_AFTER_LIMIT, CLOSE_AFTER_LIMIT, CLOSE_AFTER_ADDITIONAL_FINDING }
+
+    enum class InvalidAuditOption { ZERO_BATCH, NEGATIVE_BATCH, ZERO_LIMIT, NEGATIVE_LIMIT }
+
+    @Test
     fun `O03 audit marks capped results incomplete`() {
         collection(WorkflowDocument::class.java).insertOne(
             Document("_id", "limited-workflow")
@@ -711,6 +1015,7 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         assertThat(report.scannedDocumentsByCollection[firstName]).isEqualTo(attempted)
         assertThat(report.scannedDocumentsByCollection[lastName]).isEqualTo(1L)
         assertThat(report.scannedDocumentsByCollection.values.sum()).isEqualTo(attempted + 1L)
+        assertThat(report.scannedDocumentsByCollection).containsOnlyKeys(*auditedTypes.map(::collectionName).toTypedArray())
         Mockito.verify(firstCursor, Mockito.times(if (acquired) 1 else 0)).close()
         val nextCalls = when (failure) {
             DriverFailure.NEXT -> 2
@@ -832,6 +1137,11 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         val entries = (records["jvmTypes"] as Document)["entries"] as List<*>
         (entries.single() as Document)["type"] = typeName
         return records
+    }
+
+    private fun allVisitedCounts(vararg counts: Pair<Class<*>, Long>): java.util.SortedMap<String, Long> {
+        val byType = counts.toMap()
+        return auditedTypes.associate { type -> collectionName(type) to (byType[type] ?: 0L) }.toSortedMap()
     }
 
     private fun rawSnapshot(): Map<String, List<String>> = auditedTypes.associate { type ->

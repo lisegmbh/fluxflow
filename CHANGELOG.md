@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    ID and field path, mark the report incomplete, and allow subsequent documents to be inspected.
    Archived step definitions no longer require an active STEP registration for their historical
    kind. Required kind strings and all persisted value type metadata remain validated.
+   Audit finding limits now truncate only when an additional finding exists; exactly the configured
+   number can complete. Scan counts distinguish unvisited collections from attempted collections.
    [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 
 ### Changed

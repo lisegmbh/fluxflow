@@ -127,6 +127,18 @@ The companion cases `O03 ordinary type findings leave a fully inspected audit co
 cover exact depth/node limits, root/map/list/array queues, escaped diagnostic paths,
 unchanged read/projection exceptions and resource handling at eight driver failure points.
 
+`AbstractProductionMongoTypeAuditIT.O03 audit stays complete when the final finding exactly reaches its output limit`
+and `O03 audit proves an additional finding before capping and does not revisit the cursor`
+pin exact-N completeness, actual N+1 truncation and attempted-collection counts.
+The companion cases `O03 real batch one scans distinguish below exact and exceeded finding limits`,
+`O03 scans healthy suffixes and later collections after reaching the finding limit`,
+`O03 multiple findings in one document cap in deterministic pointer order`,
+`O03 driver failures after the output limit retain findings and visited counts`,
+`O03 a budget finding at the output limit keeps a completed suffix incomplete`,
+`O03 an empty completed audit records every visited collection` and
+`O03 audit options reject nonpositive batch sizes and finding limits`
+cover real batch-one scans, continued inspection, sticky failures and option boundaries.
+
 `AbstractProductionMongoSecurityContractIT.O05 contracted registries accept archived definitions of retired step kinds`
 checks that an archived definition remains readable and audit-compatible after removing only
 its STEP registration. This exception concerns the historical definition kind; executable

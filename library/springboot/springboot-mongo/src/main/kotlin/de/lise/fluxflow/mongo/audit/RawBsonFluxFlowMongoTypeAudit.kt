@@ -44,7 +44,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
 
     override fun audit(options: MongoTypeAuditOptions): MongoTypeAuditReport {
         val targets = targets().sortedBy { it.collection }
-        val counts = targets.associateTo(linkedMapOf()) { it.collection to 0L }
+        val counts = linkedMapOf<String, Long>()
         val findings = mutableListOf<MongoTypeAuditFinding>()
         val failures = mutableListOf<MongoTypeAuditFailure>()
         var complete = true
@@ -54,6 +54,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
             if (capped) {
                 break
             }
+            counts[target.collection] = 0L
             try {
                 val cursor = collectionProvider(target.collection)
                     .find()
@@ -61,7 +62,7 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     .batchSize(options.batchSize)
                     .iterator()
                 cursor.use {
-                    while (it.hasNext() && !capped) {
+                    while (!capped && it.hasNext()) {
                         val document = it.next()
                         counts[target.collection] = requireNotNull(counts[target.collection]) + 1
                         val documentFindings = try {
@@ -80,12 +81,12 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                             )
                         }
                         for (finding in documentFindings) {
-                            findings += finding
                             if (findings.size == options.maxFindings) {
                                 complete = false
                                 capped = true
                                 break
                             }
+                            findings += finding
                         }
                     }
                 }
