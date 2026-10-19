@@ -46,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    step/job legacy fallbacks and missing or null JVM-entry defaults remain supported. Missing
    type discriminators and unrelated registered infrastructure aliases on persisted `TypeRecord`
    maps are reported at the escaped discriminator path. Non-map TypeRecord values and
-   `collectionType`, plus non-sequence `componentTypes`, are reported as malformed.
+   `collectionType`, plus non-sequence `componentTypes`, are reported as malformed. Top-level
+   collection values whose size differs from `componentTypes` are reported at the mapped path.
    Used JVM references now require a mapping, and duplicate references are reported even when
    unused. Reference checks preserve matching primitive scalar, BSON `ObjectId` and BSON
    `Document` forms without hydration; Document JSON uses the standard UUID string codec. The

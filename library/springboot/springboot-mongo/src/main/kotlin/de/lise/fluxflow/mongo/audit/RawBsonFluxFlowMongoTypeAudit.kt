@@ -332,6 +332,31 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     )
                 )
             }
+            types.forEach { (key, rawType) ->
+                if (!values.containsKey(key)) {
+                    return@forEach
+                }
+                val typeRecord = rawType as? Map<*, *> ?: return@forEach
+                if (!access.typeAliases.isAliasFor(typeRecord[access.typeKey], CollectionTypeRecord::class.java)) {
+                    return@forEach
+                }
+                val value = values[key] as? Collection<*> ?: return@forEach
+                val recordPath = "${typesField.path}/${pointerSegment(key?.toString().orEmpty())}"
+                val components = rawField(
+                    typeRecord,
+                    CollectionTypeRecord::class.java,
+                    "componentTypes",
+                    recordPath,
+                )
+                val componentCount = when (val componentValues = components.value) {
+                    is Collection<*> -> componentValues.size
+                    is Array<*> -> componentValues.size
+                    else -> null
+                } ?: return@forEach
+                if (value.size != componentCount) {
+                    add(PendingFinding(components.path, null, MongoTypeAuditIssue.MALFORMED, null))
+                }
+            }
         }
         auditLegacyTypeNames(typesField, add)
         val jvmTypesField = rawField(records, TypedRecords::class.java, "jvmTypes", field.path)
