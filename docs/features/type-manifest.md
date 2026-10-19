@@ -254,8 +254,11 @@ persisted name when it is a string, and one of these issues:
 - `INCONSISTENT`: two registered fields in one document identify different model classes.
 
 `scannedDocumentsByCollection` reports how many documents were inspected. `complete` is `false`
-when `maxFindings` stops the scan or a collection cannot be read. Collection failures are listed in
-`failures`. `isCompatible` is `true` only when the scan completed and both `findings` and `failures`
+when `maxFindings` stops the scan, a collection cannot be read, or a document exceeds the traversal
+depth or node budget. A document budget violation produces a `MALFORMED` finding with its ID and
+the field path where inspection stopped; the audit continues with later documents. Unexpected
+inspection errors and driver or cursor failures remain collection failures, listed in `failures`.
+`isCompatible` is `true` only when the scan completed and both `findings` and `failures`
 are empty. Treat an incomplete report as a failed check, even if the returned findings are empty.
 The result is deterministic for the documents observed by the scan, but it is not a transactional
 snapshot; prevent concurrent type-changing writes when using it as a release gate.

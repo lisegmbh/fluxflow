@@ -3,6 +3,7 @@ package de.lise.fluxflow.mongo.audit
 import com.mongodb.client.MongoCollection
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
 import de.lise.fluxflow.mongo.MongoTypeAliasIssue
+import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
 import de.lise.fluxflow.mongo.generic.SimpleType
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
@@ -63,7 +64,21 @@ internal class RawBsonFluxFlowMongoTypeAudit(
                     while (it.hasNext() && !capped) {
                         val document = it.next()
                         counts[target.collection] = requireNotNull(counts[target.collection]) + 1
-                        val documentFindings = inspect(target, document)
+                        val documentFindings = try {
+                            inspect(target, document)
+                        } catch (exception: MongoTypeAuditInspectionException) {
+                            complete = false
+                            listOf(
+                                MongoTypeAuditFinding(
+                                    target.collection,
+                                    documentId(document["_id"]),
+                                    exception.path,
+                                    null,
+                                    MongoTypeAuditIssue.MALFORMED,
+                                    null,
+                                )
+                            )
+                        }
                         for (finding in documentFindings) {
                             findings += finding
                             if (findings.size == options.maxFindings) {

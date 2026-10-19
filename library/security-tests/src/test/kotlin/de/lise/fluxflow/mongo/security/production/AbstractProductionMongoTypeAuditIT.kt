@@ -1,11 +1,16 @@
 package de.lise.fluxflow.mongo.security.production
 
+import com.mongodb.client.FindIterable
+import com.mongodb.client.MongoCollection
+import com.mongodb.client.MongoCursor
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.MongoDocumentTypePolicy
+import de.lise.fluxflow.mongo.MongoTypeAuditInspectionException
 import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.audit.MongoTypeAuditOptions
@@ -40,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import java.time.Instant
@@ -485,6 +491,248 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
     }
 
     @Test
+    fun `O03 audit continues after an individual document exceeds the inspection budget`() {
+        val workflowId = WorkflowIdentifier("budget-audit-workflow")
+        val workflow = workflows.create(AuditNestedTypes.Model("budget sentinel"), workflowId)
+        val job = JobData(
+            jobs.randomId(), workflowId.value, AUDIT_JOB_KIND, mapOf("argument" to "safe value"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled,
+        )
+        jobs.create(job)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(job.id))).isEqualTo(job)
+        val databaseBefore = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+
+        val firstCollection = collectionName(JobDocument::class.java)
+        val sentinelCollection = collectionName(WorkflowDocument::class.java)
+        assertThat(firstCollection).isEqualTo(auditedTypes.map(::collectionName).min())
+        assertThat(firstCollection).isLessThan(sentinelCollection)
+        val valid = requireNotNull(collection(JobDocument::class.java).find(Document("_id", ObjectId(job.id))).first())
+        val badId = ObjectId()
+        val bad = Document.parse(valid.toJson()).apply {
+            this["_id"] = badId
+            var nested = Document("leaf", "safe value")
+            repeat(105) { nested = Document("next", nested) }
+            this["deep"] = nested
+        }
+        val unknownId = ObjectId()
+        val unknown = Document.parse(valid.toJson()).apply {
+            this["_id"] = unknownId
+            this["kind"] = WITNESS_NAME
+        }
+        val sentinel = requireNotNull(collection(WorkflowDocument::class.java).find(Document("_id", workflowId.value)).first())
+            .apply { this["modelType"] = WITNESS_NAME }
+        val documents = listOf(valid, bad, unknown, sentinel)
+        val before = documents.map { it.toJson() }
+        val (first, firstCursor) = cursorCollection(listOf(valid, bad, unknown))
+        val (last, lastCursor) = cursorCollection(listOf(sentinel))
+        val cursorAudit = RawBsonFluxFlowMongoTypeAudit(access) { name ->
+            when (name) {
+                firstCollection -> first
+                sentinelCollection -> last
+                else -> access.template.getCollection(name)
+            }
+        }
+
+        val report = cursorAudit.audit()
+
+        assertThat(report.complete).isFalse()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactlyInAnyOrder(
+                tuple(firstCollection, badId.toHexString(), "/deep" + "/next".repeat(100), null, MongoTypeAuditIssue.MALFORMED, null),
+                tuple(firstCollection, unknownId.toHexString(), "/kind", TypeRole.JOB, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME),
+                tuple(sentinelCollection, workflowId.value, "/modelType", TypeRole.MODEL, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME),
+            )
+        assertThat(report.failures).isEmpty()
+        assertThat(report.scannedDocumentsByCollection[firstCollection]).isEqualTo(3L)
+        assertThat(report.scannedDocumentsByCollection[sentinelCollection]).isEqualTo(1L)
+        assertThat(report.scannedDocumentsByCollection.values.sum()).isEqualTo(4L)
+        Mockito.verify(firstCursor, Mockito.times(3)).next()
+        Mockito.verify(lastCursor).next()
+        Mockito.verify(firstCursor).close()
+        Mockito.verify(lastCursor).close()
+        assertThat(documents.map { it.toJson() }).isEqualTo(before)
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 ordinary type findings leave a fully inspected audit complete`() {
+        val workflowId = WorkflowIdentifier("complete-type-finding")
+        val workflow = workflows.create(AuditNestedTypes.Model("ordinary finding"), workflowId)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        assertThat(audit.audit().isCompatible).isTrue()
+        val stored = requireNotNull(collection(WorkflowDocument::class.java).find(Document("_id", workflowId.value)).first())
+        stored["modelType"] = WITNESS_NAME
+        val before = stored.toJson()
+        val databaseBefore = rawSnapshot()
+        val (source, cursor) = cursorCollection(listOf(stored))
+        val name = collectionName(WorkflowDocument::class.java)
+
+        val report = RawBsonFluxFlowMongoTypeAudit(access) { requested ->
+            if (requested == name) source else access.template.getCollection(requested)
+        }.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(workflowId.value, "/modelType", TypeRole.MODEL, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(report.scannedDocumentsByCollection[name]).isEqualTo(1L)
+        Mockito.verify(cursor).close()
+        assertThat(stored.toJson()).isEqualTo(before)
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(InspectionBudgetCase::class)
+    fun `O03 audit budget boundaries retain structured pointers and existing guard exceptions`(case: InspectionBudgetCase) {
+        val atLimit: Document
+        val overLimit: Document
+        val depth: Int
+        val nodes: Int
+        val expectedPath: String
+        when (case) {
+            InspectionBudgetCase.DEPTH -> {
+                atLimit = Document("a/~", Document("b/~", "leaf"))
+                overLimit = Document("a/~", Document("b/~", Document("c/~", "leaf")))
+                depth = 2
+                nodes = 100
+                expectedPath = "/a~1~0/b~1~0/c~1~0"
+            }
+            InspectionBudgetCase.ROOT_NODES -> {
+                atLimit = Document("first", 1).append("second", 2)
+                overLimit = Document(atLimit).append("overflow/~", 3)
+                depth = 100
+                nodes = 3
+                expectedPath = "/overflow~1~0"
+            }
+            InspectionBudgetCase.MAP_NODES -> {
+                atLimit = Document("pending", 0).append("box", Document("first", 1).append("second", 2))
+                overLimit = Document("pending", 0).append("box", Document("first", 1).append("second", 2).append("overflow/~", 3))
+                depth = 100
+                nodes = 5
+                expectedPath = "/box/overflow~1~0"
+            }
+            InspectionBudgetCase.LIST_NODES -> {
+                atLimit = Document("pending", 0).append("items", listOf(1, 2))
+                overLimit = Document("pending", 0).append("items", listOf(1, 2, 3))
+                depth = 100
+                nodes = 5
+                expectedPath = "/items/2"
+            }
+            InspectionBudgetCase.ARRAY_NODES -> {
+                atLimit = Document("pending", 0).append("items", arrayOf(1, 2))
+                overLimit = Document("pending", 0).append("items", arrayOf(1, 2, 3))
+                depth = 100
+                nodes = 5
+                expectedPath = "/items/2"
+            }
+        }
+        atLimit[access.typeKey] = WorkflowDocument::class.java.name
+        overLimit[access.typeKey] = WorkflowDocument::class.java.name
+        val before = listOf(bsonShape(atLimit), bsonShape(overLimit))
+        val policy = MongoDocumentTypePolicy(
+            access.typeAliases, access.typeKey, depth, nodes, access.fieldNames, access.valueTypes::isRegistered,
+        )
+        val atProjection = Document(atLimit).apply { remove(access.typeKey) }
+        val overProjection = Document(overLimit).apply { remove(access.typeKey) }
+
+        assertThat(policy.auditAliases(WorkflowDocument::class.java, atLimit, access.valueTypes::isRegistered)).isEmpty()
+        policy.validate(WorkflowDocument::class.java, atLimit)
+        policy.validateProjection(BudgetProjection::class.java, atProjection)
+        val inspectionFailure = catchThrowable {
+            policy.auditAliases(WorkflowDocument::class.java, overLimit, access.valueTypes::isRegistered)
+        }
+
+        assertThat(inspectionFailure).isExactlyInstanceOf(MongoTypeAuditInspectionException::class.java)
+        assertThat((inspectionFailure as MongoTypeAuditInspectionException).path).isEqualTo(expectedPath)
+        assertThat(catchThrowable { policy.validate(WorkflowDocument::class.java, overLimit) })
+            .isExactlyInstanceOf(IllegalArgumentException::class.java)
+        assertThat(catchThrowable { policy.validateProjection(BudgetProjection::class.java, overProjection) })
+            .isExactlyInstanceOf(IllegalArgumentException::class.java)
+        assertThat(listOf(bsonShape(atLimit), bsonShape(overLimit))).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(DriverFailure::class)
+    fun `O03 external driver failures remain collection failures and release acquired cursors`(failure: DriverFailure) {
+        val workflowId = WorkflowIdentifier("driver-failure-workflow")
+        val workflow = workflows.create(AuditNestedTypes.Model("driver sentinel"), workflowId)
+        val job = JobData(
+            jobs.randomId(), workflowId.value, AUDIT_JOB_KIND, mapOf("argument" to "safe value"),
+            Instant.parse("2026-09-10T10:00:00Z"), null, JobStatus.Scheduled,
+        )
+        jobs.create(job)
+        assertThat(workflows.find(workflowId)).isEqualTo(workflow)
+        assertThat(jobs.findForWorkflowAndId(workflowId, JobIdentifier(job.id))).isEqualTo(job)
+        val databaseBefore = rawSnapshot()
+        assertThat(audit.audit().isCompatible).isTrue()
+        val firstName = collectionName(JobDocument::class.java)
+        val lastName = collectionName(WorkflowDocument::class.java)
+        assertThat(firstName).isEqualTo(auditedTypes.map(::collectionName).min())
+        assertThat(firstName).isLessThan(lastName)
+        val valid = requireNotNull(collection(JobDocument::class.java).find(Document("_id", ObjectId(job.id))).first())
+        val next = Document.parse(valid.toJson()).apply { this["_id"] = ObjectId() }
+        val records = if (failure in setOf(DriverFailure.HAS_NEXT, DriverFailure.NEXT)) listOf(valid, next) else listOf(valid)
+        val sentinel = requireNotNull(collection(WorkflowDocument::class.java).find(Document("_id", workflowId.value)).first())
+            .apply { this["modelType"] = WITNESS_NAME }
+        val before = (records + sentinel).map { it.toJson() }
+        val (first, firstCursor) = cursorCollection(records, failure)
+        val (last, lastCursor) = cursorCollection(listOf(sentinel))
+        val cursorAudit = RawBsonFluxFlowMongoTypeAudit(access) { name ->
+            when (name) {
+                firstName -> {
+                    if (failure == DriverFailure.PROVIDER) throw IllegalArgumentException("driver $failure failed")
+                    first
+                }
+                lastName -> last
+                else -> access.template.getCollection(name)
+            }
+        }
+
+        val report = cursorAudit.audit()
+
+        assertThat(report.complete).isFalse()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).singleElement().extracting("collection", "cause")
+            .containsExactly(firstName, "IllegalArgumentException: driver $failure failed")
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(lastName, workflowId.value, "/modelType", TypeRole.MODEL, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        val acquired = failure in setOf(DriverFailure.HAS_NEXT, DriverFailure.NEXT, DriverFailure.CLOSE)
+        val attempted = if (acquired) 1L else 0L
+        assertThat(report.scannedDocumentsByCollection[firstName]).isEqualTo(attempted)
+        assertThat(report.scannedDocumentsByCollection[lastName]).isEqualTo(1L)
+        assertThat(report.scannedDocumentsByCollection.values.sum()).isEqualTo(attempted + 1L)
+        Mockito.verify(firstCursor, Mockito.times(if (acquired) 1 else 0)).close()
+        val nextCalls = when (failure) {
+            DriverFailure.NEXT -> 2
+            DriverFailure.HAS_NEXT, DriverFailure.CLOSE -> 1
+            else -> 0
+        }
+        Mockito.verify(firstCursor, Mockito.times(nextCalls)).next()
+        Mockito.verify(lastCursor).next()
+        Mockito.verify(lastCursor).close()
+        assertThat((records + sentinel).map { it.toJson() }).isEqualTo(before)
+        assertThat(rawSnapshot()).isEqualTo(databaseBefore)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    enum class InspectionBudgetCase { DEPTH, ROOT_NODES, MAP_NODES, LIST_NODES, ARRAY_NODES }
+
+    enum class DriverFailure { PROVIDER, FIND, SORT, BATCH, ITERATOR, HAS_NEXT, NEXT, CLOSE }
+
+    private data class BudgetProjection(val payload: Any?)
+
+    @Test
     fun `O03 audit reports collection failures and continues scanning`() {
         val failedCollection = collectionName(JobDocument::class.java)
         val continuedCollection = collectionName(WorkflowDocument::class.java)
@@ -536,6 +784,47 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
                 MongoTypeAuditIssue.INCONSISTENT,
                 registeredModel,
             )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun cursorCollection(
+        documents: List<Document>,
+        failure: DriverFailure? = null,
+    ): Pair<MongoCollection<Document>, MongoCursor<Document>> {
+        val collection = Mockito.mock(MongoCollection::class.java) as MongoCollection<Document>
+        val find = Mockito.mock(FindIterable::class.java) as FindIterable<Document>
+        val cursor = Mockito.mock(MongoCursor::class.java) as MongoCursor<Document>
+        val iterator = documents.iterator()
+        var delivered = 0
+        val driverException = IllegalArgumentException("driver $failure failed")
+        Mockito.doReturn(find).`when`(collection).find()
+        Mockito.doReturn(find).`when`(find).sort(Document("_id", 1))
+        Mockito.doReturn(find).`when`(find).batchSize(500)
+        Mockito.doReturn(cursor).`when`(find).iterator()
+        Mockito.doAnswer {
+            if (failure == DriverFailure.HAS_NEXT && delivered == 1) throw driverException
+            iterator.hasNext()
+        }.`when`(cursor).hasNext()
+        Mockito.doAnswer {
+            if (failure == DriverFailure.NEXT && delivered == 1) throw driverException
+            iterator.next().also { delivered++ }
+        }.`when`(cursor).next()
+        when (failure) {
+            DriverFailure.FIND -> Mockito.doThrow(driverException).`when`(collection).find()
+            DriverFailure.SORT -> Mockito.doThrow(driverException).`when`(find).sort(Document("_id", 1))
+            DriverFailure.BATCH -> Mockito.doThrow(driverException).`when`(find).batchSize(500)
+            DriverFailure.ITERATOR -> Mockito.doThrow(driverException).`when`(find).iterator()
+            DriverFailure.CLOSE -> Mockito.doThrow(driverException).`when`(cursor).close()
+            else -> Unit
+        }
+        return collection to cursor
+    }
+
+    private fun bsonShape(value: Any?): Any? = when (value) {
+        is Map<*, *> -> value.entries.associate { (key, nested) -> key to bsonShape(nested) }
+        is Iterable<*> -> value.map(::bsonShape)
+        is Array<*> -> value.map(::bsonShape)
+        else -> value
     }
 
     private fun typedRecords(typeName: Any?): Document {

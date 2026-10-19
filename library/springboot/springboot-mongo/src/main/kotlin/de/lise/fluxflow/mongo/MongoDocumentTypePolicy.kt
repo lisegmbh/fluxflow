@@ -80,6 +80,7 @@ internal class MongoDocumentTypePolicy(
     /**
      * Inspects discriminator aliases without asking Spring Data or a class loader to resolve them.
      * The traversal deliberately shares the same field policies and limits as [validate].
+     * @throws MongoTypeAuditInspectionException if a traversal limit prevents inspecting a document location.
      */
     fun auditAliases(
         targetType: Class<*>,
@@ -98,11 +99,12 @@ internal class MongoDocumentTypePolicy(
         root.entries.asSequence()
             .filterNot { (key, _) -> key == typeKey }
             .forEach { (key, value) ->
-                checkNodeBudget(pending, 1)
+                val path = "/${pointerSegment(key)}"
+                checkAuditNodeBudget(pending, 1, path)
                 pending.add(
                     AuditFrame(
                         value,
-                        "/${pointerSegment(key)}",
+                        path,
                         1,
                         policyForRootField(targetType, key),
                     )
@@ -114,11 +116,17 @@ internal class MongoDocumentTypePolicy(
         while (pending.isNotEmpty()) {
             val frame = pending.removeLast()
             nodes++
-            require(nodes <= maxNodes) {
-                "Mongo document exceeds the maximum node count of $maxNodes"
+            if (nodes > maxNodes) {
+                throw MongoTypeAuditInspectionException(
+                    frame.path,
+                    "Mongo document exceeds the maximum node count of $maxNodes",
+                )
             }
-            require(frame.depth <= maxDepth) {
-                "Mongo document exceeds the maximum depth of $maxDepth at '${frame.path}'"
+            if (frame.depth > maxDepth) {
+                throw MongoTypeAuditInspectionException(
+                    frame.path,
+                    "Mongo document exceeds the maximum depth of $maxDepth at '${frame.path}'",
+                )
             }
 
             when (val value = frame.value) {
@@ -137,11 +145,12 @@ internal class MongoDocumentTypePolicy(
                     value.entries.asSequence()
                         .filterNot { (key, _) -> key == typeKey }
                         .forEach { (key, nested) ->
-                            checkNodeBudget(pending, nodes)
+                            val path = "${frame.path}/${pointerSegment(key?.toString().orEmpty())}"
+                            checkAuditNodeBudget(pending, nodes, path)
                             pending.add(
                                 AuditFrame(
                                     nested,
-                                    "${frame.path}/${pointerSegment(key?.toString().orEmpty())}",
+                                    path,
                                     frame.depth + 1,
                                     policyForField(frame.policy, key?.toString()),
                                 )
@@ -154,13 +163,12 @@ internal class MongoDocumentTypePolicy(
                         continue
                     }
                     value.forEachIndexed { index, nested ->
-                        require(nodes + pending.size < maxNodes) {
-                            "Mongo document exceeds the maximum node count of $maxNodes"
-                        }
+                        val path = "${frame.path}/$index"
+                        checkAuditNodeBudget(pending, nodes, path)
                         pending.add(
                             AuditFrame(
                                 nested,
-                                "${frame.path}/$index",
+                                path,
                                 frame.depth + 1,
                                 frame.policy.forElement(),
                             )
@@ -173,11 +181,12 @@ internal class MongoDocumentTypePolicy(
                         continue
                     }
                     value.forEachIndexed { index, nested ->
-                        checkNodeBudget(pending, nodes)
+                        val path = "${frame.path}/$index"
+                        checkAuditNodeBudget(pending, nodes, path)
                         pending.add(
                             AuditFrame(
                                 nested,
-                                "${frame.path}/$index",
+                                path,
                                 frame.depth + 1,
                                 frame.policy.forElement(),
                             )
@@ -187,6 +196,15 @@ internal class MongoDocumentTypePolicy(
             }
         }
         return deviations
+    }
+
+    private fun checkAuditNodeBudget(pending: ArrayDeque<*>, nodes: Int, path: String) {
+        if (nodes + pending.size >= maxNodes) {
+            throw MongoTypeAuditInspectionException(
+                path,
+                "Mongo document exceeds the maximum node count of $maxNodes",
+            )
+        }
     }
 
     private fun validateFrames(pending: ArrayDeque<Frame>) {

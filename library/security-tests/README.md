@@ -115,6 +115,18 @@ retain nested infrastructure checks and valid empty JVM mappings. The existing l
 mapping suites also run `O03 current record extra type names honor multi segment infrastructure field mappings`
 for actual nested `jvm.name` fields and snake-case names in current records.
 
+`AbstractProductionMongoTypeAuditIT.O03 audit continues after an individual document exceeds the inspection budget`
+checks that a bounded inspection failure produces a document-specific `MALFORMED` finding,
+marks the report incomplete, and preserves findings from later documents. Read and projection
+validation retain their exception contract; unexpected inspection and cursor errors remain
+collection failures.
+
+The companion cases `O03 ordinary type findings leave a fully inspected audit complete`,
+`O03 audit budget boundaries retain structured pointers and existing guard exceptions` and
+`O03 external driver failures remain collection failures and release acquired cursors`
+cover exact depth/node limits, root/map/list/array queues, escaped diagnostic paths,
+unchanged read/projection exceptions and resource handling at eight driver failure points.
+
 `O03 legacy application keys preserve inner type checks through public fallback reads`
 checks all three legacy type maps with colliding application keys, nested collection/null
 descriptions, additional infrastructure type names and escaped BSON keys. The companion
