@@ -33,6 +33,7 @@ import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
 import de.lise.fluxflow.reflection.types.TypeRole
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
+import org.assertj.core.groups.Tuple.tuple
 import org.bson.Document
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.BeforeEach
@@ -356,6 +357,91 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
     }
 
     @ParameterizedTest(name = "{0}")
+    @EnumSource(DirectEntryTypeProbe::class)
+    fun `O03 direct JVM entry type classifications retain mapped paths and read parity`(probe: DirectEntryTypeProbe) {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val jvmTypes = mapped(fixture.records, TypedRecords::class.java, "jvmTypes") as Document
+        val entry = (mapped(jvmTypes, JvmTypeMapping::class.java, "entries") as List<*>).single() as Document
+        val persistedName: Any? = when (probe) {
+            DirectEntryTypeProbe.UNKNOWN -> WITNESS_NAME
+            DirectEntryTypeProbe.KNOWN_OTHER_ROLE -> MODEL_TYPE_ALIAS
+            DirectEntryTypeProbe.MISSING -> null
+            DirectEntryTypeProbe.NULL -> null
+        }
+        when (probe) {
+            DirectEntryTypeProbe.MISSING -> removeMapped(entry, TypeRecordEntry::class.java, "type")
+            else -> setMapped(entry, TypeRecordEntry::class.java, "type", persistedName)
+        }
+        collection(fixture.type).replaceOne(eq("_id", fixture.id), fixture.source)
+        val before = inventorySnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+        when (probe) {
+            DirectEntryTypeProbe.UNKNOWN -> assertUnknownType(readFailure, TypeRole.VALUE, WITNESS_NAME)
+            DirectEntryTypeProbe.KNOWN_OTHER_ROLE -> assertUnknownType(readFailure, TypeRole.VALUE, MODEL_TYPE_ALIAS)
+            DirectEntryTypeProbe.MISSING, DirectEntryTypeProbe.NULL ->
+                assertThat(readFailure).isInstanceOf(RuntimeException::class.java)
+        }
+
+        val expectedIssue = when (probe) {
+            DirectEntryTypeProbe.UNKNOWN -> MongoTypeAuditIssue.UNREGISTERED
+            DirectEntryTypeProbe.KNOWN_OTHER_ROLE -> MongoTypeAuditIssue.DISALLOWED
+            DirectEntryTypeProbe.MISSING, DirectEntryTypeProbe.NULL -> MongoTypeAuditIssue.MALFORMED
+        }
+        val report = mappingAudit.audit()
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(tuple(
+                mappingAccess.template.getCollectionName(fixture.type),
+                fixture.id.toString(),
+                mapping.recordPaths[RecordField.STEP_DATA.ordinal],
+                TypeRole.VALUE,
+                expectedIssue,
+                persistedName as? String,
+            ))
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @Test
+    fun `O03 direct JVM entry findings preserve entry order when multiple types are invalid`() {
+        val fixture = currentRecordFixture(RecordField.STEP_DATA, mapOf("payload" to "safe value"))
+        val jvmTypes = mapped(fixture.records, TypedRecords::class.java, "jvmTypes") as Document
+        val entries = (mapped(jvmTypes, JvmTypeMapping::class.java, "entries") as List<*>).toMutableList()
+        val first = entries.single() as Document
+        setMapped(first, TypeRecordEntry::class.java, "type", WITNESS_NAME)
+        val second = Document(first)
+        setMapped(second, TypeRecordEntry::class.java, "reference", "additional-reference")
+        setMapped(second, TypeRecordEntry::class.java, "type", MODEL_TYPE_ALIAS)
+        entries.add(second)
+        setMapped(jvmTypes, JvmTypeMapping::class.java, "entries", entries)
+        collection(fixture.type).replaceOne(eq("_id", fixture.id), fixture.source)
+        val before = inventorySnapshot()
+
+        val readFailure = catchThrowable { fixture.read() }
+        assertUnknownType(readFailure, TypeRole.VALUE, MODEL_TYPE_ALIAS)
+
+        val report = mappingAudit.audit()
+        val entriesPath = mapping.recordPaths[RecordField.STEP_DATA.ordinal]
+            .substringBeforeLast('/')
+            .substringBeforeLast('/')
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(
+                tuple(mappingAccess.template.getCollectionName(fixture.type), fixture.id.toString(),
+                    "$entriesPath/0/type", TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME),
+                tuple(mappingAccess.template.getCollectionName(fixture.type), fixture.id.toString(),
+                    "$entriesPath/1/type", TypeRole.VALUE, MongoTypeAuditIssue.DISALLOWED, MODEL_TYPE_ALIAS),
+            )
+        assertThat(inventorySnapshot()).isEqualTo(before)
+        assertThat(mappingWitness.events).isEmpty()
+    }
+
+    @ParameterizedTest(name = "{0}")
     @EnumSource(ModelTypeDeviation::class)
     fun `O03 mapped model type inventory remains independent from the trusted discriminator`(deviation: ModelTypeDeviation) {
         val id = WorkflowIdentifier(UUID.randomUUID().toString())
@@ -482,6 +568,8 @@ abstract class AbstractProductionMongoAuditMappingContract(private val mapping: 
     enum class ModelTypeDeviation { INCONSISTENT, UNREGISTERED }
 
     enum class ExtraTypeNameForm { UNKNOWN, WHITESPACE, EMPTY, NULL, NONSTRING, WRONG_ROLE, REGISTERED, BUILTIN, MISSING }
+
+    enum class DirectEntryTypeProbe { UNKNOWN, KNOWN_OTHER_ROLE, MISSING, NULL }
 
     enum class LegacyPosition(val legacyProperty: String, val currentProperty: String) {
         STEP_DATA("dataTypeMap", "dataEntries"), STEP_METADATA("metadataTypeMap", "metadataEntries"),
