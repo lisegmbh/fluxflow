@@ -44,28 +44,31 @@ class JobActivation<TWorkflowModel> @JvmOverloads constructor(
         )
     )
 
+    /** Normalizes construction and definition-building failures while retaining their original cause. */
     fun activate(): JobDefinition {
         val type = try {
             typeRegistry.resolve(TypeRole.JOB, jobData.kind)
         } catch (e: UnknownTypeException) {
             throw JobActivationException(jobData.id, jobData.kind, e)
         }
-        val activatedObject = try {
-            typeActivator.findActivation(type)?.activate()
+        return try {
+            val activatedObject = typeActivator.findActivation(type)?.activate()
+            when (activatedObject) {
+                null ->
+                    throw JobActivationException(jobData.id, jobData.kind)
+                is JobDefinition -> {
+                    activatedObject
+                }
+                else -> {
+                    jobDefinitionBuilder.build(activatedObject)
+                }
+            }
+        } catch (exception: JobActivationException) {
+            throw exception
         } catch (exception: Exception) {
             throw JobActivationException(jobData.id, jobData.kind, exception)
         } catch (error: LinkageError) {
             throw JobActivationException(jobData.id, jobData.kind, error)
-        }
-        return when (activatedObject) {
-            null ->
-                throw JobActivationException(jobData.id, jobData.kind)
-            is JobDefinition -> {
-                activatedObject
-            }
-            else -> {
-                jobDefinitionBuilder.build(activatedObject)
-            }
         }
     }
 }

@@ -65,6 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    exception restoration is disabled, while unknown kinds and incompatible versions retain
    the persisted-definition fallback. Technical failures keep the `StepActivationException`
    contract and their original cause. [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
+   Job definition-building failures, including linkage errors after construction, now retain
+   the `JobActivationException` contract and original cause, allowing reconciliation to
+   continue with healthy jobs. Existing activation failures are not wrapped again.
+   [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 2. **Fail-closed Mongo type materialization**<br/>
    FluxFlow Mongo reads now validate model and value type metadata synchronously against the
    context-local trusted type registry before Spring Data resolves a class. Repository, FlowQuery,

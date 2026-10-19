@@ -2,6 +2,13 @@ package de.lise.fluxflow.engine.job
 
 import de.lise.fluxflow.api.ioc.IocProvider
 import de.lise.fluxflow.api.job.JobStatus
+import de.lise.fluxflow.api.job.JobKind
+import de.lise.fluxflow.api.job.JobIdentifier
+import de.lise.fluxflow.api.job.CancellationKey
+import de.lise.fluxflow.api.job.JobDefinition
+import de.lise.fluxflow.api.job.parameter.Parameter
+import de.lise.fluxflow.api.job.parameter.ParameterDefinition
+import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.engine.reflection.ClassLoaderProvider
@@ -15,11 +22,15 @@ import de.lise.fluxflow.reflection.types.UnknownTypeException
 import de.lise.fluxflow.stereotyped.continuation.ContinuationBuilder
 import de.lise.fluxflow.stereotyped.job.Job
 import de.lise.fluxflow.stereotyped.job.JobDefinitionBuilder
+import de.lise.fluxflow.stereotyped.job.JobConfigurationException
+import de.lise.fluxflow.stereotyped.job.JobPayload
 import de.lise.fluxflow.stereotyped.job.parameter.ParameterDefinitionBuilder
 import de.lise.fluxflow.stereotyped.metadata.MetadataBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import java.time.Instant
@@ -27,6 +38,113 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 
 class JobActivationServiceTest {
+    @Test
+    fun `registered job definitions retain their own definition and job factory`() {
+        val typeName = DirectJobDefinition::class.java.name
+        val service = service(registry(entry(TypeRole.JOB, typeName, typeName)))
+
+        val activated = service.activate(workflow(), jobData("direct-job", typeName))
+
+        assertThat(activated.definition).isExactlyInstanceOf(DirectJobDefinition::class.java)
+        assertThat(activated.definition.kind.value).isEqualTo("direct-definition")
+        assertThat(activated.identifier.value).isEqualTo("direct-job")
+        assertThat(activated.metadata).containsEntry("source", "direct factory")
+    }
+
+    @Test
+    fun `missing constructor dependencies fail with the job identifier and kind`() {
+        val typeName = DependencyJob::class.java.name
+        val service = service(registry(entry(TypeRole.JOB, typeName, typeName)))
+
+        val failure = catchThrowable { service.activate(workflow(), jobData("unresolved-job", typeName)) }
+
+        assertThat(failure)
+            .isExactlyInstanceOf(JobActivationException::class.java)
+            .hasMessage("Unable to activate job #unresolved-job with kind '$typeName'")
+            .hasNoCause()
+    }
+
+    @Test
+    fun `container failures retain the original cause and job context`() {
+        val typeName = DependencyJob::class.java.name
+        val cause = IllegalStateException("container unavailable")
+        val service = service(registry(entry(TypeRole.JOB, typeName, typeName)), failingProvider(cause))
+
+        val failure = catchThrowable { service.activate(workflow(), jobData("container-job", typeName)) }
+
+        assertThat(failure)
+            .isExactlyInstanceOf(JobActivationException::class.java)
+            .hasMessage("Unable to activate job #container-job with kind '$typeName'")
+            .hasCause(cause)
+    }
+
+    @ParameterizedTest
+    @MethodSource("fatalFailures")
+    fun `fatal runtime failures are not normalized as job activation errors`(fatal: Error) {
+        val typeName = DependencyJob::class.java.name
+        val service = service(registry(entry(TypeRole.JOB, typeName, typeName)), failingProvider(fatal))
+
+        val failure = catchThrowable { service.activate(workflow(), jobData("fatal-job", typeName)) }
+
+        assertThat(failure).isSameAs(fatal)
+    }
+
+    @Test
+    fun `M08 should wrap a linkage failure after constructing the registered job`() {
+        val typeName = BuilderLinkageJob::class.java.name
+        val missingType = BuilderLinkageFixture.MissingMethodParameter::class.java.name
+        val parent = javaClass.classLoader
+        val loader = object : ClassLoader(parent) {
+            override fun loadClass(name: String, resolve: Boolean): Class<*> = synchronized(getClassLoadingLock(name)) {
+                if (name == missingType) throw ClassNotFoundException(name)
+                val type = findLoadedClass(name) ?: if (name == typeName) {
+                    val bytes = requireNotNull(parent.getResourceAsStream("${name.replace('.', '/')}.class"))
+                        .use { it.readBytes() }
+                    defineClass(name, bytes, 0, bytes.size)
+                } else {
+                    super.loadClass(name, false)
+                }
+                if (resolve) resolveClass(type)
+                type
+            }
+        }
+        BuilderLinkageFixture.constructions.set(0)
+        val registry = TypeRegistry.create(loader, listOf(entry(TypeRole.JOB, typeName, typeName)))
+        assertThat(BuilderLinkageFixture.constructions.get()).isZero()
+        val service = JobActivationService(NoDependencies, jobDefinitionBuilder(), ClassLoaderProvider { loader }, registry)
+
+        val failure = catchThrowable {
+            service.activate(workflow(), jobData("linkage-definition-job", typeName))
+        }
+
+        assertThat(BuilderLinkageFixture.constructions.get())
+            .describedAs("The constructor must precede the builder failure; caught %s", failure?.stackTraceToString())
+            .isEqualTo(1)
+        val causes = generateSequence(failure) { it.cause }.toList()
+        assertThat(causes.flatMap { it.stackTrace.toList() })
+            .anyMatch { it.className == JobDefinitionBuilder::class.java.name }
+        assertThat(failure)
+            .isExactlyInstanceOf(JobActivationException::class.java)
+            .hasMessage("Unable to activate job #linkage-definition-job with kind '$typeName'")
+            .hasCauseExactlyInstanceOf(NoClassDefFoundError::class.java)
+    }
+
+    @Test
+    fun `M08 should wrap a registered job definition configuration failure`() {
+        val typeName = AmbiguousPayloadJob::class.java.name
+        val service = service(registry(entry(TypeRole.JOB, typeName, typeName)))
+
+        val failure = catchThrowable {
+            service.activate(workflow(), jobData("invalid-definition-job", typeName))
+        }
+
+        assertThat(failure)
+            .isExactlyInstanceOf(JobActivationException::class.java)
+            .hasMessage("Unable to activate job #invalid-definition-job with kind '$typeName'")
+            .hasCauseExactlyInstanceOf(JobConfigurationException::class.java)
+        assertThat(failure.cause).hasMessageContaining("Found multiple explicitly declared payload functions")
+    }
+
     @Test
     fun `M05 M10 should activate registered job FQCNs and aliases`() {
         val fqcn = AllowedJob::class.qualifiedName!!
@@ -112,8 +230,8 @@ class JobActivationServiceTest {
             .contains(5, 6)
     }
 
-    private fun service(registry: TypeRegistry): JobActivationService = JobActivationService(
-        NoDependencies,
+    private fun service(registry: TypeRegistry, provider: IocProvider = NoDependencies): JobActivationService = JobActivationService(
+        provider,
         jobDefinitionBuilder(),
         ClassLoaderProvider { javaClass.classLoader },
         registry,
@@ -158,8 +276,54 @@ class JobActivationServiceTest {
         assertThat(System.getProperty("$name.constructed")).isNull()
     }
 
+    private fun failingProvider(failure: Throwable): IocProvider = object : IocProvider {
+        override fun <TDependency : Any> provide(type: KClass<out TDependency>): TDependency? = throw failure
+        override fun provide(type: KType): Any? = throw failure
+    }
+
+    class UnavailableDependency
+
+    class DependencyJob(@Suppress("UNUSED_PARAMETER") dependency: UnavailableDependency) {
+        fun execute() = Unit
+    }
+
+    class DirectJobDefinition : JobDefinition {
+        override val kind = JobKind("direct-definition")
+        override val parameters: List<ParameterDefinition<*>> = emptyList()
+        override val metadata: Map<String, Any> = emptyMap()
+
+        override fun createJob(
+            jobIdentifier: JobIdentifier,
+            workflow: Workflow<*>,
+            scheduledTime: Instant,
+            cancellationKey: CancellationKey?,
+            status: JobStatus,
+        ): de.lise.fluxflow.api.job.Job {
+            val definition = this
+            return object : de.lise.fluxflow.api.job.Job {
+                override val identifier = jobIdentifier
+                override val definition = definition
+                override val scheduledTime = scheduledTime
+                override val cancellationKey = cancellationKey
+                override val status = status
+                override val workflow = workflow
+                override val parameters: List<Parameter<*>> = emptyList()
+                override val metadata = mapOf("source" to "direct factory")
+                override fun execute(): Continuation<*> = Continuation.none()
+            }
+        }
+    }
+
     class AllowedJob {
         fun execute() = Unit
+    }
+
+    class AmbiguousPayloadJob {
+        @JobPayload
+        fun first() = Unit
+
+        @JobPayload
+        fun second() = Unit
     }
 
     @Job("allowed-job")
@@ -173,6 +337,11 @@ class JobActivationServiceTest {
         }
 
         fun execute() = Unit
+    }
+
+    companion object {
+        @JvmStatic
+        fun fatalFailures(): List<Error> = listOf(object : VirtualMachineError("fatal") {}, ThreadDeath())
     }
 }
 
