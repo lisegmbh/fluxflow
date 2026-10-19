@@ -350,6 +350,48 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
         assertThat(witnessLoader.events).isEmpty()
     }
 
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(NonMapJvmEntry::class)
+    fun `O03 direct JVM entry audit does not recurse into non-map list elements`(case: NonMapJvmEntry) {
+        val workflowId = WorkflowIdentifier("non-map-jvm-entry-${case.name.lowercase()}")
+        val data = StepData(steps.randomId(), workflowId.value, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to "safe value"), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id))).isEqualTo(data)
+        assertThat(audit.audit().isCompatible).isTrue()
+
+        val stored = requireNotNull(collection(StepDocument::class.java).find(Document("_id", ObjectId(data.id))).first())
+        val records = stored.get("dataEntries", Document::class.java)
+        val jvmTypes = records.get("jvmTypes", Document::class.java)
+        val originalEntries = jvmTypes.getList("entries", Document::class.java)
+        assertThat(originalEntries).hasSize(1)
+        val nestedAlias = Document("type", WITNESS_NAME)
+        val malformedChild: Any = when (case) {
+            NonMapJvmEntry.SCALAR -> "not-a-type-entry"
+            NonMapJvmEntry.NESTED_BSON_ARRAY -> listOf(nestedAlias)
+        }
+        // Preserve the writer's valid reference entry so reference auditing has no independent missing-use finding.
+        // A nested Kotlin List encodes as a BSON array and decodes back as a non-Map List in a raw Document.
+        jvmTypes["entries"] = listOf(originalEntries.single(), malformedChild)
+        collection(StepDocument::class.java).replaceOne(Document("_id", ObjectId(data.id)), stored)
+        val before = rawSnapshot()
+
+        val readFailure = catchThrowable { steps.findForWorkflowAndId(workflowId, StepIdentifier(data.id)) }
+        assertThat(readFailure).isInstanceOf(RuntimeException::class.java)
+
+        val report = audit.audit()
+        assertThat(report.complete).isTrue()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings)
+            .describedAs("Direct non-map JVM entry audit after public read failed with %s", readFailure?.javaClass?.name)
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(tuple(collectionName(StepDocument::class.java), data.id,
+                "/dataEntries/jvmTypes/entries/1/type", TypeRole.VALUE, MongoTypeAuditIssue.MALFORMED, null))
+        assertThat(report.isCompatible).isFalse()
+        assertThat(rawSnapshot()).isEqualTo(before)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
     enum class ContainerForm { MISSING, NULL, SCALAR }
 
     enum class RequiredMapCase(val property: String, val form: ContainerForm) {
@@ -372,6 +414,8 @@ abstract class AbstractProductionMongoTypeAuditIT : AbstractProductionMongoAudit
     }
 
     enum class EntriesDefault { MISSING, NULL, EMPTY_JVM_MAP }
+
+    enum class NonMapJvmEntry { SCALAR, NESTED_BSON_ARRAY }
 
     enum class DefaultEntriesCase(val nullRecord: Boolean, val form: EntriesDefault) {
         EMPTY_MISSING(false, EntriesDefault.MISSING), EMPTY_NULL(false, EntriesDefault.NULL), EMPTY_JVM_MAP(false, EntriesDefault.EMPTY_JVM_MAP),
