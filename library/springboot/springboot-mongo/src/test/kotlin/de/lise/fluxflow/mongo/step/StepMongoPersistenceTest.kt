@@ -1,8 +1,11 @@
 package de.lise.fluxflow.mongo.step
 
+import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
+import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.query.filter.MongoEqualFilter
 import de.lise.fluxflow.mongo.step.query.filter.StepDocumentFilter
+import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.query.StepDataQuery
 import de.lise.fluxflow.query.Query
 import de.lise.fluxflow.query.pagination.Page
@@ -19,8 +22,12 @@ class StepMongoPersistenceTest {
         val stepRepository = mock<StepRepository> {
             on { findAll(any<Query<StepDocumentFilter, Sort>>()) } doReturn (Page.unpaged(emptyList()))
         }
+        val queryRepository = mock<MongoFlowQueryRepository<StepDocument>> {}
+        val queryMapper = mock<QueryMapper<StepData, StepDocument>> {}
         val stepMongoPersistence = StepMongoPersistence(
             stepRepository,
+            queryRepository,
+            queryMapper
         )
 
         // Act

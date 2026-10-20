@@ -4,9 +4,7 @@ import de.lise.fluxflow.api.bootstrapping.BootstrapAction
 import de.lise.fluxflow.api.job.Job
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.job.JobStatus
-import de.lise.fluxflow.api.job.query.filter.JobFilter
-import de.lise.fluxflow.query.Query
-import de.lise.fluxflow.query.filter.Filter
+import de.lise.fluxflow.api.job.query.JobQueryable.Companion.status
 import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.scheduling.SchedulingService
 import org.slf4j.LoggerFactory
@@ -18,13 +16,11 @@ class ReconcileScheduledJobsBootstrapAction(
     override fun setup() {
         Logger.info("Reconciling scheduled jobs on startup...")
 
-        val scheduledJobs = jobService.findAll(
-            Query.withFilter(
-                JobFilter.empty().withStatus(
-                    Filter.eq(JobStatus.Scheduled)
-                )
-            )
-        )
+        val scheduledJobs = jobService.findAll { 
+            where { 
+                status.isEqual(JobStatus.Scheduled)
+            }
+        }
 
         if (scheduledJobs.items.isEmpty()) {
             Logger.info("No scheduled jobs found on startup.")

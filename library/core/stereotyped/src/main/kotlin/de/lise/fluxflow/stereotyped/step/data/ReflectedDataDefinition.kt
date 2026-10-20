@@ -4,10 +4,10 @@ import de.lise.fluxflow.api.step.Step
 import de.lise.fluxflow.api.step.stateful.data.*
 import de.lise.fluxflow.api.step.stateful.data.Data
 import de.lise.fluxflow.api.step.stateful.data.validation.DataValidationDefinition
-import de.lise.fluxflow.stereotyped.step.bind
+import de.lise.fluxflow.stereotyped.step.InstanceAccessor
 import java.lang.reflect.Type
 
-class ReflectedDataDefinition<TInstance, TModel>(
+data class ReflectedDataDefinition<TInstance, TModel>(
     override val kind: DataKind,
     override val type: Type,
     override val metadata: Map<String, Any>,
@@ -15,14 +15,23 @@ class ReflectedDataDefinition<TInstance, TModel>(
     override val updateListeners: List<DataListenerDefinition<TModel>>,
     override val validation: DataValidationDefinition?,
     override val modificationPolicy: ModificationPolicy,
+    private val instanceAccessor: InstanceAccessor<TInstance>,
     private val propertyGetter: PropertyGetter<TInstance, TModel>,
     private val propertySetter: PropertySetter<TInstance, TModel>? = null,
 ) : DataDefinition<TModel> {
     override val isReadonly: Boolean
         get() = propertySetter == null
 
+    internal fun withAdditionalListeners(
+        listeners: Collection<DataListenerDefinition<TModel>>
+    ): ReflectedDataDefinition<TInstance, TModel> {
+        return copy(
+            updateListeners = updateListeners + listeners
+        )
+    }
+    
     override fun createData(step: Step): Data<TModel> {
-        val instance = step.bind<TInstance>()!!
+        val instance = instanceAccessor.get(step)
         
         val readOnlyData = ReflectedData(
             step,

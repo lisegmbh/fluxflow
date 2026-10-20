@@ -1,5 +1,6 @@
 package de.lise.fluxflow.springboot.web
 
+import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.exc.MismatchedInputException
 import de.lise.fluxflow.reflection.activation.parameter.FunctionParameter
@@ -16,14 +17,14 @@ class SpringWebRequestBodyParameterResolution(
     override fun get(request: HttpServletRequest): Any? {
         return try {
             objectMapper.readValue(request.inputStream, targetType)
-        } catch (e: MismatchedInputException) {
-            if(!optional) {
-                throw ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Missing or invalid request body. A ${targetType.simpleName} is required."
-                )
+        } catch (e: JacksonException) {
+            if(optional && e is MismatchedInputException) {
+                return null
             }
-            null
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Missing or invalid request body. A ${targetType.simpleName} is required."
+            )
         }
     }
 }

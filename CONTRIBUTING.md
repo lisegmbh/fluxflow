@@ -12,6 +12,7 @@
 - [Writing Commit Messages](#memo-writing-commit-messages)
 - [Code Review](#white_check_mark-code-review)
 - [Coding Style](#nail_care-coding-style)
+- [Publishing Model](#package-publishing-model)
 - [Certificate of Origin](#medal_sports-certificate-of-origin)
 - [Credits](#pray-credits)
 
@@ -165,6 +166,41 @@ For example, if all private properties are prefixed with an underscore `_`, then
 
 Adhere to the current styling and formatting of the codebase,
 but feel free to insert custom linebreaks, spacing or indentation as long as it improves readability. 
+
+## :package: Publishing Model
+
+FluxFlow publishes its Spring Boot integration artifacts in **two explicit compatibility lines**,
+built from the module trees in `library/`:
+
+| Module tree           | Published artifactId | Spring Boot baseline |
+|-----------------------|----------------------|----------------------|
+| `library/springboot`  | `<module>-spring3`   | Spring Boot 3        |
+| `library/springboot4` | `<module>-spring4`   | Spring Boot 4        |
+| `library/core`        | `<module>` (unsuffixed) | none (Spring-agnostic) |
+
+The mapping and the per-line Spring Boot BOM selection are centralized in `library/build.gradle.kts`.
+Historical, unsuffixed Spring integration coordinates (e.g. `de.lise.fluxflow:springboot`) are
+**legacy** and must never receive new releases.
+
+Both lines are released together from this repository by the Jenkins pipeline (`Jenkinsfile`):
+pushes to `develop` publish snapshots to the lise Nexus repository, and version tags (`vX.Y.Z`)
+publish releases to Maven Central.
+
+The Gradle task `verifyPublications` (provided by the `fluxflow.publication-verification`
+convention plugin in `library/buildSrc`) guards this model. It runs as part of
+`check`/`build` and before any remote publication, and fails the build if:
+
+- a publication's coordinates do not match the tree-based convention above,
+- a module exists in only one of the two Spring line trees,
+- a module depends on a module from the other Spring line, or a core module
+  depends on a Spring integration module.
+
+When **adding a new Spring integration module**, add it to **both** trees
+(`springboot:` *and* `springboot4:`) in `library/settings.gradle.kts` — the verification
+will fail the build otherwise.
+
+The verification itself is covered by Gradle TestKit tests in `library/buildSrc`.
+Run them with `./gradlew buildSrc:test` (CI runs them alongside `build`).
 
 ## :medal_sports: Certificate of Origin
 

@@ -1,7 +1,9 @@
 plugins {
-    kotlin("jvm") version "2.2.10"
+    kotlin("jvm") version "2.4.10"
+    id("org.jetbrains.dokka") version "2.2.0"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.vanniktech.maven.publish") version "0.34.0"
+    id("com.vanniktech.maven.publish") version "0.37.0"
+    id("fluxflow.publication-verification")
 }
 
 repositories {
@@ -18,18 +20,35 @@ val projVersion = project.findProperty("projVersion")
         }
     }
 
-val intermediateProjectPaths = setOf(":core", ":springboot")
+val springBoot3Version = "3.5.7"
+val springBoot4Version = "4.0.6"
+val defaultProjectVersion = "0.3.0-SNAPSHOT-8"
+val resolvedProjectVersion = projVersion ?: defaultProjectVersion
+
+val intermediateProjectPaths = setOf(":core", ":springboot", ":springboot4")
+
+version = resolvedProjectVersion
+group = "de.lise.fluxflow"
 
 subprojects {
     val subProject = this
-    val springBootVersion = "3.5.5"
+    val springBootVersion = when {
+        subProject.path.startsWith(":springboot4:") -> springBoot4Version
+        else -> springBoot3Version
+    }
+
+    if (intermediateProjectPaths.contains(subProject.path)) {
+        println("Intermediate sub project ${subProject.path} is skipped.")
+        return@subprojects
+    }
 
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "io.spring.dependency-management")
     apply(plugin = "com.vanniktech.maven.publish")
+    apply(plugin = "org.jetbrains.dokka")
 
     group = "de.lise.fluxflow"
-    version = projVersion ?: "0.3.0-SNAPSHOT-1"
+    version = resolvedProjectVersion
     
     repositories {
         mavenCentral()
@@ -37,6 +56,11 @@ subprojects {
 
     java {
         sourceCompatibility = JavaVersion.VERSION_17
+    }
+
+    tasks.withType<Javadoc>().configureEach {
+        // disable plain JavaDoc (fails with Kotlin sources)
+        enabled = false
     }
 
     kotlin {
@@ -47,7 +71,7 @@ subprojects {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion") {
                 bomProperties(
-                    mapOf("kotlin.version" to "2.2.0")
+                    mapOf("kotlin.version" to "2.4.0")
                 )
             }
         }
@@ -55,11 +79,11 @@ subprojects {
 
     dependencies {
         // Test
-        testImplementation("org.mockito.kotlin:mockito-kotlin:6.0.0")
-        testImplementation("org.assertj:assertj-core:3.27.4")
+        testImplementation("org.mockito.kotlin:mockito-kotlin:6.4.0")
+        testImplementation("org.assertj:assertj-core:3.27.7")
         testImplementation("org.mockito:mockito-inline:5.2.0")
 
-        testImplementation(platform("org.junit:junit-bom:5.13.4"))
+        testImplementation(platform("org.junit:junit-bom:6.1.3"))
         testImplementation("org.junit.jupiter:junit-jupiter")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
@@ -69,16 +93,20 @@ subprojects {
     }
     
     mavenPublishing {
-        if(intermediateProjectPaths.contains(subProject.path)) {
-            println("Maven publishing is skipped for intermediate sub project ${subProject.path}")
-        } else {
-            publishToMavenCentral()
-            signAllPublications()    
+        publishToMavenCentral()
+        if (!providers.gradleProperty("skipSigning").isPresent) {
+            signAllPublications()
+        }
+
+        val publishedArtifactId = when {
+            subProject.path.startsWith(":springboot4:") -> "${subProject.name}-spring4"
+            subProject.path.startsWith(":springboot:") -> "${subProject.name}-spring3"
+            else -> subProject.name
         }
 
         coordinates(
             subProject.group.toString(),
-            subProject.name,
+            publishedArtifactId,
             subProject.version.toString()
         )
 
@@ -146,4 +174,11 @@ subprojects {
             }
         }
     }
+}
+
+// The publishing plugin is only applied to the root project to make its typed
+// accessors available within the subprojects block. The root project itself
+// must never publish (it would surface as an empty "de.lise.fluxflow:fluxflow").
+tasks.withType<AbstractPublishToMaven>().configureEach {
+    enabled = false
 }

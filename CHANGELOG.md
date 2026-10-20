@@ -15,6 +15,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 -->
 
+## [0.3.0] - 2026-10-06
+
+### Added
+1. **FlowQuery API**<br/>
+   Introduces an expression-based querying approach that offers a more expressive and unified API.
+   [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
+2. **Reusable step data imports (`@Import`)**<br/>
+   Enables reusing and composing common step data sets by importing data definitions from another type.
+   Supports optional kind prefixing (CamelCase or Plain) 
+   and merges data listeners from the imported and parent step, 
+   reducing duplication and improving maintainability.
+   [Issue #145](https://github.com/lisegmbh/fluxflow/issues/145)
+3. **Shared security baseline tests**<br/>
+   Adds a mandatory test gate and shared characterization fixtures for both Spring
+   compatibility lines. This test infrastructure does not change production type resolution.
+
+6. **Docker runtime for Jenkins integration tests**<br/>
+   Provides a per-agent Docker sidecar through a shared Unix socket, checks readiness from
+   the Gradle container, and retains test reports on build failures. Security-test exceptions
+   include their full causes in the build log. The Kubernetes cluster must permit the
+   privileged Docker sidecar.
+
+### Changed
+1. **Spring integration artifacts are now published in two explicit lines**<br/>
+   All Spring Boot integration artifacts are now published under coordinates that carry the supported
+   Spring Boot major version: `*-spring3` for Spring Boot 3 (e.g. `de.lise.fluxflow:springboot-spring3`)
+   and `*-spring4` for Spring Boot 4 (e.g. `de.lise.fluxflow:springboot-spring4`).
+   The historical, unsuffixed coordinates (e.g. `de.lise.fluxflow:springboot`) are legacy Boot 3-only
+   releases and will not receive new versions - migrate to the `-spring3` coordinates when upgrading.
+   Core artifacts remain Spring-agnostic and keep their unsuffixed coordinates.
+   Both lines are released together, and the build now verifies the published coordinates
+   before anything is published.
+   [Issue #401](https://github.com/lisegmbh/fluxflow/issues/401),
+   [Issue #402](https://github.com/lisegmbh/fluxflow/issues/402),
+   [Issue #405](https://github.com/lisegmbh/fluxflow/issues/405)
+2. **Spring Boot 4 variants now use Jackson 3**<br/>
+   The `-spring4` variant of `springboot-web` now consumes Spring Boot 4's auto-configured
+   Jackson 3 `ObjectMapper` (`tools.jackson.databind.ObjectMapper`) instead of requiring a
+   Jackson 2 `com.fasterxml.jackson.databind.ObjectMapper` bean, which Spring Boot 4 no longer auto-configures.
+   This fixes context startup failures (`NoSuchBeanDefinitionException: com.fasterxml.jackson.databind.ObjectMapper`)
+   and removes the need for the deprecated `spring-boot-jackson2` workaround in consuming
+   applications. 
+   `tools.jackson.module:jackson-module-kotlin` is now a runtime dependency of
+   `springboot-web-spring4`, so request bodies deserialize into Kotlin data classes out of the box.
+   The `-spring3` variants are unaffected and remain on Jackson 2.
+
+### Deprecated
+1. **Legacy Query/Filter API**<br/>
+   The legacy query and filter APIs are now deprecated in favor of the new FlowQuery API.   
+   [Issue #140](https://github.com/lisegmbh/fluxflow/issues/140)
+
+### Fixed
+### Removed
+
 ## [0.2.0] - 2025-10-02
 ### Added
 1. **Optional sort property**<br/>

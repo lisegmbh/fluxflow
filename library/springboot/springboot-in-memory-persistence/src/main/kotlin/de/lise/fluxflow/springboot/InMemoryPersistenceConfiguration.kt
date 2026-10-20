@@ -1,5 +1,6 @@
 package de.lise.fluxflow.springboot
 
+import de.fluxflow.flowquery.inmemory.expression.compilation.InMemoryCompiler
 import de.lise.fluxflow.migration.MigrationProvider
 import de.lise.fluxflow.persistence.continuation.history.ContinuationRecordPersistence
 import de.lise.fluxflow.persistence.job.JobPersistence
@@ -26,31 +27,52 @@ open class InMemoryPersistenceConfiguration {
     }
 
     @Bean
+    open fun inMemoryCompiler(): InMemoryCompiler {
+        return InMemoryCompiler()
+    }
+
+    @Bean
     open fun workflowPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): WorkflowPersistence {
-        return WorkflowTestPersistence(idGenerator)
+        return WorkflowTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler
+        )
     }
 
     @Bean
     open fun stepPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): StepPersistence {
-        return StepTestPersistence(idGenerator)
+        return StepTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler
+        )
     }
 
     @Bean
     open fun jobPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): JobPersistence {
-        return JobTestPersistence(idGenerator)
+        return JobTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler
+        )
     }
 
     @Bean
     open fun continuationRecordPersistence(
-        idGenerator: TestIdGenerator
+        idGenerator: TestIdGenerator,
+        inMemoryCompiler: InMemoryCompiler
     ): ContinuationRecordPersistence {
-        return ContinuationRecordTestPersistence(idGenerator)
+        return ContinuationRecordTestPersistence(
+            idGenerator = idGenerator,
+            inMemoryCompiler = inMemoryCompiler    
+        )
     }
 
     @Bean

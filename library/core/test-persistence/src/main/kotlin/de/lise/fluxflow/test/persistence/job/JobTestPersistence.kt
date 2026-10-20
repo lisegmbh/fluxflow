@@ -1,5 +1,8 @@
 package de.lise.fluxflow.test.persistence.job
 
+import de.fluxflow.flowquery.inmemory.expression.compilation.InMemoryCompiler
+import de.fluxflow.flowquery.inmemory.query.InMemoryQueryRepository
+import de.fluxflow.flowquery.query.FlowQuery
 import de.lise.fluxflow.api.job.CancellationKey
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
@@ -13,8 +16,16 @@ import de.lise.fluxflow.test.persistence.TestIdGenerator
 
 class JobTestPersistence(
     private val idGenerator: TestIdGenerator = TestIdGenerator(),
-    private val entities: MutableMap<String, JobData> = mutableMapOf()
+    private val entities: MutableMap<String, JobData> = mutableMapOf(),
+    inMemoryCompiler: InMemoryCompiler
 ) : JobPersistence {
+    
+    private val inMemoryQueryRepository = InMemoryQueryRepository(
+        inMemoryCompiler
+    ) {
+        entities.values
+    }
+    
     override fun randomId(): String {
         return idGenerator.newId()
     }
@@ -71,6 +82,10 @@ class JobTestPersistence(
             allResults,
             query.page
         )
+    }
+
+    override fun findAll(query: FlowQuery<JobData, JobData>): Page<JobData> {
+        return inMemoryQueryRepository.find(query)
     }
 
     override fun save(jobData: JobData): JobData {
