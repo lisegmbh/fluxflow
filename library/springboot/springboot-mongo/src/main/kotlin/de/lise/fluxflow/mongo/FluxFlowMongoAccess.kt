@@ -53,6 +53,10 @@ class FluxFlowMongoAccess internal constructor(
     internal val template: MongoTemplate
     internal val typeKey: String
     internal val valueTypes: ValueTypeConverter
+    internal val typeRegistry: TypeRegistry = registry
+    internal val typeAliases: FluxFlowMongoTypeAliases
+    internal val fieldNames: MongoFieldNames
+    internal val documentTypePolicy: MongoDocumentTypePolicy
 
     private val repositoryFactory: MongoRepositoryFactory
 
@@ -84,24 +88,23 @@ class FluxFlowMongoAccess internal constructor(
             DataDefinitionDocument::class.java,
         )
         typeKey = MongoTypeKeyResolver.resolve(hostConverter.typeMapper)
-        val aliases = FluxFlowMongoTypeAliases(registry, rootTypes, infrastructureTypes)
+        typeAliases = FluxFlowMongoTypeAliases(registry, rootTypes, infrastructureTypes)
         val databaseFactory = hostTemplate.mongoDatabaseFactory
         val isolatedConverter = hostConverter.with(databaseFactory).apply {
-            setTypeMapper(typeMapperFactory.create(aliases, typeKey))
+            setTypeMapper(typeMapperFactory.create(typeAliases, typeKey))
             setApplicationContext(applicationContext)
         }
         val converterCustomization = FluxFlowMongoConverterCustomization(isolatedConverter)
         converterCustomizers.orderedStream().forEach { it.customize(converterCustomization) }
         valueTypes = ValueTypeConverter.withHostConversions(registry, isolatedConverter.conversionService)
-        converter = GuardedMongoConverter(
-            isolatedConverter,
-            MongoDocumentTypePolicy(
-                aliases,
-                typeKey,
-                fieldNames = MongoFieldNames(hostConverter.mappingContext),
-                isRegisteredJvmValueType = valueTypes::isRegistered,
-            ),
+        fieldNames = MongoFieldNames(hostConverter.mappingContext)
+        documentTypePolicy = MongoDocumentTypePolicy(
+            typeAliases,
+            typeKey,
+            fieldNames = fieldNames,
+            isRegisteredJvmValueType = valueTypes::isRegistered,
         )
+        converter = GuardedMongoConverter(isolatedConverter, documentTypePolicy)
         template = MongoTemplate(databaseFactory, NonIndexingMongoConverter(converter)).apply {
             setApplicationContext(applicationContext)
             converterCustomization.entityCallbacks?.let { setEntityCallbacks(it) }

@@ -209,14 +209,174 @@ val valueTypes = ValueTypeConverter(typeRegistry)
 val restored = typedRecords.toTypeSafeData(valueTypes)
 ```
 
-Before upgrading a running system, compare the distinct persisted step and job kinds, Mongo
-model/value discriminators, legacy `typeName` fields, and typed-record JVM type entries with the
-generated inventory. Every historical custom key that can still be read needs an exact declaration
-for its matching role; entries from legacy value maps and typed records use the `value` role.
-Database contents may identify missing declarations,
-but must never add registrations automatically. Applications with dynamic or erased model types
-need explicit entries. A repository fixture cannot replace an inventory check against the actual
-application's data.
+## Audit persisted Mongo type metadata
+
+Applications using FluxFlow's Mongo persistence receive a `FluxFlowMongoTypeAudit` bean. The audit
+is explicit; FluxFlow does not run it automatically during startup or normal workload processing.
+It reads the mapped workflow, step, job, and step-definition collections through the synchronous
+Mongo driver, without mapping BSON to application objects, activating workflow elements, invoking
+constructors, or writing to the database.
+Field lookups and finding paths use the same host mapping metadata as guarded reads, including
+field naming strategies, nested PATH mappings and literal dotted KEY fields.
+
+```kotlin
+import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditOptions
+
+class TypeInventoryCheck(
+    private val typeAudit: FluxFlowMongoTypeAudit,
+) {
+    fun verify() {
+        val report = typeAudit.audit(
+            MongoTypeAuditOptions(
+                batchSize = 500,
+                maxFindings = 10_000,
+            )
+        )
+
+        check(report.isCompatible) {
+            "The persisted FluxFlow type inventory is incomplete or incompatible."
+        }
+    }
+}
+```
+
+The audit checks kinds in persisted step and job documents, workflow model names and discriminators,
+nested Mongo discriminators, legacy `typeName` fields, and current typed-record JVM type entries against
+the immutable registry of the running application. Fixed scalar and container workflow models that
+the guarded converter already supports are accepted without application registrations. Findings
+contain the collection, document ID, JSON-pointer-style field path, expected role when one applies,
+persisted name when it is a string, and one of these issues:
+
+- `UNREGISTERED`: the exact persisted name is absent from the expected registry role.
+- `MALFORMED`: required type metadata is missing, empty, or has an invalid field or container form.
+- `DISALLOWED`: a name is known in another role or is not permitted at that document location.
+- `INCONSISTENT`: two registered fields in one document identify different model classes.
+
+An existing typed-record container requires `jvmTypes`, `values` and `types` maps. Missing, null
+or non-map required containers produce `MALFORMED` findings at their mapped field paths, without
+an expected registry role or persisted type name. Empty maps remain valid. Step and job record
+fields may be absent or null when their legacy fallback applies; definition and data-definition
+metadata containers are required. When both `values` and `types` maps are present, their keys must
+match; missing counterparts are reported at the mapped path under the other map. Missing or null
+JVM mapping `entries` retains its empty-list default; a non-null value must be a sequence,
+otherwise the mapped `entries` path is malformed. Each persisted `TypeRecord` map must include
+the configured Mongo type discriminator and identify a supported `JvmTypeRecord`,
+`CollectionTypeRecord` or `NullTypeRecord`. Missing discriminators and registered infrastructure
+aliases for unrelated classes are reported as `MALFORMED` at the escaped discriminator path.
+TypeRecord values and a collection record's `collectionType` must be maps; `componentTypes` must
+be a sequence. Invalid forms are reported as `MALFORMED` at their mapped paths.
+For a matching `values` entry that is a collection, each collection record compares its size with
+the number of `componentTypes`; nested collection records receive the corresponding raw collection
+element and are checked the same way. A mismatch is reported once at that record's mapped
+`componentTypes` path.
+When guarded reads reject a non-string discriminator in infrastructure, TypedRecords or step
+definition metadata, the diagnostic uses a fixed placeholder instead of rendering the arbitrary
+value. Existing string-alias messages and the mapped suppressed diagnostic remain unchanged. This
+protects the in-memory diagnostic path; it does not claim a remotely exploitable persisted-data
+denial of service.
+JVM mapping references must be unique, including unused entries, and every used reference must
+have a mapping. Reference failures are structural `MALFORMED` findings with no registry role or
+persisted type name. References need not be UUIDs or nonblank strings; matching reference values
+are compared using the string representation of supported primitive scalar forms, BSON
+`ObjectId` values and BSON `Document` values. Document JSON uses a private codec registry with
+the standard UUID string codec, matching Spring Data's UUID-to-string conversion without invoking
+the host converter. The bounded document preflight runs first, and the record-reference pass
+applies its own depth and node limits as well. The audit does not invoke the mapping converter or
+application conversions to resolve these references.
+
+The historical `kind` in a persisted step definition is descriptive: it must be a nonempty string,
+but does not require an active STEP registration. A retained definition can therefore support
+restoration after its executable kind is retired. This exception applies only to definition
+kinds; step and job documents still require exact registrations, and definition metadata still
+requires permitted VALUE types. Missing, null, empty or nonstring definition kinds are malformed.
+
+`scannedDocumentsByCollection` reports how many documents were inspected in each attempted collection,
+including a document containing a finding that proves truncation. Collections that were not visited
+have no entry. A zero count with a failure does not prove that the collection was empty.
+
+`maxFindings` bounds retained findings: exactly that many findings can still produce a complete scan.
+Only a real additional finding stops the scan as truncated, without adding it to the report. The
+audit may read all remaining healthy documents and collections to prove completeness, so this
+option does not bound database I/O. Acquired cursors are closed even after truncation; failures
+during closing still make the report incomplete.
+
+`complete` is `false` when an additional finding truncates the scan, a collection cannot be read,
+or a document exceeds the traversal
+depth or node budget. A document budget violation produces a `MALFORMED` finding with its ID and
+the field path where inspection stopped; the audit continues with later documents. Unexpected
+inspection errors and driver or cursor failures remain collection failures, listed in `failures`.
+`isCompatible` is `true` only when the scan completed and both `findings` and `failures`
+are empty. Treat an incomplete report as a failed check, even if the returned findings are empty.
+The result is deterministic for the documents observed by the scan, but it is not a transactional
+snapshot; prevent concurrent type-changing writes when using it as a release gate.
+
+The audit reports metadata compatibility with one candidate registry. It does not validate business
+data or constructor arguments, other application collections, artifact integrity, or changes made
+after the scan. A clean result is therefore a rollout prerequisite, not a replacement for the
+runtime read guards.
+
+## Inventory an existing application
+
+Perform the inventory against an anonymized production export or a staging database with the exact
+candidate application artifact and configuration:
+
+1. Build the candidate artifact and run `check`, including the manifest verification for the plain
+   and executable JAR. Record the artifact version and Git revision.
+2. Start the candidate in an isolated audit context with normal workload, scheduling, reconciliation,
+   and migrations disabled. Registry construction must succeed before the audit bean is used.
+3. Run `FluxFlowMongoTypeAudit.audit()` and retain the report, scan options, collection counts, and
+   database snapshot identifier with the release evidence. Do not export complete BSON payloads.
+4. Review every finding against source and artifact ownership. Add an exact declaration only after
+   confirming that the type is intended and safe for the reported role. Correct malformed,
+   inconsistent, or obsolete records through an explicitly reviewed migration.
+5. Rebuild the artifact and repeat the audit until `isCompatible` is `true`. Database contents may
+   identify missing declarations, but must never create registrations automatically.
+6. Run the application's consumer acceptance suite against the same candidate and database shape.
+   It should cover workflow resume and restored steps, custom step and job kinds, representative
+   queries, job execution, and model/value types supplied by other artifacts.
+
+Historical custom type keys used to materialize models or values, or activate steps and jobs,
+need exact declarations for their matching roles; entries from legacy value maps and typed records
+use the `value` role. Historical step-definition kinds follow the descriptive exception above.
+Applications with dynamic or erased model types need explicit entries. The in-repository consumer fixtures exercise
+this contract on both supported Spring Boot lines, but they do not replace an inventory or
+acceptance run against the actual application and its data.
+
+## Roll out type inventory changes
+
+Type inventory changes use an **Expand -> Deploy -> Migrate -> Contract** sequence. This applies to
+new types, renames, removals, and role changes.
+
+1. **Expand:** Publish a compatibility artifact that contains and registers every currently
+   persisted key plus every future key and class. Keep old keys and compatibility classes. The
+   application must not create records using a future key yet. For a class rename, keep a bridge at
+   the old binary name or otherwise keep producing the old representation during this phase.
+2. **Deploy:** Roll the expanded artifact to every process that can read FluxFlow data. Run the
+   startup checks, raw audit, and consumer acceptance suite before enabling producers of the new
+   type. If the future class cannot safely be shipped dormant, drain all old readers and use a
+   deployment without version overlap.
+3. **Migrate:** Only after every reader understands both inventories, enable new writes and migrate
+   old records in reviewed batches. The migration runtime must retain both old and new
+   registrations. Repeat the raw audit after each batch and stop on incomplete reports, failures,
+   or unexpected findings.
+4. **Contract:** In an isolated environment, run the audit with the proposed contracted registry,
+   including its manifests, scanned annotations, and explicit contributors. Remove an old key,
+   bridge class, or migration path only after that candidate reports no remaining references and
+   the consumer suite passes. Ship the removal in a later release.
+
+FluxFlow writes Mongo application discriminators using the runtime class name. A logical manifest
+alias permits that persisted alias on reads; it does not select the name written by Mongo.
+Consequently, enabling a new or renamed runtime class before all readers have expanded can make new
+records unreadable to old processes. During a rename, a bridge at the old binary name must remain
+the runtime type being written until the expanded fleet can read the replacement. Once a new key
+has been written, rollback is limited to an artifact whose registry and classes understand both old
+and new representations. Otherwise reverse the data migration before restarting the older
+artifact.
+
+A role change is a separate addition and removal. Never reuse a persisted key under a different
+role. Keep reconciliation disabled during inventory and migration unless the application explicitly
+requires and tests it.
 
 Mongo reads, type-record bootstrap migration and scheduled-job reference queries use the host
 converter's mapping context, including custom field names and status converters. Mapped PATH fields

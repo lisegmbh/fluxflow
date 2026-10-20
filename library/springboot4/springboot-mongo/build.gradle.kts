@@ -8,6 +8,7 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
     requiredClasses.set(listOf(
         "de.lise.fluxflow.mongo.security.baseline.SecurityWitnessTest",
         "de.lise.fluxflow.mongo.security.baseline.ActivationBaselineTest",
+        "de.lise.fluxflow.mongo.security.consumer.Boot4MongoConsumerContractIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoHostTemplateIT",
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoTemplateCustomizationIT",
@@ -24,6 +25,7 @@ extensions.configure<SecurityTestRequirements>("securityTests") {
         "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoReconciliationIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoSecurityIT",
         "de.lise.fluxflow.mongo.security.prototype.Boot4PrototypeMongoHostTemplateIT",
+        "de.lise.fluxflow.mongo.security.production.Boot4ProductionMongoTypeAuditIT",
         "de.lise.fluxflow.mongo.security.production.ValueTypeConverterSecurityTest",
         "de.lise.fluxflow.mongo.security.production.StepMongoConfigurationCompatibilityTest",
         "de.lise.fluxflow.mongo.security.production.ValueTypeConverterJavaCompatibilityTest",

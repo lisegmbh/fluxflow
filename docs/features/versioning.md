@@ -128,11 +128,12 @@ fluxflow.versioning.steps.requiredCompatibility: Compatible
 ```
 
 ### Tweaking the fallback behavior
-Whenever FluxFlow is unable to reactivate a workflow element, 
-it will try to return a "historic" fallback representation using a snapshot of its original definition.
-Note that the activation might fail because the compatibility check failed 
-or because of an actual runtime error during activation
-(e.g., missing class definitions, incompatible data types, etc.). 
+When a persisted step has an unknown kind or an incompatible version, FluxFlow tries
+to return a historic fallback representation using a snapshot of its original definition.
+Technical failures while constructing a step, resolving its dependencies or building its
+definition remain visible as a `StepActivationException` with the original cause.
+Applications that configure `RestoringStepActivationService` directly can explicitly opt
+in to restoration after these failures by setting `handleAnyException = true`.
 
 The restored representation is immutable 
 and its purpose is to still be able to at least access historic information.

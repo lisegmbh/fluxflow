@@ -22,6 +22,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
    generates the manifest in consumer JARs.
+2. **Read-only Mongo type inventory audit**<br/>
+   Adds an explicit raw-BSON audit API that compares persisted FluxFlow type metadata with
+   the candidate application's trusted registry without hydrating application objects or
+   changing the database. Structured reports distinguish findings, collection failures, and
+   incomplete scans. The manifest guide now documents the consumer inventory check and the
+   required Expand -> Deploy -> Migrate -> Contract sequence for type changes.
+   Audit field lookups and finding paths honor the host's field naming strategy, nested PATH
+   mappings and literal dotted KEY names through the same metadata used by guarded reads.
+   Legacy type-map application keys such as `typeName` no longer cause false malformed findings;
+   nested infrastructure type names remain subject to registry validation.
+   Additional type names below current typed-record `types` are now checked against the VALUE
+   registry, independently of the JVM mapping entries, matching the guarded read contract.
+   Documents exceeding an audit traversal budget now produce a malformed finding with their
+   ID and field path, mark the report incomplete, and allow subsequent documents to be inspected.
+   Archived step definitions no longer require an active STEP registration for their historical
+   kind. Required kind strings and all persisted value type metadata remain validated.
+   Audit finding limits now truncate only when an additional finding exists; exactly the configured
+   number can complete. Scan counts distinguish unvisited collections from attempted collections.
+   Required typed-record containers now report malformed mapped paths without hiding independent
+   type-name findings. Present `values` and `types` maps now require matching keys, with findings
+   at the mapped missing-entry paths. Non-null JVM-entry containers must be sequences; optional
+   step/job legacy fallbacks and missing or null JVM-entry defaults remain supported. Missing
+   type discriminators and unrelated registered infrastructure aliases on persisted `TypeRecord`
+   maps are reported at the escaped discriminator path. Non-map TypeRecord values and
+   `collectionType`, plus non-sequence `componentTypes`, are reported as malformed. Collection
+   values whose size differs from `componentTypes`, including nested collection values, are reported
+   at the mapped path.
+   Used JVM references now require a mapping, and duplicate references are reported even when
+   unused. Reference checks preserve matching primitive scalar, BSON `ObjectId` and BSON
+   `Document` forms without hydration; Document JSON uses the standard UUID string codec. The
+   second reference pass enforces its own depth and node budget after document preflight.
+   Guarded-read diagnostics for non-string infrastructure, TypedRecords and step-definition aliases
+   use a fixed placeholder instead of invoking their `toString()`; string messages and mapped
+   suppressed diagnostics are preserved. This addresses an in-memory diagnostic boundary and makes
+   no remote denial-of-service claim.
+   [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 
 ### Changed
 1. **Configure FluxFlow's internal Mongo template explicitly**<br/>
@@ -52,6 +88,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    registrations. Unknown kinds fail before their classes can be initialized or constructed.
    Existing fully qualified kinds remain supported when present in the generated manifest or an
    explicit context-local registration.
+   Technical step construction and definition-building failures remain visible when general
+   exception restoration is disabled, while unknown kinds and incompatible versions retain
+   the persisted-definition fallback. Technical failures keep the `StepActivationException`
+   contract and their original cause. [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
+   Job definition-building failures, including linkage errors after construction, now retain
+   the `JobActivationException` contract and original cause, allowing reconciliation to
+   continue with healthy jobs. Existing activation failures are not wrapped again.
+   [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 2. **Fail-closed Mongo type materialization**<br/>
    FluxFlow Mongo reads now validate model and value type metadata synchronously against the
    context-local trusted type registry before Spring Data resolves a class. Repository, FlowQuery,

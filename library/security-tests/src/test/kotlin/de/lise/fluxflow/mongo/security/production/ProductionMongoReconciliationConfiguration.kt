@@ -9,6 +9,7 @@ import de.lise.fluxflow.scheduling.SchedulingReference
 import de.lise.fluxflow.scheduling.SchedulingService
 import de.lise.fluxflow.springboot.types.TypeRegistrationContributor
 import de.lise.fluxflow.stereotyped.job.Job
+import de.lise.fluxflow.stereotyped.job.JobPayload
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
@@ -16,12 +17,26 @@ import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 
 internal const val RECONCILIATION_JOB_KIND = "security-reconciliation-job"
+internal const val RECONCILIATION_INVALID_JOB_KIND = "security-invalid-definition-job"
 
 internal data class ReconciliationWorkflowModel(val value: String)
 
 @Job(RECONCILIATION_JOB_KIND)
 internal class ReconciliationJob {
     fun execute() = Unit
+}
+
+@Job(RECONCILIATION_INVALID_JOB_KIND)
+internal class ReconciliationInvalidJob {
+    @JobPayload
+    fun first() { executions.incrementAndGet() }
+
+    @JobPayload
+    fun second() { executions.incrementAndGet() }
+
+    companion object {
+        val executions = java.util.concurrent.atomic.AtomicInteger()
+    }
 }
 
 @TestConfiguration
@@ -40,6 +55,7 @@ open class ProductionMongoReconciliationConfiguration {
                     RECONCILIATION_JOB_KIND,
                     ReconciliationJob::class,
                 ),
+                TypeRegistration(TypeRole.JOB, RECONCILIATION_INVALID_JOB_KIND, ReconciliationInvalidJob::class),
             )
         }
 

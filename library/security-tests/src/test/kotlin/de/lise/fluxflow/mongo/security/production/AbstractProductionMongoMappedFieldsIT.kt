@@ -9,15 +9,19 @@ import de.lise.fluxflow.api.step.StepIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowValue
 import de.lise.fluxflow.mongo.security.fixtures.MODEL_TYPE_ALIAS
+import de.lise.fluxflow.mongo.security.fixtures.AUDIT_STEP_KIND
 import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
 import de.lise.fluxflow.mongo.security.baseline.WitnessClassLoader
 import de.lise.fluxflow.mongo.security.baseline.WITNESS_NAME
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.job.JobDocument
+import de.lise.fluxflow.mongo.generic.ValueTypeConversionException
 import de.lise.fluxflow.mongo.job.JobRepository
 import de.lise.fluxflow.mongo.step.StepRepository
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.audit.FluxFlowMongoTypeAudit
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.bootstrapping.MigrateToTypeRecordsBootstrapAction
 import de.lise.fluxflow.mongo.bootstrapping.PartialFailureAction
 import de.lise.fluxflow.persistence.job.JobData
@@ -31,6 +35,7 @@ import de.lise.fluxflow.persistence.step.StepData
 import de.lise.fluxflow.persistence.step.StepPersistence
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.catchThrowable
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
@@ -53,7 +58,10 @@ import com.mongodb.client.model.Updates.set
 import java.time.Instant
 import java.util.UUID
 
-abstract class AbstractProductionMongoMappedFieldsIT {
+abstract class AbstractProductionMongoMappedFieldsIT : AbstractProductionMongoAuditMappingContract(AuditMapping.SNAKE) {
+    @Autowired
+    private lateinit var audit: FluxFlowMongoTypeAudit
+
     @Autowired
     private lateinit var steps: StepPersistence
 
@@ -89,6 +97,47 @@ abstract class AbstractProductionMongoMappedFieldsIT {
     }
 
     @Test
+    fun `O03 audit reports a rejected JVM type at its mapped BSON path without materializing or writing`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = StepData(id, workflowId, AUDIT_STEP_KIND, "1",
+            mapOf("payload" to SecurityTestWorkflowValue("audit")), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id)))
+            .isEqualTo(data)
+        val collectionName = hostTemplate.getCollectionName(StepDocument::class.java)
+        val collection = hostTemplate.getCollection(collectionName)
+        val valid = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+        val entries = valid.get("data_entries", Document::class.java)
+            .get("jvm_types", Document::class.java).getList("entries", Document::class.java)
+        assertThat(entries).hasSize(1)
+        val initialReport = audit.audit()
+        assertThat(initialReport.complete).isTrue()
+        assertThat(initialReport.isCompatible).isTrue()
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(valid)
+        assertThat(witnessLoader.events).isEmpty()
+
+        collection.updateOne(eq("_id", ObjectId(id)), set("data_entries.jvm_types.entries.0.type", WITNESS_NAME))
+        val corrupted = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+
+        val failure = catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))
+        }
+        assertUnknownType(failure, TypeRole.VALUE, WITNESS_NAME)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(collectionName, id, "/data_entries/jvm_types/entries/0/type",
+                TypeRole.VALUE, MongoTypeAuditIssue.UNREGISTERED, WITNESS_NAME)
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(corrupted)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
     fun `registered step data and metadata round trip with mapped record fields`() {
         val id = ObjectId().toHexString()
         val workflowId = UUID.randomUUID().toString()
@@ -105,6 +154,91 @@ abstract class AbstractProductionMongoMappedFieldsIT {
             .updateOne(eq("_id", ObjectId(id)), combine(unset("data_entries"), unset("metadata_entries")))
         assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id)))
             .isEqualTo(data)
+    }
+
+    @Test
+    fun `mapped writer keyset mismatch fails public read and is audited without writes`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = StepData(id, workflowId, AUDIT_STEP_KIND, "1",
+            mapOf("dataKey" to SecurityTestWorkflowValue("mapped keyset")), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))).isEqualTo(data)
+
+        val collection = hostTemplate.getCollection(hostTemplate.getCollectionName(StepDocument::class.java))
+        val stored = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+        val records = stored.get("data_entries", Document::class.java)
+        val values = records.get("values", Document::class.java)
+        val types = records.get("types", Document::class.java)
+        assertThat(values).containsKey("dataKey")
+        assertThat(types).containsKey("dataKey")
+        assertThat(records.get("jvm_types", Document::class.java).getList("entries", Document::class.java))
+            .isNotEmpty()
+        values.remove("dataKey")
+        collection.replaceOne(eq("_id", ObjectId(id)), stored)
+        val beforeAudit = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+
+        assertThat(catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))
+        }).isInstanceOf(ValueTypeConversionException::class.java)
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "issue")
+            .containsExactly(hostTemplate.getCollectionName(StepDocument::class.java), id,
+                "/data_entries/values/dataKey", MongoTypeAuditIssue.MALFORMED)
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(beforeAudit)
+        assertThat(witnessLoader.events).isEmpty()
+    }
+
+    @Test
+    fun `mapped collection record component cardinality mismatch is audited at snake case path`() {
+        val id = ObjectId().toHexString()
+        val workflowId = UUID.randomUUID().toString()
+        val data = StepData(id, workflowId, AUDIT_STEP_KIND, "1",
+            mapOf("nested" to listOf("first", null, listOf("nested"))), Status.Active, emptyMap())
+        steps.create(data)
+        assertThat(steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))).isEqualTo(data)
+        val collection = hostTemplate.getCollection(hostTemplate.getCollectionName(StepDocument::class.java))
+        val valid = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+        val validEntries = valid.get("data_entries", Document::class.java)
+        val validValues = validEntries.get("values", Document::class.java)
+        val validTypes = validEntries.get("types", Document::class.java)
+        val validNestedType = validTypes.get("nested", Document::class.java)
+        assertThat(validValues.getList("nested", Any::class.java)).containsExactly("first", null, listOf("nested"))
+        assertThat(validNestedType.getList("component_types", Document::class.java)).hasSize(3)
+        assertThat(audit.audit().isCompatible).isTrue()
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(valid)
+
+        val stored = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+        val entries = stored.get("data_entries", Document::class.java)
+        val values = entries.get("values", Document::class.java)
+        val valueBefore = values.getList("nested", Any::class.java).toList()
+        val nestedType = entries.get("types", Document::class.java).get("nested", Document::class.java)
+        val components = nestedType.getList("component_types", Document::class.java)
+        nestedType["component_types"] = components.dropLast(1)
+        assertThat(values.getList("nested", Any::class.java)).isEqualTo(valueBefore)
+        collection.replaceOne(eq("_id", ObjectId(id)), stored)
+        val beforeAudit = requireNotNull(collection.find(eq("_id", ObjectId(id))).first())
+
+        val readFailure = catchThrowable {
+            steps.findForWorkflowAndId(WorkflowIdentifier(workflowId), StepIdentifier(id))
+        }
+        assertThat(readFailure)
+            .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            .hasMessageContaining("sizes differ")
+        val report = audit.audit()
+
+        assertThat(report.complete).isTrue()
+        assertThat(report.isCompatible).isFalse()
+        assertThat(report.failures).isEmpty()
+        assertThat(report.findings).singleElement()
+            .extracting("collection", "documentId", "path", "expectedRole", "issue", "persistedName")
+            .containsExactly(hostTemplate.getCollectionName(StepDocument::class.java), id,
+                "/data_entries/types/nested/component_types", null, MongoTypeAuditIssue.MALFORMED, null)
+        assertThat(collection.find(eq("_id", ObjectId(id))).first()).isEqualTo(beforeAudit)
+        assertThat(witnessLoader.events).isEmpty()
     }
 
     @Test

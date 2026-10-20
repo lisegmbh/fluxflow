@@ -4,6 +4,7 @@ import de.lise.fluxflow.mongo.job.JobDocument
 import de.lise.fluxflow.mongo.step.StepDocument
 import de.lise.fluxflow.mongo.step.definition.StepDefinitionDocument
 import de.lise.fluxflow.mongo.step.definition.DataDefinitionDocument
+import de.lise.fluxflow.mongo.audit.MongoTypeAuditIssue
 import de.lise.fluxflow.mongo.generic.record.TypedRecords
 import de.lise.fluxflow.mongo.generic.record.JvmTypeMapping
 import de.lise.fluxflow.mongo.generic.record.TypeRecordEntry
@@ -40,15 +41,24 @@ internal class MongoDocumentTypePolicy(
 
         validateRootAlias(targetType, root)
 
-        val pending = ArrayDeque<Frame>()
-        root.entries.asSequence()
-            .filterNot { (key, _) -> key == typeKey }
-            .forEach { (key, value) ->
-                checkNodeBudget(pending, 1)
-                pending.add(Frame(value, DocumentPath(field = key), 1, policyForRootField(targetType, key)))
-            }
-
-        validateFrames(pending)
+        walk(
+            root.entries.asSequence()
+                .filterNot { (key, _) -> key == typeKey }
+                .map { (key, value) ->
+                    PendingFrame(
+                        value,
+                        1,
+                        path = { DocumentPath(field = key) },
+                        policy = { policyForRootField(targetType, key) },
+                    )
+                },
+            onMap = { value, policy, path ->
+                validateAlias(value, policy, path)
+                validateJvmTypeName(value, policy)
+            },
+            onLimit = ::readLimit,
+            pathBeforeNodeBudget = false,
+        )
     }
 
     fun validateProjection(targetType: Class<*>, source: Bson) {
@@ -67,64 +77,225 @@ internal class MongoDocumentTypePolicy(
         }
         validateAlias(root, rootPolicy, DocumentPath(field = "projection"))
         validateJvmTypeName(root, rootPolicy)
-        val pending = ArrayDeque<Frame>()
-        root.entries.asSequence()
-            .filterNot { (key, _) -> key == typeKey }
-            .forEach { (key, value) ->
-                checkNodeBudget(pending, 1)
-                pending.add(Frame(value, DocumentPath(field = key), 1, policyForField(rootPolicy, key)))
-            }
-        validateFrames(pending)
+        walk(
+            root.entries.asSequence()
+                .filterNot { (key, _) -> key == typeKey }
+                .map { (key, value) ->
+                    PendingFrame(
+                        value,
+                        1,
+                        path = { DocumentPath(field = key) },
+                        policy = { policyForField(rootPolicy, key) },
+                    )
+                },
+            onMap = { value, policy, path ->
+                validateAlias(value, policy, path)
+                validateJvmTypeName(value, policy)
+            },
+            onLimit = ::readLimit,
+            pathBeforeNodeBudget = false,
+        )
     }
 
-    private fun validateFrames(pending: ArrayDeque<Frame>) {
-        val visited = IdentityHashMap<Any, MutableSet<NodePolicy>>()
+    /**
+     * Inspects discriminator aliases without asking Spring Data or a class loader to resolve them.
+     * The traversal deliberately shares the same field policies and limits as [validate].
+     * @throws MongoTypeAuditInspectionException if a traversal limit prevents inspecting a document location.
+     */
+    fun auditAliases(
+        targetType: Class<*>,
+        source: Bson,
+        isRegisteredValueType: (Any?) -> Boolean,
+        isKnownInAnotherRoleValueType: (Any?) -> Boolean = { aliases.isRegistered(it) },
+    ): List<MongoTypeViolation> {
+        val root = source as? Document
+            ?: throw IllegalArgumentException("Mongo data must be represented by a BSON Document")
+        val deviations = mutableListOf<MongoTypeViolation>()
+
+        if (root.containsKey(typeKey) && !aliases.isAliasFor(root[typeKey], targetType)) {
+            deviations += deviation("/${pointerSegment(typeKey)}", null, root[typeKey], isRegisteredValueType)
+        }
+
+        walk(
+            root.entries.asSequence()
+                .filterNot { (key, _) -> key == typeKey }
+                .map { (key, value) ->
+                    PendingFrame(
+                        value,
+                        1,
+                        path = { DocumentPath(field = key) },
+                        policy = { policyForRootField(targetType, key) },
+                    )
+                },
+            onMap = { value, policy, path ->
+                if (value.containsKey(typeKey) && !isAllowed(value[typeKey], policy)) {
+                    deviations += deviation(
+                        path.childField(typeKey, typeKey).pointerString(),
+                        expectedRole(policy),
+                        value[typeKey],
+                        isRegisteredValueType,
+                    )
+                }
+            },
+            onValueTypeName = { path, value ->
+                valueTypeViolation(path, value, isRegisteredValueType, isKnownInAnotherRoleValueType)
+                    ?.let(deviations::add)
+            },
+            onDirectJvmEntryTypeName = { path, value ->
+                valueTypeViolation(path, value, isRegisteredValueType, isKnownInAnotherRoleValueType)
+                    ?.let(deviations::add)
+            },
+            onLimit = ::auditLimit,
+            pathBeforeNodeBudget = true,
+            auditTypeNameValues = true,
+        )
+        return deviations
+    }
+
+    private fun walk(
+        seeds: Sequence<PendingFrame>,
+        onMap: (Map<*, *>, NodePolicy, DocumentPath) -> Unit,
+        onValueTypeName: (DocumentPath, Any?) -> Unit = { _, _ -> },
+        onDirectJvmEntryTypeName: (DocumentPath, Any?) -> Unit = { _, _ -> },
+        onLimit: (DocumentPath, LimitKind) -> Nothing,
+        pathBeforeNodeBudget: Boolean,
+        auditTypeNameValues: Boolean = false,
+    ) {
+        val pending = ArrayDeque<Frame>()
         var nodes = 1
+        fun enqueue(pendingFrame: PendingFrame) {
+            val earlyPath = if (pathBeforeNodeBudget) pendingFrame.path() else null
+            if (nodes + pending.size >= maxNodes) {
+                onLimit(earlyPath ?: DocumentPath(), LimitKind.NODE)
+            }
+            val path = earlyPath ?: pendingFrame.path()
+            val policy = pendingFrame.policy()
+            pending.add(
+                Frame(
+                    pendingFrame.value,
+                    path,
+                    pendingFrame.depth,
+                    policy,
+                    pendingFrame.auditTypeNameScope,
+                    pendingFrame.inspectAliases,
+                    pendingFrame.directJvmEntryContainer && policy == NodePolicy.JvmTypeEntry,
+                    pendingFrame.directJvmEntrySlot,
+                )
+            )
+        }
+        seeds.forEach(::enqueue)
+
+        val visited = IdentityHashMap<Any, MutableSet<NodePolicy>>()
         while (pending.isNotEmpty()) {
             val frame = pending.removeLast()
             nodes++
-            require(nodes <= maxNodes) {
-                "Mongo document exceeds the maximum node count of $maxNodes"
+            if (nodes > maxNodes) {
+                onLimit(frame.path, LimitKind.NODE)
             }
-            require(frame.depth <= maxDepth) {
-                "Mongo document exceeds the maximum depth of $maxDepth at '${frame.path}'"
+            if (frame.depth > maxDepth) {
+                onLimit(frame.path, LimitKind.DEPTH)
+            }
+
+            if (auditTypeNameValues && frame.directJvmEntrySlot) {
+                val entry = frame.value as? Map<*, *>
+                val typePresent = if (entry == null) {
+                    false
+                } else {
+                    fieldNames?.contains(entry, TypeRecordEntry::class.java, "type")
+                        ?: entry.containsKey("type")
+                }
+                val typeParts = fieldNames?.fieldParts(TypeRecordEntry::class.java, "type") ?: listOf("type")
+                var typePath = frame.path
+                typeParts.forEach { part ->
+                    typePath = typePath.childField(part, part)
+                }
+                val typeName = if (entry != null && typePresent) {
+                    fieldNames?.read(entry, TypeRecordEntry::class.java, "type") ?:
+                        if (fieldNames == null) entry["type"] else null
+                } else {
+                    null
+                }
+                onDirectJvmEntryTypeName(typePath, typeName)
             }
 
             when (val value = frame.value) {
                 is Map<*, *> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
+                    val firstAliasVisit = frame.inspectAliases &&
+                        visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)
+                    if (!firstAliasVisit && !frame.auditTypeNameScope) {
                         continue
                     }
-                    validateAlias(value, frame.policy, frame.path)
-                    validateJvmTypeName(value, frame.policy)
+                    if (firstAliasVisit) {
+                        onMap(value, frame.policy, frame.path)
+                    }
+                    if (auditTypeNameValues && frame.auditTypeNameScope && frame.policy == NodePolicy.Infrastructure) {
+                        val typeNamePresent = fieldNames?.contains(value, SimpleType::class.java, "typeName")
+                            ?: value.containsKey("typeName")
+                        if (typeNamePresent) {
+                            val typeNameParts = fieldNames?.fieldParts(SimpleType::class.java, "typeName")
+                                ?: listOf("typeName")
+                            var typeNamePath = frame.path
+                            typeNameParts.forEach { part ->
+                                typeNamePath = typeNamePath.childField(part, part)
+                            }
+                            val typeName = fieldNames?.read(value, SimpleType::class.java, "typeName")
+                                ?: if (fieldNames == null) value["typeName"] else null
+                            onValueTypeName(typeNamePath, typeName)
+                        }
+                    }
                     value.entries.asSequence()
-                        .filterNot { (key, _) -> key == typeKey }
+                        .filter { (key, nested) ->
+                            val scansTypeMapValue = auditTypeNameValues && frame.policy == NodePolicy.TypeMap
+                            val scansScopedValue = frame.auditTypeNameScope
+                            val scanTypeNameSubtree = scansTypeMapValue || scansScopedValue
+                            !(key == typeKey && !scanTypeNameSubtree) &&
+                                !(key == typeKey && scanTypeNameSubtree && !isStructuredValue(nested))
+                        }
                         .forEach { (key, nested) ->
-                            checkNodeBudget(pending, nodes)
-                            pending.add(
-                                Frame(
+                            val basePolicy = (frame.policy as? NodePolicy.Namespace)?.base ?: frame.policy
+                            val childTypeNameScope = when {
+                                auditTypeNameValues && frame.policy == NodePolicy.TypeMap -> true
+                                frame.auditTypeNameScope &&
+                                    frame.policy == NodePolicy.Infrastructure &&
+                                    (fieldNames?.fieldParts(SimpleType::class.java, "typeName")
+                                        ?: listOf("typeName")).singleOrNull() == key -> false
+                                else -> frame.auditTypeNameScope
+                            }
+                            enqueue(
+                                PendingFrame(
                                     nested,
-                                    DocumentPath(frame.path, key.toString()),
                                     frame.depth + 1,
-                                    policyForField(frame.policy, key?.toString()),
+                                    path = {
+                                        val keyText = key?.toString()
+                                        frame.path.childField(keyText ?: "null", keyText.orEmpty())
+                                    },
+                                    policy = { policyForField(frame.policy, key?.toString()) },
+                                    auditTypeNameScope = childTypeNameScope,
+                                    inspectAliases = frame.inspectAliases && key != typeKey,
+                                    directJvmEntryContainer = auditTypeNameValues &&
+                                        basePolicy == NodePolicy.JvmTypes,
                                 )
                             )
                         }
                 }
 
                 is Iterable<*> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
+                    val firstAliasVisit = frame.inspectAliases &&
+                        visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)
+                    if (!firstAliasVisit && !frame.auditTypeNameScope && !frame.directJvmEntryContainer) {
                         continue
                     }
                     var index = 0
                     for (nested in value) {
-                        checkNodeBudget(pending, nodes)
-                        pending.add(
-                            Frame(
+                        enqueue(
+                            PendingFrame(
                                 nested,
-                                DocumentPath(frame.path, index = index),
                                 frame.depth + 1,
-                                frame.policy.forElement(),
+                                path = { frame.path.childIndex(index) },
+                                policy = { frame.policy.forElement() },
+                                auditTypeNameScope = frame.auditTypeNameScope,
+                                inspectAliases = frame.inspectAliases,
+                                directJvmEntrySlot = frame.directJvmEntryContainer,
                             )
                         )
                         index++
@@ -132,17 +303,20 @@ internal class MongoDocumentTypePolicy(
                 }
 
                 is Array<*> -> {
-                    if (!visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)) {
+                    val firstAliasVisit = frame.inspectAliases &&
+                        visited.getOrPut(value) { mutableSetOf() }.add(frame.policy)
+                    if (!firstAliasVisit && !frame.auditTypeNameScope) {
                         continue
                     }
                     value.forEachIndexed { index, nested ->
-                        checkNodeBudget(pending, nodes)
-                        pending.add(
-                            Frame(
+                        enqueue(
+                            PendingFrame(
                                 nested,
-                                DocumentPath(frame.path, index = index),
                                 frame.depth + 1,
-                                frame.policy.forElement(),
+                                path = { frame.path.childIndex(index) },
+                                policy = { frame.policy.forElement() },
+                                auditTypeNameScope = frame.auditTypeNameScope,
+                                inspectAliases = frame.inspectAliases,
                             )
                         )
                     }
@@ -151,11 +325,33 @@ internal class MongoDocumentTypePolicy(
         }
     }
 
-    private fun checkNodeBudget(pending: ArrayDeque<Frame>, nodes: Int) {
-        require(nodes + pending.size < maxNodes) {
+    private fun readLimit(path: DocumentPath, kind: LimitKind): Nothing = when (kind) {
+        LimitKind.NODE -> throw IllegalArgumentException(
             "Mongo document exceeds the maximum node count of $maxNodes"
-        }
+        )
+        LimitKind.DEPTH -> throw IllegalArgumentException(
+            "Mongo document exceeds the maximum depth of $maxDepth at '$path'"
+        )
     }
+
+    private fun auditLimit(path: DocumentPath, kind: LimitKind): Nothing = when (kind) {
+        LimitKind.NODE -> throw MongoTypeAuditInspectionException(
+            path.pointerString(),
+            "Mongo document exceeds the maximum node count of $maxNodes",
+        )
+        LimitKind.DEPTH -> throw MongoTypeAuditInspectionException(
+            path.pointerString(),
+            "Mongo document exceeds the maximum depth of $maxDepth at '${path.pointerString()}'",
+        )
+    }
+
+    private enum class LimitKind {
+        NODE,
+        DEPTH,
+    }
+
+    private fun isStructuredValue(value: Any?): Boolean =
+        value is Map<*, *> || value is Iterable<*> || value is Array<*>
 
     private fun policyForRootField(targetType: Class<*>, key: String): NodePolicy =
         policyForField(NodePolicy.RootFields(targetType), key)
@@ -249,21 +445,22 @@ internal class MongoDocumentTypePolicy(
             return
         }
         val alias = document[typeKey]
+        val aliasText = alias as? String ?: "<non-string>"
         try {
             when (policy) {
                 is NodePolicy.Application -> aliases.resolve(policy.role, alias)
                 is NodePolicy.Projection -> aliases.resolve(policy.roles, alias)
                 NodePolicy.Model -> aliases.resolve(TypeRole.MODEL, alias)
                 NodePolicy.Infrastructure, NodePolicy.JvmTypes, NodePolicy.JvmTypeEntry -> require(aliases.isInfrastructure(alias)) {
-                    "Mongo type alias '$alias' is not allowed in FluxFlow infrastructure metadata"
+                    "Mongo type alias '$aliasText' is not allowed in FluxFlow infrastructure metadata"
                 }
                 NodePolicy.TypedRecords -> require(aliases.isAliasFor(alias, TypedRecords::class.java)) {
-                    "Mongo type alias '$alias' is not a TypedRecords container"
+                    "Mongo type alias '$aliasText' is not a TypedRecords container"
                 }
                 NodePolicy.StepDefinitionData -> require(
                     aliases.isAliasFor(alias, DataDefinitionDocument::class.java)
                 ) {
-                    "Mongo type alias '$alias' is not a step data definition"
+                    "Mongo type alias '$aliasText' is not a step data definition"
                 }
                 NodePolicy.Static, NodePolicy.TypeMap, is NodePolicy.Namespace, is NodePolicy.RootFields -> throw IllegalArgumentException(
                     "Mongo type metadata is not allowed at '$path.$typeKey'"
@@ -275,19 +472,95 @@ internal class MongoDocumentTypePolicy(
         }
     }
 
+    private fun isAllowed(
+        alias: Any?,
+        policy: NodePolicy,
+    ): Boolean = when (policy) {
+        is NodePolicy.Application -> aliases.isRegistered(policy.role, alias)
+        NodePolicy.Model -> aliases.isRegistered(TypeRole.MODEL, alias)
+        NodePolicy.Infrastructure, NodePolicy.JvmTypes, NodePolicy.JvmTypeEntry -> aliases.isInfrastructure(alias)
+        NodePolicy.TypedRecords -> aliases.isAliasFor(alias, TypedRecords::class.java)
+        NodePolicy.StepDefinitionData -> aliases.isAliasFor(alias, DataDefinitionDocument::class.java)
+        is NodePolicy.Projection -> policy.roles.any { aliases.isRegistered(it, alias) }
+        is NodePolicy.Namespace,
+        is NodePolicy.RootFields,
+        NodePolicy.TypeMap,
+        NodePolicy.Static -> false
+    }
+
+    private fun expectedRole(policy: NodePolicy): TypeRole? = when (policy) {
+        is NodePolicy.Application -> policy.role
+        NodePolicy.Model -> TypeRole.MODEL
+        else -> null
+    }
+
+    private fun deviation(
+        path: String,
+        expectedRole: TypeRole?,
+        alias: Any?,
+        isRegisteredValueType: (Any?) -> Boolean,
+    ): MongoTypeViolation {
+        val persistedName = alias as? String
+        val issue = when {
+            persistedName.isNullOrEmpty() -> MongoTypeAuditIssue.MALFORMED
+            aliases.isRegistered(alias) || isRegisteredValueType(alias) -> MongoTypeAuditIssue.DISALLOWED
+            else -> MongoTypeAuditIssue.UNREGISTERED
+        }
+        return MongoTypeViolation(path, expectedRole, issue, persistedName)
+    }
+
+    private fun valueTypeViolation(
+        path: DocumentPath,
+        value: Any?,
+        isRegisteredValueType: (Any?) -> Boolean,
+        isKnownInAnotherRoleValueType: (Any?) -> Boolean,
+    ): MongoTypeViolation? {
+        if (isRegisteredValueType(value)) {
+            return null
+        }
+        val persistedName = value as? String
+        val issue = when {
+            persistedName.isNullOrEmpty() -> MongoTypeAuditIssue.MALFORMED
+            isKnownInAnotherRoleValueType(value) -> MongoTypeAuditIssue.DISALLOWED
+            else -> MongoTypeAuditIssue.UNREGISTERED
+        }
+        return MongoTypeViolation(path.pointerString(), TypeRole.VALUE, issue, persistedName)
+    }
+
     private data class Frame(
         val value: Any?,
         val path: DocumentPath,
         val depth: Int,
         val policy: NodePolicy,
+        val auditTypeNameScope: Boolean,
+        val inspectAliases: Boolean,
+        val directJvmEntryContainer: Boolean,
+        val directJvmEntrySlot: Boolean,
+    )
+
+    private data class PendingFrame(
+        val value: Any?,
+        val depth: Int,
+        val path: () -> DocumentPath,
+        val policy: () -> NodePolicy,
+        val auditTypeNameScope: Boolean = false,
+        val inspectAliases: Boolean = true,
+        val directJvmEntryContainer: Boolean = false,
+        val directJvmEntrySlot: Boolean = false,
     )
 
     /** Successful traversal keeps only parent links; diagnostic strings are built on failure. */
     private class DocumentPath(
         val parent: DocumentPath? = null,
         val field: String? = null,
+        private val pointerField: String? = field,
         val index: Int = -1,
     ) {
+        fun childField(readField: String, auditField: String): DocumentPath =
+            DocumentPath(this, readField, auditField)
+
+        fun childIndex(index: Int): DocumentPath = DocumentPath(this, index = index)
+
         override fun toString(): String {
             val segments = ArrayDeque<DocumentPath>()
             var current: DocumentPath? = this
@@ -305,6 +578,25 @@ internal class MongoDocumentTypePolicy(
                         append('[').append(segment.index).append(']')
                     }
                     first = false
+                }
+            }
+        }
+
+        fun pointerString(): String {
+            val segments = ArrayDeque<DocumentPath>()
+            var current: DocumentPath? = this
+            while (current != null) {
+                segments.addFirst(current)
+                current = current.parent
+            }
+            return buildString {
+                for (segment in segments) {
+                    if (segment.field != null) {
+                        append('/')
+                        append(pointerSegment(segment.pointerField ?: segment.field))
+                    } else if (segment.index >= 0) {
+                        append('/').append(segment.index)
+                    }
                 }
             }
         }
@@ -388,3 +680,14 @@ internal class MongoDocumentTypePolicy(
         }
     }
 }
+
+internal data class MongoTypeViolation(
+    val path: String,
+    val expectedRole: TypeRole?,
+    val issue: MongoTypeAuditIssue,
+    val persistedName: String?,
+)
+
+internal fun pointerSegment(value: String): String = value
+    .replace("~", "~0")
+    .replace("/", "~1")

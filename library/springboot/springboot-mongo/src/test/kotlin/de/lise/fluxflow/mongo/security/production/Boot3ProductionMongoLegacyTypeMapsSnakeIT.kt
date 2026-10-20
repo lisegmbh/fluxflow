@@ -11,4 +11,4 @@ import org.springframework.boot.test.context.SpringBootTest
     classes = [IntegrationTestConfig::class, MongoConfiguration::class,
         ProductionMongoSecurityConfiguration::class, MappedMongoFieldsConfiguration::class],
 )
-class Boot3ProductionMongoLegacyTypeMapsSnakeIT : AbstractProductionMongoLegacyTypeMapsIT()
+class Boot3ProductionMongoLegacyTypeMapsSnakeIT : AbstractProductionMongoLegacyTypeMapsIT("/data_type_map/payload/type_name")
