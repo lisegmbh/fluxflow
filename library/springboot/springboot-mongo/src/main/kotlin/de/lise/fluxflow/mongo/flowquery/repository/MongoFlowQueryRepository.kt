@@ -6,6 +6,7 @@ import de.fluxflow.flowquery.repository.FlowQueryRepository
 import de.lise.fluxflow.query.pagination.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.aggregation.Aggregation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation
 import kotlin.reflect.KClass
 
 /**
@@ -104,8 +105,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         validateResultType(resultType)
         val mappedResultType = resultType.toMappedResultType()
 
-        val pagination = query.pagination
-        val pageRequest = pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
+        val pageRequest = query.pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
         // Shortcut: plain collection scan without operations
         if (query.operations.isEmpty()) {
@@ -120,32 +120,28 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         return if (pageRequest == null) {
             UnpagedMongoResults(executor.executeUnpaged(aggregation, mappedResultType))
         } else {
-            executePaged(
-                aggregation,
-                pageRequest,
-                pagination.pageIndex,
-                pagination.pageSize,
-                mappedResultType,
-            )
+            executePaged(aggregation, pageRequest, mappedResultType)
         }
     }
 
     private fun <TResult : Any> executePaged(
         aggregation: Aggregation,
         pageRequest: PageRequest,
-        pageIndex: Int,
-        pageSize: Int,
         resultType: Class<TResult>,
     ): MongoExecutionResults<TResult> {
-        val skip = Aggregation.skip(pageIndex.toLong() * pageSize.toLong())
-        val limit = Aggregation.limit(pageSize.toLong())
-
-        val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + skip + limit)
+        val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + pagingStages(pageRequest))
         val countAggregation = Aggregation.newAggregation(
             aggregation.pipeline.operations + Aggregation.count().`as`(MongoCountResult::totalElements.name)
         )
 
         return executor.executePaged(pagedAggregation, countAggregation, pageRequest, resultType)
+    }
+
+    private fun pagingStages(pageRequest: PageRequest): List<AggregationOperation> {
+        return listOf(
+            Aggregation.skip(pageRequest.offset),
+            Aggregation.limit(pageRequest.pageSize.toLong()),
+        )
     }
 
     @Suppress("UNCHECKED_CAST")
