@@ -140,6 +140,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    VALUE registration and matching host codec/conversion support. They are no longer automatically
    admitted as built-ins. The fixed BSON Document alias safely reconstructs maps while application
    aliases and subclasses retain their strict instance requirements.
+9. **Mongo FlowQuery `findFirst`/`findSingle` respect pagination**<br/>
+   The internal result limit of `findFirst`, `findFirstOrNull`, `findSingle` and `findSingleOrNull`
+   is now applied after the requested page is selected. Pages after the first one return their
+   elements instead of `null` or a `QueryExecutionException`. Limits set by the caller are kept,
+   and these lookups no longer run a count query.
 
 ### Removed
 
