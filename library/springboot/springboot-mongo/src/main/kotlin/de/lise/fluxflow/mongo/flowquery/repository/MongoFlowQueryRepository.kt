@@ -6,6 +6,7 @@ import de.fluxflow.flowquery.repository.FlowQueryRepository
 import de.lise.fluxflow.query.pagination.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.aggregation.Aggregation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation
 import kotlin.reflect.KClass
 
 /**
@@ -54,7 +55,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findFirst(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult {
-        val first = execute(query.limit(1), resultType).elements.firstOrNull()
+        val first = executeCapped(query, resultType, 1).firstOrNull()
             ?: throw QueryExecutionException("Expected at least one result but found none.")
 
         return castElement(first, resultType)
@@ -65,7 +66,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findFirstOrNull(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult? {
-        val first = execute(query.limit(1), resultType).elements.firstOrNull() ?: return null
+        val first = executeCapped(query, resultType, 1).firstOrNull() ?: return null
         return castElement(first, resultType)
     }
 
@@ -74,7 +75,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findSingle(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult {
-        val single = execute(query.limit(2), resultType).elements.singleOrNull()
+        val single = executeCapped(query, resultType, 2).singleOrNull()
             ?: throw QueryExecutionException("Expected exactly one result but found none or multiple.")
 
         return castElement(single, resultType)
@@ -85,7 +86,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     override fun <TResult> findSingleOrNull(resultType: Class<TResult>, query: FlowQuery<TRoot, TResult>): TResult? {
-        val single = execute(query.limit(2), resultType).elements.singleOrNull() ?: return null
+        val single = executeCapped(query, resultType, 2).singleOrNull() ?: return null
         return castElement(single, resultType)
     }
 
@@ -104,8 +105,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         validateResultType(resultType)
         val mappedResultType = resultType.toMappedResultType()
 
-        val pagination = query.pagination
-        val pageRequest = pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
+        val pageRequest = query.pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
         // Shortcut: plain collection scan without operations
         if (query.operations.isEmpty()) {
@@ -120,32 +120,55 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         return if (pageRequest == null) {
             UnpagedMongoResults(executor.executeUnpaged(aggregation, mappedResultType))
         } else {
-            executePaged(
-                aggregation,
-                pageRequest,
-                pagination.pageIndex,
-                pagination.pageSize,
-                mappedResultType,
-            )
+            executePaged(aggregation, pageRequest, mappedResultType)
         }
+    }
+
+    /**
+     * Executes [query] for `findFirst`/`findSingle`, returning at most [maxResults] elements.
+     *
+     * The cap is appended after the pagination stages, so it never cuts away documents
+     * of the selected page. No count query is executed.
+     */
+    private fun <TResult> executeCapped(
+        query: FlowQuery<TRoot, TResult>,
+        resultType: Class<TResult>,
+        maxResults: Long,
+    ): List<Any> {
+        validateResultType(resultType)
+        val pageRequest = query.pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
+
+        // An Aggregation must not be empty, so queries without operations contribute no stages
+        val queryStages = if (query.operations.isEmpty()) {
+            emptyList()
+        } else {
+            translator.translate(query).pipeline.operations
+        }
+        val operations = queryStages +
+            pageRequest?.let(::pagingStages).orEmpty() +
+            Aggregation.limit(maxResults)
+
+        return executor.executeUnpaged(Aggregation.newAggregation(operations), resultType.toMappedResultType())
     }
 
     private fun <TResult : Any> executePaged(
         aggregation: Aggregation,
         pageRequest: PageRequest,
-        pageIndex: Int,
-        pageSize: Int,
         resultType: Class<TResult>,
     ): MongoExecutionResults<TResult> {
-        val skip = Aggregation.skip(pageIndex.toLong() * pageSize.toLong())
-        val limit = Aggregation.limit(pageSize.toLong())
-
-        val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + skip + limit)
+        val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + pagingStages(pageRequest))
         val countAggregation = Aggregation.newAggregation(
             aggregation.pipeline.operations + Aggregation.count().`as`(MongoCountResult::totalElements.name)
         )
 
         return executor.executePaged(pagedAggregation, countAggregation, pageRequest, resultType)
+    }
+
+    private fun pagingStages(pageRequest: PageRequest): List<AggregationOperation> {
+        return listOf(
+            Aggregation.skip(pageRequest.offset),
+            Aggregation.limit(pageRequest.pageSize.toLong()),
+        )
     }
 
     @Suppress("UNCHECKED_CAST")
