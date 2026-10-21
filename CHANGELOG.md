@@ -145,6 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    is now applied after the requested page is selected. Pages after the first one return their
    elements instead of `null` or a `QueryExecutionException`. Limits set by the caller are kept,
    and these lookups no longer run a count query.
+   [PR #484](https://github.com/lisegmbh/fluxflow/pull/484) @bobmazy
 
 ### Removed
 
