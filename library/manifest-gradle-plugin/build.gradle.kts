@@ -12,7 +12,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("org.ow2.asm:asm:9.11")
+    implementation("org.ow2.asm:asm:9.11.1")
     implementation(project(":core:reflection")) {
         isTransitive = false
     }
