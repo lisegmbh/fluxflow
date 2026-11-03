@@ -106,9 +106,12 @@ class InMemoryCompiler : ExpressionCompiler<InMemoryOp<*, *>> {
 
             is IsAnyOfOperator<TRoot, *> -> {
                 val valueAccessor = doCompile(rootExpression, exp.valueToTest)
+                val candidates = exp.anyOf.map { candidate ->
+                    doCompile(rootExpression, candidate as Expression<TRoot, Any?>)
+                }
                 IsAnyOfOp(
                     valueAccessor,
-                    exp.anyOf
+                    candidates
                 )
             }
 

@@ -4,8 +4,12 @@ import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.job.Job
 import de.lise.fluxflow.api.job.JobService
 import de.lise.fluxflow.api.job.JobStatus
+import de.lise.fluxflow.api.job.query.JobQuery
+import de.lise.fluxflow.api.job.query.JobQueryable.Companion.workflowIdentifier
+import de.lise.fluxflow.api.job.query.filter.JobFilter
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowStarterService
+import de.lise.fluxflow.query.filter.Filter
 import de.lise.fluxflow.springboot.testing.TestingConfiguration
 import de.lise.fluxflow.stereotyped.metadata.Metadata
 import de.lise.fluxflow.test.scheduling.util.BusyWait
@@ -172,6 +176,58 @@ class JobIT {
         // Assert
         assertThat(job.metadata).isEqualTo(expectedMetadata)
         assertThat(job.definition.metadata).isEqualTo(expectedMetadata)
+    }
+
+    @Test
+    fun `global findAll with a JobQuery should resolve the workflows of jobs from multiple workflows`() {
+        // Arrange
+        val workflow1 = workflowStarterService!!.start(
+            Any(),
+            Continuation.job(Instant.now().plusSeconds(86_400), TestJob())
+        )
+        val workflow2 = workflowStarterService!!.start(
+            Any(),
+            Continuation.job(Instant.now().plusSeconds(86_400), TestJob())
+        )
+
+        // Act
+        val jobs = jobService!!.findAll(
+            JobQuery(
+                JobFilter.empty().withWorkflowId(
+                    Filter.anyOf(listOf(workflow1.identifier.value, workflow2.identifier.value))
+                ),
+                emptyList(),
+                null
+            )
+        ).items
+
+        // Assert
+        assertThat(jobs.map { it.workflow.identifier })
+            .containsExactlyInAnyOrder(workflow1.identifier, workflow2.identifier)
+    }
+
+    @Test
+    fun `global findAll with a FlowQuery should resolve the workflows of jobs from multiple workflows`() {
+        // Arrange
+        val workflow1 = workflowStarterService!!.start(
+            Any(),
+            Continuation.job(Instant.now().plusSeconds(86_400), TestJob())
+        )
+        val workflow2 = workflowStarterService!!.start(
+            Any(),
+            Continuation.job(Instant.now().plusSeconds(86_400), TestJob())
+        )
+
+        // Act
+        val jobs = jobService!!.findAll {
+            where {
+                workflowIdentifier.isAnyOf(workflow1.identifier, workflow2.identifier)
+            }
+        }.items
+
+        // Assert
+        assertThat(jobs.map { it.workflow.identifier })
+            .containsExactlyInAnyOrder(workflow1.identifier, workflow2.identifier)
     }
 }
 

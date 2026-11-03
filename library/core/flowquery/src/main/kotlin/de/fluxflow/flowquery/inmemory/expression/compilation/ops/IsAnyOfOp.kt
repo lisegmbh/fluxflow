@@ -2,13 +2,14 @@ package de.fluxflow.flowquery.inmemory.expression.compilation.ops
 
 internal data class IsAnyOfOp<TRoot>(
     private val expression: InMemoryOp<TRoot, *>,
-    private val values: Set<*>
+    private val candidates: List<InMemoryOp<TRoot, *>>
 ): InMemoryOp<TRoot, Boolean> {
     override fun execute(input: TRoot): Boolean {
-        return values.contains(expression.execute(input))
+        val value = expression.execute(input)
+        return candidates.any { it.execute(input) == value }
     }
 
     override fun toString(): String {
-        return "$expression IN (${values.joinToString(", ")})"
+        return "$expression IN (${candidates.joinToString(", ")})"
     }
 }
