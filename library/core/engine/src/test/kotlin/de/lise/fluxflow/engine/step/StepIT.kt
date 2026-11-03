@@ -5,8 +5,10 @@ import de.lise.fluxflow.api.step.Status
 import de.lise.fluxflow.api.step.StepKind
 import de.lise.fluxflow.api.step.StepService
 import de.lise.fluxflow.api.step.query.StepQuery
+import de.lise.fluxflow.api.step.query.StepQueryable.Companion.workflowIdentifier
 import de.lise.fluxflow.api.step.query.filter.StepDefinitionFilter
 import de.lise.fluxflow.api.step.query.filter.StepFilter
+import de.lise.fluxflow.api.step.query.filter.StepIdentifierFilter
 import de.lise.fluxflow.api.step.query.filter.StepKindFilter
 import de.lise.fluxflow.api.step.stateful.StatefulStep
 import de.lise.fluxflow.api.step.stateful.action.ActionService
@@ -288,5 +290,49 @@ class StepIT {
         val parentListenerTriggered = stepDataService.getData<Boolean>(step, DataKind("parentListenerTriggered"))
         assertThat(wasImportedNameUpdated.get()).isTrue()
         assertThat(parentListenerTriggered.get()).isTrue()
+    }
+
+    @Test
+    fun `global findSteps should resolve the workflows of steps from multiple workflows`() {
+        // Arrange
+        val workflow1 = workflowStarterService!!.start(Any(), Continuation.step(TestStep()))
+        val workflow2 = workflowStarterService!!.start(Any(), Continuation.step(TestStep()))
+        val stepIdentifiers = (stepService!!.findSteps(workflow1) + stepService!!.findSteps(workflow2))
+            .map { it.identifier }
+
+        // Act
+        @Suppress("DEPRECATION")
+        val steps = stepService!!.findSteps(
+            StepQuery.withFilter(
+                StepFilter(
+                    id = StepIdentifierFilter.anyOf(stepIdentifiers),
+                    definition = null,
+                    status = null,
+                    metadata = null
+                )
+            )
+        ).items
+
+        // Assert
+        assertThat(steps.map { it.workflow.identifier })
+            .containsExactlyInAnyOrder(workflow1.identifier, workflow2.identifier)
+    }
+
+    @Test
+    fun `global findAll should resolve the workflows of steps from multiple workflows`() {
+        // Arrange
+        val workflow1 = workflowStarterService!!.start(Any(), Continuation.step(TestStep()))
+        val workflow2 = workflowStarterService!!.start(Any(), Continuation.step(TestStep()))
+
+        // Act
+        val steps = stepService!!.findAll {
+            where {
+                workflowIdentifier.isAnyOf(workflow1.identifier, workflow2.identifier)
+            }
+        }.items
+
+        // Assert
+        assertThat(steps.map { it.workflow.identifier })
+            .containsExactlyInAnyOrder(workflow1.identifier, workflow2.identifier)
     }
 }

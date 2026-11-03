@@ -146,6 +146,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    elements instead of `null` or a `QueryExecutionException`. Limits set by the caller are kept,
    and these lookups no longer run a count query.
    [PR #484](https://github.com/lisegmbh/fluxflow/pull/484) @bobmazy
+10. **In-memory `isAnyOf` evaluates its candidates**<br/>
+   The in-memory FlowQuery backend now compiles and evaluates `isAnyOf` candidates instead of
+   comparing values against unevaluated expressions, so contained values match and negated `IN`
+   filters invert correctly. Global step and job queries on in-memory persistence resolve their
+   workflows again instead of failing with `WorkflowNotFoundException`/`NoSuchElementException`.
+   [Issue #481](https://github.com/lisegmbh/fluxflow/issues/481)
 
 ### Removed
 
