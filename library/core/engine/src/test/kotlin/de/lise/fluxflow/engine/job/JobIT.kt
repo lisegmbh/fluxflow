@@ -191,7 +191,6 @@ class JobIT {
         )
 
         // Act
-        @Suppress("DEPRECATION")
         val jobs = jobService!!.findAll(
             JobQuery(
                 JobFilter.empty().withWorkflowId(

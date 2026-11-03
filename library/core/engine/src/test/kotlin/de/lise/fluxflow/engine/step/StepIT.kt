@@ -301,7 +301,6 @@ class StepIT {
             .map { it.identifier }
 
         // Act
-        @Suppress("DEPRECATION")
         val steps = stepService!!.findSteps(
             StepQuery.withFilter(
                 StepFilter(
