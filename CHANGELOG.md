@@ -75,6 +75,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    IDE builds to Gradle so covered packages pick up type changes. The plugin no longer adds
    byte-exact JAR verification tasks to `check`.
    See the [migration guidance](docs/features/type-manifest.md).
+3. **`IsAnyOfOperator` candidates keep the operator's root type**<br/>
+   `IsAnyOfOperator.anyOf` is now typed `Set<Expression<TRoot, T>>` instead of
+   `Set<Expression<*, T>>`, so the in-memory and Mongo compilers no longer need unchecked casts.
+   Expressions built with `isAnyOf(...)` are unaffected; direct constructor or `copy` calls with
+   candidates of a different root type must be adjusted.
 
 ### Deprecated
 1. **Two-argument scheduled-job reconciliation APIs**<br/>
