@@ -231,8 +231,7 @@ internal class MongoCompiler(
     ): MongoToken {
         val valueToken = doCompile(root, current.valueToTest).asStatementToken(root, current.valueToTest)
         val valueTokens = current.anyOf.map { anyOfElement ->
-            @Suppress("UNCHECKED_CAST")
-            doCompile(root, anyOfElement as Expression<TRoot, Any?>).asValueToken(root, anyOfElement)
+            doCompile(root, anyOfElement).asValueToken(root, anyOfElement)
         }
         return AnyOfToken(valueToken, valueTokens)
     }

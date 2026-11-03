@@ -103,7 +103,7 @@ class ExpressionWalker {
                         IsAnyOfOperator(
                             (valueToTestReplacement ?: expression.valueToTest) as Expression<Any?, Any?>,
                             anyOfReplacements.entries.map {
-                                (it.value ?: it.key) as Expression<*, Any?>
+                                (it.value ?: it.key) as Expression<Any?, Any?>
                             }.toSet()
                         )
                     )
