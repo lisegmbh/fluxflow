@@ -151,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    comparing values against unevaluated expressions, so contained values match and negated `IN`
    filters invert correctly. Global step and job queries on in-memory persistence resolve their
    workflows again instead of failing with `WorkflowNotFoundException`/`NoSuchElementException`.
-   [Issue #481](https://github.com/lisegmbh/fluxflow/issues/481)
+   [PR #489](https://github.com/lisegmbh/fluxflow/pull/489) @bobmazy
 
 ### Removed
 
