@@ -631,3 +631,24 @@ query.where { root ->
     get(User::attributes).get(other.get(Setting::key)).isEqual("value")
 }
 ```
+
+
+## Mongo workflow query pipeline extensions
+
+Applications using Mongo workflow persistence can register ordered Spring beans implementing
+`de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider`. Its `stages(rootType)` callback
+returns Spring Data `AggregationOperation` instances for the persisted root document type.
+
+The stages run before the original FlowQuery operations, projections, explicit limits and
+pagination. Each execution captures the provider result once; paged results and their total
+count use the same prefix. `findFirst` and `findSingle` also apply it before their result cap.
+This includes queries with no original operations.
+
+Providers should return read-only stages that preserve the root document shape and return
+an empty list outside an explicitly established application scope. FluxFlow supplies no
+permission model or ambient user scope. An empty prefix retains the ordinary query behavior;
+provider errors and guarded document-conversion errors propagate instead of shortening a list.
+
+This extension covers workflow FlowQuery queries. It does not replace authorization for
+direct workflow ID reads, and does not change job, step or continuation queries. Applications
+must continue to authorize those operations independently.

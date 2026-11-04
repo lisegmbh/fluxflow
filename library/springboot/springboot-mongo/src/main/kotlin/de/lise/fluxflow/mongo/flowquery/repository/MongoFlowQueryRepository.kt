@@ -3,6 +3,7 @@ package de.lise.fluxflow.mongo.flowquery.repository
 import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.QueryExecutionException
 import de.fluxflow.flowquery.repository.FlowQueryRepository
+import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import de.lise.fluxflow.query.pagination.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.aggregation.Aggregation
@@ -22,13 +23,15 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     private val rootType: Class<TRoot>,
     private val translator: MongoQueryTranslator,
     private val executor: MongoExecutor<TRoot>,
+    private val pipelineProviders: List<FluxFlowMongoQueryPipelineProvider> = emptyList(),
 ) : FlowQueryRepository<TRoot> {
 
     internal constructor(
         rootType: KClass<TRoot>,
         translator: MongoQueryTranslator,
         executor: MongoExecutor<TRoot>,
-    ) : this(rootType.java, translator, executor)
+        pipelineProviders: List<FluxFlowMongoQueryPipelineProvider> = emptyList(),
+    ) : this(rootType.java, translator, executor, pipelineProviders)
 
     // --------------------------------------------------------------------------------------------
     // Find methods
@@ -107,8 +110,9 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
 
         val pageRequest = query.pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
-        // Shortcut: plain collection scan without operations
-        if (query.operations.isEmpty()) {
+        val stages = queryStages(query)
+        // Preserve the plain-query shortcut only when no provider contributes stages.
+        if (stages.isEmpty()) {
             return if (pageRequest == null) {
                 UnpagedMongoResults(executor.findAll(mappedResultType))
             } else {
@@ -116,7 +120,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
             }
         }
 
-        val aggregation = translator.translate(query)
+        val aggregation = Aggregation.newAggregation(stages)
         return if (pageRequest == null) {
             UnpagedMongoResults(executor.executeUnpaged(aggregation, mappedResultType))
         } else {
@@ -138,17 +142,18 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         validateResultType(resultType)
         val pageRequest = query.pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
-        // An Aggregation must not be empty, so queries without operations contribute no stages
-        val queryStages = if (query.operations.isEmpty()) {
-            emptyList()
-        } else {
-            translator.translate(query).pipeline.operations
-        }
-        val operations = queryStages +
+        val operations = queryStages(query) +
             pageRequest?.let(::pagingStages).orEmpty() +
             Aggregation.limit(maxResults)
 
         return executor.executeUnpaged(Aggregation.newAggregation(operations), resultType.toMappedResultType())
+    }
+
+    private fun <TResult> queryStages(query: FlowQuery<TRoot, TResult>): List<AggregationOperation> {
+        // Resolve scope once: page and count must not observe different provider results.
+        val prefix = pipelineProviders.flatMap { it.stages(rootType) }
+        val queryStages = if (query.operations.isEmpty()) emptyList() else translator.translate(query).pipeline.operations
+        return prefix + queryStages
     }
 
     private fun <TResult : Any> executePaged(
