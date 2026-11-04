@@ -3,6 +3,7 @@ package de.lise.fluxflow.mongo.security.production
 import de.lise.fluxflow.mongo.generic.CollectionType
 import de.lise.fluxflow.mongo.generic.NullType
 import de.lise.fluxflow.mongo.generic.SimpleType
+import de.lise.fluxflow.mongo.generic.TypeSpec
 import de.lise.fluxflow.mongo.generic.ValueTypeConversionException
 import de.lise.fluxflow.mongo.generic.ValueTypeConverter
 import de.lise.fluxflow.mongo.generic.withData
@@ -29,12 +30,70 @@ import java.net.URLConnection
 import java.net.URLStreamHandler
 import java.util.Collections
 import java.util.Date
+import java.util.EnumSet
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class ValueTypeConverterSecurityTest {
+    @Test
+    fun `EnumSet runtime values and stored names retain set semantics in both formats`() {
+        val converter = ValueTypeConverter(registry(
+            valueEntry(requireNotNull(TrustedEnum::class.qualifiedName), TrustedEnum::class.java),
+            valueEntry(requireNotNull(JumboEnum::class.qualifiedName), JumboEnum::class.java),
+        ))
+        val cases = listOf(
+            EnumSet.noneOf(TrustedEnum::class.java),
+            EnumSet.of(TrustedEnum.FIRST),
+            EnumSet.allOf(TrustedEnum::class.java),
+            EnumSet.noneOf(JumboEnum::class.java),
+            EnumSet.of(JumboEnum.E00, JumboEnum.E64),
+        )
+        cases.forEach { source ->
+            val spec = TypeSpec.fromValue(source)
+            assertThat(converter.assertType(spec, source)).isEqualTo(source)
+            val stored = mapOf<String, Any?>("selection" to source.map { it.name })
+            val records = TypedRecords.fromData(mapOf<String, Any?>("selection" to source)).copy(values = stored)
+
+            val legacy = converter.toTypeSafeData(mapOf("selection" to spec), stored)["selection"]
+            val current = records.toTypeSafeData(converter)["selection"]
+
+            assertThat(legacy).isInstanceOf(Set::class.java).isEqualTo(source)
+            assertThat(current).isInstanceOf(Set::class.java).isEqualTo(source)
+            assertThat(stored["selection"]).isEqualTo(source.map { it.name })
+        }
+    }
+
+    @Test
+    fun `EnumSet aliases reject unregistered elements and invalid enum names`() {
+        val converter = converter("trusted-enum", TrustedEnum::class.java)
+        listOf("java.util.RegularEnumSet", "java.util.JumboEnumSet").forEach { container ->
+            val unknown = CollectionType(SimpleType(container), listOf(SimpleType("unregistered-enum")))
+            val failure = org.junit.jupiter.api.assertThrows<UnknownTypeException> {
+                converter.assertType(unknown, listOf("FIRST"))
+            }
+            assertThat(failure.role).isEqualTo(TypeRole.VALUE)
+            assertThat(failure.key).isEqualTo("unregistered-enum")
+            val spec = CollectionType(SimpleType(container), listOf(SimpleType("trusted-enum")))
+            listOf("first", "MISSING").forEach { name ->
+                assertThatThrownBy { converter.assertType(spec, listOf(name)) }
+                    .isExactlyInstanceOf(ValueTypeConversionException::class.java)
+            }
+        }
+    }
+
+    @Test
+    fun `EnumSet support does not authorize other container names`() {
+        listOf("java.util.UnknownEnumSet", "java.util.EnumSet", TrustedSet::class.java.name).forEach { name ->
+            val failure = org.junit.jupiter.api.assertThrows<UnknownTypeException> {
+                ValueTypeConverter.builtInsOnly().assertType(CollectionType(SimpleType(name), emptyList()), emptyList<Any>())
+            }
+            assertThat(failure.role).isEqualTo(TypeRole.VALUE)
+            assertThat(failure.key).isEqualTo(name)
+        }
+    }
+
     @Test
     fun `fixed BSON document alias normalizes maps and retains native identity`() {
         val spec = SimpleType(org.bson.Document::class)
@@ -723,6 +782,15 @@ class ValueTypeConverterSecurityTest {
     }
 
     private enum class TrustedEnum { FIRST, SECOND }
+    private enum class JumboEnum {
+        E00, E01, E02, E03, E04, E05, E06, E07, E08, E09,
+        E10, E11, E12, E13, E14, E15, E16, E17, E18, E19,
+        E20, E21, E22, E23, E24, E25, E26, E27, E28, E29,
+        E30, E31, E32, E33, E34, E35, E36, E37, E38, E39,
+        E40, E41, E42, E43, E44, E45, E46, E47, E48, E49,
+        E50, E51, E52, E53, E54, E55, E56, E57, E58, E59,
+        E60, E61, E62, E63, E64,
+    }
     private enum class CaseSensitiveEnum { KB, kB }
     private enum class FirstContextEnum { ONLY }
     private enum class SecondContextEnum { ONLY }
