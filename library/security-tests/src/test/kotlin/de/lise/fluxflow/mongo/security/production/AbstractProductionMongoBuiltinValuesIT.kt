@@ -1,5 +1,15 @@
 package de.lise.fluxflow.mongo.security.production
 
+import com.mongodb.client.model.Filters.eq
+import com.mongodb.client.model.Updates.combine
+import com.mongodb.client.model.Updates.unset
+import com.mongodb.client.model.Updates.set
+import de.lise.fluxflow.mongo.security.fixtures.SecurityTestWorkflowEnum
+import de.lise.fluxflow.mongo.security.fixtures.SecurityTestJumboEnum
+import de.lise.fluxflow.mongo.security.fixtures.UnregisteredSecurityTestEnum
+import de.lise.fluxflow.mongo.security.fixtures.assertUnknownType
+import de.lise.fluxflow.reflection.types.TypeRole
+import java.util.EnumSet
 import de.lise.fluxflow.api.job.JobIdentifier
 import de.lise.fluxflow.api.job.JobStatus
 import de.lise.fluxflow.api.step.Status
@@ -103,6 +113,115 @@ abstract class AbstractProductionMongoBuiltinValuesIT {
     @Test fun `BSON document round trips through scalar and typed collections`() =
         roundTrip(Document("inner", "safe"), null)
 
+    @Test
+    fun `regular enum sets round trip through current and legacy persistence`() {
+        listOf(
+            EnumSet.noneOf(SecurityTestWorkflowEnum::class.java),
+            EnumSet.of(SecurityTestWorkflowEnum.Ready),
+            EnumSet.allOf(SecurityTestWorkflowEnum::class.java),
+        ).forEach { enumSetRoundTrip(it, "java.util.RegularEnumSet") }
+    }
+
+    @Test
+    fun `jumbo enum sets round trip through current and legacy persistence`() {
+        listOf(
+            EnumSet.noneOf(SecurityTestJumboEnum::class.java),
+            EnumSet.of(SecurityTestJumboEnum.V0, SecurityTestJumboEnum.V64),
+        ).forEach { enumSetRoundTrip(it, "java.util.JumboEnumSet") }
+    }
+
+    @Test
+    fun `unregistered enum set elements are rejected before create and save`() {
+        assertRejectedBeforeWrite(EnumSet.of(UnregisteredSecurityTestEnum.Poison), UnknownTypeException::class.java)
+    }
+
+    @Test
+    fun `invalid enum names in current and legacy sets are rejected without changing BSON`() {
+        for (legacy in listOf(false, true)) {
+            for (field in listOf("data", "metadata", "parameters")) {
+                val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
+                val id = ObjectId()
+                val values = mapOf("selection" to EnumSet.of(SecurityTestWorkflowEnum.Ready))
+                val isJob = field == "parameters"
+                if (isJob) {
+                    jobs.create(JobData(id.toHexString(), workflow.value, "enum-set-job", values,
+                        Instant.parse("2026-11-04T08:00:00Z"), null, JobStatus.Scheduled))
+                } else {
+                    steps.create(StepData(id.toHexString(), workflow.value, "enum-set-step", "1", values, Status.Active, values))
+                }
+                val type = if (isJob) JobDocument::class.java else StepDocument::class.java
+                val collection = host.getCollection(host.getCollectionName(type))
+                val entries = if (isJob) "parameterEntries" else "${field}Entries"
+                val updates = if (legacy) combine(unset(entries), set("$field.selection", listOf("ready")))
+                    else set("$entries.values.selection", listOf("ready"))
+                collection.updateOne(eq("_id", id), updates)
+                val before = collection.find(eq("_id", id)).first()
+                assertThatThrownBy {
+                    if (isJob) jobs.findForWorkflowAndId(workflow, JobIdentifier(id.toHexString()))
+                    else steps.findForWorkflowAndId(workflow, StepIdentifier(id.toHexString()))
+                }.isInstanceOf(ValueTypeConversionException::class.java)
+                assertThat(collection.find(eq("_id", id)).first()).isEqualTo(before)
+            }
+        }
+    }
+
+    protected fun enumSetRoundTrip(value: Set<*>, containerName: String) {
+        assertThat(value.javaClass.name).isEqualTo(containerName)
+        val values = mapOf("selection" to value)
+        val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
+        val step = StepData(ObjectId().toHexString(), workflow.value, "enum-set-step", "1", values, Status.Active, values)
+        val job = JobData(ObjectId().toHexString(), workflow.value, "enum-set-job", values,
+            Instant.parse("2026-11-04T08:00:00Z"), null, JobStatus.Scheduled)
+        val stepCollection = host.getCollection(host.getCollectionName(StepDocument::class.java))
+        val jobCollection = host.getCollection(host.getCollectionName(JobDocument::class.java))
+        val stepFilter = eq("_id", ObjectId(step.id))
+        val jobFilter = eq("_id", ObjectId(job.id))
+        steps.create(step)
+        jobs.create(job)
+        assertThat(steps.findForWorkflowAndId(workflow, StepIdentifier(step.id))).isEqualTo(step)
+        assertThat(jobs.findForWorkflowAndId(workflow, JobIdentifier(job.id))).isEqualTo(job)
+        val savedStep = step.copy(data = values + ("marker" to "saved"), metadata = values + ("marker" to "saved"))
+        val savedJob = job.copy(parameters = values + ("marker" to "saved"))
+        steps.save(savedStep)
+        jobs.save(savedJob)
+
+        val currentStep = requireNotNull(stepCollection.find(stepFilter).first())
+        val currentJob = requireNotNull(jobCollection.find(jobFilter).first())
+        listOf("data", "metadata").forEach { field ->
+            assertEnumSetBson(currentStep, field, "${field}TypeMap", "${field}Entries", value, containerName)
+        }
+        assertEnumSetBson(currentJob, "parameters", "parameterTypeMap", "parameterEntries", value, containerName)
+        assertThat(steps.findForWorkflowAndId(workflow, StepIdentifier(step.id))).isEqualTo(savedStep)
+        assertThat(jobs.findForWorkflowAndId(workflow, JobIdentifier(job.id))).isEqualTo(savedJob)
+        assertThat(stepCollection.find(stepFilter).first()).isEqualTo(currentStep)
+        assertThat(jobCollection.find(jobFilter).first()).isEqualTo(currentJob)
+
+        stepCollection.updateOne(stepFilter, combine(unset("dataEntries"), unset("metadataEntries")))
+        jobCollection.updateOne(jobFilter, unset("parameterEntries"))
+        val legacyStep = stepCollection.find(stepFilter).first()
+        val legacyJob = jobCollection.find(jobFilter).first()
+        assertThat(steps.findForWorkflowAndId(workflow, StepIdentifier(step.id))).isEqualTo(savedStep)
+        assertThat(jobs.findForWorkflowAndId(workflow, JobIdentifier(job.id))).isEqualTo(savedJob)
+        assertThat(stepCollection.find(stepFilter).first()).isEqualTo(legacyStep)
+        assertThat(jobCollection.find(jobFilter).first()).isEqualTo(legacyJob)
+    }
+
+    private fun assertEnumSetBson(
+        raw: Document, field: String, typeMap: String, entriesField: String, value: Set<*>, containerName: String,
+    ) {
+        val names = value.map { (it as Enum<*>).name }
+        assertThat(raw.get(field, Document::class.java)["selection"]).isEqualTo(names)
+        val legacyType = raw.get(typeMap, Document::class.java).get("selection", Document::class.java)
+        assertThat(legacyType.get("collectionType", Document::class.java)["typeName"]).isEqualTo(containerName)
+        val entries = raw.get(entriesField, Document::class.java)
+        assertThat(entries.get("values", Document::class.java)["selection"]).isEqualTo(names)
+        val type = entries.get("types", Document::class.java).get("selection", Document::class.java)
+        assertThat(type["_class"].toString()).contains("CollectionTypeRecord")
+        val jvmTypes = entries.get("jvmTypes", Document::class.java).getList("entries", Document::class.java)
+        assertThat(jvmTypes.map { it["type"] }).contains(containerName)
+        assertThat(type.getList("componentTypes", Document::class.java)).hasSize(value.size)
+    }
+
     private fun assertUnsupportedBuiltin(value: Any) {
         recordHostWriterEvidence(value)
         assertRejectedBeforeWrite(value, UnknownTypeException::class.java)
@@ -133,22 +252,36 @@ abstract class AbstractProductionMongoBuiltinValuesIT {
         val workflow = WorkflowIdentifier(UUID.randomUUID().toString())
         val unsafe = mapOf("scalar" to value)
         val safe = mapOf("scalar" to "safe")
-        val step = StepData(ObjectId().toHexString(), workflow.value, "locale-step", "1", unsafe, Status.Active, unsafe)
-        assertThatThrownBy { steps.create(step) }.isExactlyInstanceOf(failureType)
-        assertThat(steps.findForWorkflowAndId(workflow, StepIdentifier(step.id))).isNull()
-        val validStep = step.copy(data = safe, metadata = safe)
-        steps.create(validStep)
-        assertThatThrownBy { steps.save(step) }.isExactlyInstanceOf(failureType)
-        assertThat(steps.findForWorkflowAndId(workflow, StepIdentifier(step.id))).isEqualTo(validStep)
+        listOf(unsafe to safe, safe to unsafe).forEach { (data, metadata) ->
+            val step = StepData(ObjectId().toHexString(), workflow.value, "locale-step", "1", data, Status.Active, metadata)
+            assertThatThrownBy { steps.create(step) }.isExactlyInstanceOf(failureType).satisfies(java.util.function.Consumer { failure ->
+                if (value is EnumSet<*>) assertUnknownType(failure, TypeRole.VALUE, UnregisteredSecurityTestEnum::class.java.name)
+            })
+            assertThat(steps.findForWorkflowAndId(workflow, StepIdentifier(step.id))).isNull()
+            val validStep = step.copy(data = safe, metadata = safe)
+            steps.create(validStep)
+            val collection = host.getCollection(host.getCollectionName(StepDocument::class.java))
+            val filter = eq("_id", ObjectId(step.id))
+            val before = collection.find(filter).first()
+            assertThatThrownBy { steps.save(step) }.isExactlyInstanceOf(failureType)
+            assertThat(steps.findForWorkflowAndId(workflow, StepIdentifier(step.id))).isEqualTo(validStep)
+            assertThat(collection.find(filter).first()).isEqualTo(before)
+        }
 
         val job = JobData(ObjectId().toHexString(), workflow.value, "locale-job", unsafe,
             Instant.parse("2026-10-12T08:00:00Z"), null, JobStatus.Scheduled)
-        assertThatThrownBy { jobs.create(job) }.isExactlyInstanceOf(failureType)
+        assertThatThrownBy { jobs.create(job) }.isExactlyInstanceOf(failureType).satisfies(java.util.function.Consumer { failure ->
+            if (value is EnumSet<*>) assertUnknownType(failure, TypeRole.VALUE, UnregisteredSecurityTestEnum::class.java.name)
+        })
         assertThat(jobs.findForWorkflowAndId(workflow, JobIdentifier(job.id))).isNull()
         val validJob = job.copy(parameters = safe)
         jobs.create(validJob)
+        val collection = host.getCollection(host.getCollectionName(JobDocument::class.java))
+        val filter = eq("_id", ObjectId(job.id))
+        val before = collection.find(filter).first()
         assertThatThrownBy { jobs.save(job) }.isExactlyInstanceOf(failureType)
         assertThat(jobs.findForWorkflowAndId(workflow, JobIdentifier(job.id))).isEqualTo(validJob)
+        assertThat(collection.find(filter).first()).isEqualTo(before)
     }
 
     private fun roundTrip(value: Any, expectedHostType: Class<*>? = String::class.java) {

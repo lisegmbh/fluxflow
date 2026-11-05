@@ -68,6 +68,7 @@ dependencies {
     implementation(project(":core:migration"))
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("tools.jackson.core:jackson-databind")
     testImplementation("org.springframework.boot:spring-boot-starter-data-mongodb")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")

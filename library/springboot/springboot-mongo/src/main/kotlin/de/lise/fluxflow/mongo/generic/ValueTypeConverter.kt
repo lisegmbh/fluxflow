@@ -602,6 +602,8 @@ class ValueTypeConverter private constructor(
                 "java.util.HashSet",
                 "java.util.LinkedHashSet",
                 "java.util.TreeSet",
+                "java.util.RegularEnumSet",
+                "java.util.JumboEnumSet",
                 "java.util.Collections.EmptySet",
                 "java.util.Collections.SingletonSet",
                 "java.util.Collections.UnmodifiableSet",
