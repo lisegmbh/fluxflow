@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+1. **Scoped Mongo workflow query stages**<br/>
+   Workflow queries can apply application-provided Mongo pipeline stages before projection,
+   limits and pagination, with the same scope used for page contents and total counts.
 1. **Trusted type manifest and registry**<br/>
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that
