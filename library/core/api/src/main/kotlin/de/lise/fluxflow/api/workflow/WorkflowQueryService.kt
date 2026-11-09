@@ -3,6 +3,7 @@ package de.lise.fluxflow.api.workflow
 import de.fluxflow.flowquery.expression.ExpressionExtensions.Types.isType
 import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.FlowQueryBuilder
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.fluxflow.flowquery.service.ResourceQueryService
 import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable
 import de.lise.fluxflow.api.workflow.flowquery.WorkflowQueryable.Companion.model
@@ -29,6 +30,28 @@ interface WorkflowQueryService : ResourceQueryService<Workflow<*>, WorkflowQuery
      *  @return a list of all workflows
      */
     fun getAll(): List<Workflow<*>>
+
+    /** Executes with an explicit restriction; unsupported implementations fail closed. */
+    fun findAll(
+        query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>,
+        constraint: QueryConstraint,
+    ): Page<Workflow<*>> = throw UnsupportedOperationException("Explicit query constraints are not supported")
+
+    /** Applies the model type and explicit restriction before result counting and pagination. */
+    @Suppress("UNCHECKED_CAST")
+    fun <TWorkflowModel : Any> findAll(
+        type: KClass<TWorkflowModel>,
+        query: FlowQuery<WorkflowQueryable<TWorkflowModel>, WorkflowQueryable<TWorkflowModel>>,
+        constraint: QueryConstraint,
+    ): Page<Workflow<TWorkflowModel>> {
+        val typedQuery = FlowQuery.of<WorkflowQueryable<Any>>().where {
+            model.isType(type)
+        } as FlowQuery<WorkflowQueryable<TWorkflowModel>, WorkflowQueryable<TWorkflowModel>>
+        return findAll(
+            typedQuery.append(query) as FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>,
+            constraint,
+        ).map { it as Workflow<TWorkflowModel> }
+    }
 
     /**
      * Returns all workflows having a workflow model of the given type.

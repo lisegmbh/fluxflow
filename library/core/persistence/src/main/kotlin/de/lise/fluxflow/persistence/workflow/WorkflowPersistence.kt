@@ -1,6 +1,7 @@
 package de.lise.fluxflow.persistence.workflow
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.workflow.query.WorkflowDataQuery
 import de.lise.fluxflow.query.pagination.Page
@@ -26,6 +27,11 @@ interface WorkflowPersistence {
     fun findAll(): List<WorkflowData>
     fun findAll(query: WorkflowDataQuery): Page<WorkflowData>
     fun findAll(query: FlowQuery<WorkflowData, WorkflowData>): Page<WorkflowData>
+
+    /** Existing adapters stay compatible; they must explicitly implement constraint execution. */
+    fun findAll(query: FlowQuery<WorkflowData, WorkflowData>, constraint: QueryConstraint): Page<WorkflowData> =
+        throw UnsupportedOperationException("Explicit query constraints are not supported by this persistence")
+
     fun find(id: WorkflowIdentifier): WorkflowData?
     fun save(workflowData: WorkflowData): WorkflowData
     fun delete(id: WorkflowIdentifier)

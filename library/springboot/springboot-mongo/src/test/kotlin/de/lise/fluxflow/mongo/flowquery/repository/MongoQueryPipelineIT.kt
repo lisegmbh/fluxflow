@@ -1,6 +1,7 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
 import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import de.lise.fluxflow.mongo.MongoIntegrationTest
@@ -15,6 +16,7 @@ import org.springframework.data.mongodb.core.query.Query
 
 @MongoIntegrationTest
 class MongoQueryPipelineIT {
+    private object Restriction : QueryConstraint
     @Autowired lateinit var template: MongoTemplate
     @Autowired internal lateinit var translator: MongoQueryTranslator
 
@@ -46,20 +48,19 @@ class MongoQueryPipelineIT {
     }
 
     @Test
-    fun `a provider with no active scope leaves ordinary query results unchanged`() {
-        var active = true
-        val repo = repository(FluxFlowMongoQueryPipelineProvider {
-            if (active) listOf(Aggregation.stage(Document("\$match", Document("readable", true)))) else emptyList()
-        })
-        assertThat(repo.find(FlowQuery.of<QueryDocument>()).items).hasSize(3)
-        active = false
-        assertThat(repo.find(FlowQuery.of<QueryDocument>()).items).hasSize(6)
+    fun `explicit constrained views leave ordinary query results unchanged`() {
+        val ordinary = MongoFlowQueryRepository(QueryDocument::class.java, translator,
+            MongoExecutor(template, QueryDocument::class.java), listOf(FluxFlowMongoQueryPipelineProvider { _, _ ->
+                listOf(Aggregation.stage(Document("\$match", Document("readable", true))))
+            }))
+        assertThat(ordinary.withConstraint(Restriction).find(FlowQuery.of<QueryDocument>()).items).hasSize(3)
+        assertThat(ordinary.find(FlowQuery.of<QueryDocument>()).items).hasSize(6)
     }
 
-    private fun repository(provider: FluxFlowMongoQueryPipelineProvider = FluxFlowMongoQueryPipelineProvider {
+    private fun repository(provider: FluxFlowMongoQueryPipelineProvider = FluxFlowMongoQueryPipelineProvider { _, _ ->
         listOf(Aggregation.stage(Document("\$match", Document("readable", true))))
     }) = MongoFlowQueryRepository(QueryDocument::class.java, translator,
-        MongoExecutor(template, QueryDocument::class.java), listOf(provider))
+        MongoExecutor(template, QueryDocument::class.java), listOf(provider)).withConstraint(Restriction)
 
     @org.springframework.data.mongodb.core.mapping.Document("queryPipelineFixtures")
     data class QueryDocument(val id: String, val readable: Boolean, val view: View)

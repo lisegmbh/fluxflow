@@ -1,14 +1,15 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.fluxflow.flowquery.query.QueryExecutionException
 import de.fluxflow.flowquery.repository.FlowQueryRepository
 import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import de.lise.fluxflow.query.pagination.Page
+import kotlin.reflect.KClass
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.aggregation.Aggregation
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation
-import kotlin.reflect.KClass
 
 /**
  * MongoDB implementation of [FlowQueryRepository] using a generic [MongoExecutor].
@@ -23,15 +24,29 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     private val rootType: Class<TRoot>,
     private val translator: MongoQueryTranslator,
     private val executor: MongoExecutor<TRoot>,
-    private val pipelineProviders: List<FluxFlowMongoQueryPipelineProvider> = emptyList(),
+    private val pipelineProviders: () -> List<FluxFlowMongoQueryPipelineProvider> = { emptyList() },
+    private val constraint: QueryConstraint? = null,
 ) : FlowQueryRepository<TRoot> {
+
+    internal constructor(
+        rootType: Class<TRoot>,
+        translator: MongoQueryTranslator,
+        executor: MongoExecutor<TRoot>,
+        pipelineProviders: List<FluxFlowMongoQueryPipelineProvider>,
+    ) : this(rootType, translator, executor, { pipelineProviders })
 
     internal constructor(
         rootType: KClass<TRoot>,
         translator: MongoQueryTranslator,
         executor: MongoExecutor<TRoot>,
         pipelineProviders: List<FluxFlowMongoQueryPipelineProvider> = emptyList(),
-    ) : this(rootType.java, translator, executor, pipelineProviders)
+    ) : this(rootType.java, translator, executor, { pipelineProviders })
+
+    /** Returns an immutable execution view; restrictions cannot be overwritten on the same view. */
+    fun withConstraint(constraint: QueryConstraint): MongoFlowQueryRepository<TRoot> {
+        check(this.constraint == null) { "A query constraint is already bound to this repository view" }
+        return MongoFlowQueryRepository(rootType, translator, executor, pipelineProviders, constraint)
+    }
 
     // --------------------------------------------------------------------------------------------
     // Find methods
@@ -150,10 +165,14 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     }
 
     private fun <TResult> queryStages(query: FlowQuery<TRoot, TResult>): List<AggregationOperation> {
-        // Resolve scope once: page and count must not observe different provider results.
-        val prefix = pipelineProviders.flatMap { it.stages(rootType) }
-        val queryStages = if (query.operations.isEmpty()) emptyList() else translator.translate(query).pipeline.operations
-        return prefix + queryStages
+        // Resolve the explicit restriction once for both result and count pipelines.
+        val prefix = constraint?.let { restriction ->
+            val contributions = pipelineProviders().mapNotNull { it.stages(rootType, restriction) }
+            check(contributions.isNotEmpty()) { "No Mongo pipeline provider supports this query constraint" }
+            contributions.flatten()
+        }.orEmpty()
+        val translatedStages = if (query.operations.isEmpty()) emptyList() else translator.translate(query).pipeline.operations
+        return prefix + translatedStages
     }
 
     private fun <TResult : Any> executePaged(

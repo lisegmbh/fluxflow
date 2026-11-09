@@ -635,20 +635,36 @@ query.where { root ->
 
 ## Mongo workflow query pipeline extensions
 
-Applications using Mongo workflow persistence can register ordered Spring beans implementing
-`de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider`. Its `stages(rootType)` callback
-returns Spring Data `AggregationOperation` instances for the persisted root document type.
+Applications can pass an immutable `QueryConstraint` explicitly with a workflow FlowQuery:
 
-The stages run before the original FlowQuery operations, projections, explicit limits and
-pagination. Each execution captures the provider result once; paged results and their total
-count use the same prefix. `findFirst` and `findSingle` also apply it before their result cap.
-This includes queries with no original operations.
+```kotlin
+workflowService.findAll(Model::class, query, constraint)
+```
 
-Providers should return read-only stages that preserve the root document shape and return
-an empty list outside an explicitly established application scope. FluxFlow supplies no
-permission model or ambient user scope. An empty prefix retains the ordinary query behavior;
-provider errors and guarded document-conversion errors propagate instead of shortening a list.
+The service and persistence forward the same constraint separately from query mapping.
+The Mongo adapter uses `MongoFlowQueryRepository.withConstraint(constraint)`, an immutable
+repository view that also supports projection and first/single queries. It consults ordered
+`FluxFlowMongoQueryPipelineProvider` beans with the persisted root type and constraint.
+Providers return `null` when unsupported, or a list of read-only stages when accepted;
+an empty list explicitly accepts an unrestricted operation. No accepting provider is an error.
 
-This extension covers workflow FlowQuery queries. It does not replace authorization for
-direct workflow ID reads, and does not change job, step or continuation queries. Applications
-must continue to authorize those operations independently.
+Stages preserve the raw root document shape and precede projection, limits, counting and
+pagination. Each execution resolves them once for both page contents and total counts.
+Provider failures and guarded document-conversion failures propagate.
+
+Provider beans are resolved lazily during constrained execution, not while constructing
+workflow persistence. Each execution keeps Spring ordering and resolves the provider list
+once, so request-scoped providers and providers depending on the workflow service can be used.
+
+Existing overloads without a constraint retain their behavior and do not consult providers.
+This includes `findAll(query)`, `getAll()`, `getAll(query)`, `getAll(type)` and
+`getAll(type, query)`, as well as direct workflow ID reads. Step and job searches use
+these ordinary calls when loading their workflows; a separately constrained workflow query
+does not restrict those internal loads. Applications authorize the legacy methods, ID reads,
+and step, job and continuation operations independently.
+Existing persistence implementations remain compatible and reject the new overload until
+they explicitly support it. FluxFlow has no Spring Tools dependency or permission policy.
+Applications enforce mandatory authorization through a protected reader/service API whose
+filter argument has no default; the legacy FluxFlow overload is not an authorization boundary.
+No thread-local scope or consumption check is needed. Early returns without database calls
+are valid, and constraints can be passed explicitly across threads.

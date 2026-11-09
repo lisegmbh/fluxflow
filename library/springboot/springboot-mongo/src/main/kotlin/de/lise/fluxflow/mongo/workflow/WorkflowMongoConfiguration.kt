@@ -34,7 +34,8 @@ open class WorkflowMongoConfiguration {
         pipelineProviders: ObjectProvider<FluxFlowMongoQueryPipelineProvider>? = null,
     ): MongoFlowQueryRepository<WorkflowDocument> {
         return MongoFlowQueryRepository(
-            WorkflowDocument::class, queryTranslator, executor, pipelineProviders?.orderedStream()?.toList().orEmpty()
+            WorkflowDocument::class.java, queryTranslator, executor,
+            { pipelineProviders?.orderedStream()?.toList().orEmpty() }
         )
     }
 
