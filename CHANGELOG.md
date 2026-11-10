@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Workflow queries can explicitly apply application-provided Mongo pipeline stages before
    projection, limits and pagination, with the same restriction used for page contents and
    total counts. Existing queries and internal workflow loads retain their behavior.
+   Unsupported Mongo query constraints fail with `QueryExecutionException`.
 1. **Trusted type manifest and registry**<br/>
    Adds a versioned, role-specific type inventory, a context-local immutable registry,
    annotation discovery for standard Spring Boot applications, and a Gradle plugin that

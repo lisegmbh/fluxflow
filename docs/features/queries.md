@@ -662,6 +662,15 @@ This includes `findAll(query)`, `getAll()`, `getAll(query)`, `getAll(type)` and
 these ordinary calls when loading their workflows; a separately constrained workflow query
 does not restrict those internal loads. Applications authorize the legacy methods, ID reads,
 and step, job and continuation operations independently.
+Explicit constraints are currently supported only by `WorkflowMongoPersistence`.
+`WorkflowTestPersistence` and the Spring Boot 3/4 in-memory configurations that use it
+throw `UnsupportedOperationException` for `findAll(query, constraint)`. Their ordinary
+query methods remain available. Test the restricted execution path with Mongo, or mock
+the relevant service boundary when testing controller behavior without a database.
+A Mongo-specific permission filter cannot be evaluated by the in-memory adapter.
+Missing or non-accepting Mongo providers cause `QueryExecutionException` before any
+query is sent to MongoDB. Exceptions raised by a provider itself continue to propagate.
+
 Existing persistence implementations remain compatible and reject the new overload until
 they explicitly support it. FluxFlow has no Spring Tools dependency or permission policy.
 Applications enforce mandatory authorization through a protected reader/service API whose

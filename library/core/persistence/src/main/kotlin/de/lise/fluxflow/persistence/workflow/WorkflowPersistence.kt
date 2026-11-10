@@ -28,7 +28,12 @@ interface WorkflowPersistence {
     fun findAll(query: WorkflowDataQuery): Page<WorkflowData>
     fun findAll(query: FlowQuery<WorkflowData, WorkflowData>): Page<WorkflowData>
 
-    /** Existing adapters stay compatible; they must explicitly implement constraint execution. */
+    /**
+     * Executes an explicitly restricted query when supported by this adapter.
+     * Currently only the Mongo adapter supports it; the built-in test and in-memory
+     * persistence inherit this rejection. Ordinary query overloads remain available.
+     * @throws UnsupportedOperationException If constraint execution is not supported.
+     */
     fun findAll(query: FlowQuery<WorkflowData, WorkflowData>, constraint: QueryConstraint): Page<WorkflowData> =
         throw UnsupportedOperationException("Explicit query constraints are not supported by this persistence")
 

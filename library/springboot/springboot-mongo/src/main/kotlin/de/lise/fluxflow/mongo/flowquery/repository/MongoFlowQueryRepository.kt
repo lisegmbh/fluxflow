@@ -168,7 +168,9 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         // Resolve the explicit restriction once for both result and count pipelines.
         val prefix = constraint?.let { restriction ->
             val contributions = pipelineProviders().mapNotNull { it.stages(rootType, restriction) }
-            check(contributions.isNotEmpty()) { "No Mongo pipeline provider supports this query constraint" }
+            if (contributions.isEmpty()) {
+                throw QueryExecutionException("No Mongo pipeline provider supports this query constraint")
+            }
             contributions.flatten()
         }.orEmpty()
         val translatedStages = if (query.operations.isEmpty()) emptyList() else translator.translate(query).pipeline.operations

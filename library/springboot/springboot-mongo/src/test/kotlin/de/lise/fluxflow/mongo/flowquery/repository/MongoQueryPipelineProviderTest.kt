@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.query.FlowQuery
 import de.fluxflow.flowquery.query.QueryConstraint
+import de.fluxflow.flowquery.query.QueryExecutionException
 import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
@@ -129,10 +130,10 @@ class MongoQueryPipelineProviderTest {
     @Test
     fun `missing or unsupported providers fail before database execution`() {
         assertThatThrownBy { repository().find(FlowQuery.of<RootDocument>()) }
-            .isInstanceOf(IllegalStateException::class.java)
+            .isInstanceOf(QueryExecutionException::class.java)
         assertThatThrownBy {
             repository(FluxFlowMongoQueryPipelineProvider { _, _ -> null }).find(FlowQuery.of<RootDocument>())
-        }.isInstanceOf(IllegalStateException::class.java)
+        }.isInstanceOf(QueryExecutionException::class.java)
         verifyNoInteractions(executor)
     }
 
