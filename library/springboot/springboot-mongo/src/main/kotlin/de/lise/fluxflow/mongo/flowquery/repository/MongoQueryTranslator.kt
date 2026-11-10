@@ -114,9 +114,9 @@ internal class MongoQueryTranslator(private val compiler: MongoCompiler) {
             .also { it.putIfAbsent("_id", 1) }
 
         return listOf(
-            Aggregation.stage(
+            QuerySortOperation(Aggregation.stage(
                 Document(mapOf("\$sort" to Document(sortSpec)))
-            )
+            ))
         )
     }
 
@@ -129,3 +129,6 @@ internal class MongoQueryTranslator(private val compiler: MongoCompiler) {
         }
     }
 }
+
+/** Marks translator-owned sorting without changing its existing BSON field-mapping behavior. */
+internal class QuerySortOperation(delegate: AggregationOperation) : AggregationOperation by delegate

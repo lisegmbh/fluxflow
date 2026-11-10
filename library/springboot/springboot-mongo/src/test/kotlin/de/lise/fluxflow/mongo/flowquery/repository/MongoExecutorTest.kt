@@ -90,37 +90,53 @@ class MongoExecutorTest {
     }
 
     @Test
-    fun `executePaged should default total count to results size when countAggregation returns null`() {
-        // Arrange
-        val aggregation = mock<Aggregation>()
-        val countAggregation = mock<Aggregation>()
-        val pageRequest = PageRequest.of(1, 5)
-        val expectedResults = listOf(TestProjection("foo"))
+    fun `executePaged derives totals for partial pages without running count`() {
+        for ((pageIndex, size, expectedTotal) in listOf(Triple(0, 0, 0L), Triple(0, 14, 14L), Triple(2, 14, 64L))) {
+            val mongo = mock<MongoTemplate>()
+            val subject = MongoExecutor(mongo, rootType)
+            val data = mock<Aggregation>()
+            val count = mock<Aggregation>()
+            val items = List(size) { TestProjection("item$it") }
+            val mapped = mock<AggregationResults<TestProjection>> { on { mappedResults }.thenReturn(items) }
+            whenever(mongo.aggregate(data, rootType, TestProjection::class.java)).thenReturn(mapped)
 
-        val aggregationResults: AggregationResults<TestProjection> = mock {
-            on { mappedResults }.thenReturn(expectedResults)
+            val result = subject.executePaged(data, count, PageRequest.of(pageIndex, 25), TestProjection::class.java)
+
+            assertThat(result.page.content).containsExactlyElementsOf(items)
+            assertThat(result.page.totalElements).isEqualTo(expectedTotal)
+            verify(mongo, never()).aggregate(count, rootType, MongoCountResult::class.java)
         }
-        val countResults: AggregationResults<MongoCountResult> = mock {
-            on { uniqueMappedResult }.thenReturn(null)
-        }
+    }
 
-        whenever(mongoTemplate.aggregate(aggregation, rootType, TestProjection::class.java))
-            .thenReturn(aggregationResults)
-        whenever(mongoTemplate.aggregate(countAggregation, rootType, MongoCountResult::class.java))
-            .thenReturn(countResults)
+    @Test
+    fun `executePaged still counts an empty page beyond the last page`() {
+        val data = mock<Aggregation>()
+        val count = mock<Aggregation>()
+        val mapped = mock<AggregationResults<TestProjection>> { on { mappedResults }.thenReturn(emptyList()) }
+        val counted = mock<AggregationResults<MongoCountResult>> { on { uniqueMappedResult }.thenReturn(MongoCountResult(64)) }
+        whenever(mongoTemplate.aggregate(data, rootType, TestProjection::class.java)).thenReturn(mapped)
+        whenever(mongoTemplate.aggregate(count, rootType, MongoCountResult::class.java)).thenReturn(counted)
 
-        // Act
-        val result = executor.executePaged(
-            aggregation,
-            countAggregation,
-            pageRequest,
-            TestProjection::class.java
-        )
+        val result = executor.executePaged(data, count, PageRequest.of(3, 25), TestProjection::class.java)
 
-        // Assert
-        // Spring Data counts based on offset + current page size when count supplier returns null
-        assertThat(result.page.content).hasSize(1)
-        assertThat(result.page.totalElements).isEqualTo(6)
+        assertThat(result.page.content).isEmpty()
+        assertThat(result.page.totalElements).isEqualTo(64)
+        verify(mongoTemplate).aggregate(count, rootType, MongoCountResult::class.java)
+    }
+
+    @Test
+    fun `executePaged handles an empty count result when count is required`() {
+        val data = mock<Aggregation>()
+        val count = mock<Aggregation>()
+        val mapped = mock<AggregationResults<TestProjection>> { on { mappedResults }.thenReturn(emptyList()) }
+        val counted = mock<AggregationResults<MongoCountResult>> { on { uniqueMappedResult }.thenReturn(null) }
+        whenever(mongoTemplate.aggregate(data, rootType, TestProjection::class.java)).thenReturn(mapped)
+        whenever(mongoTemplate.aggregate(count, rootType, MongoCountResult::class.java)).thenReturn(counted)
+
+        val result = executor.executePaged(data, count, PageRequest.of(1, 25), TestProjection::class.java)
+
+        assertThat(result.page.totalElements).isZero()
+        verify(mongoTemplate).aggregate(count, rootType, MongoCountResult::class.java)
     }
 
     // --------------------------------------------------------------------------------------------

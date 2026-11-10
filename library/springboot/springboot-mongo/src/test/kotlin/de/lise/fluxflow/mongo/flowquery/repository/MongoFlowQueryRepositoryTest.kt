@@ -136,6 +136,33 @@ class MongoFlowQueryRepositoryTest {
         verifyNoInteractions(executor)
     }
 
+
+    @Test
+    fun `count drops terminal sorting while preserving permission restrictions and internal sort limits`() {
+        whenever(executor.executePaged(any(), any(), any(), eq(WorkflowDocument::class.java)))
+            .thenReturn(PagedMongoResults(PageImpl(emptyList(), PageRequest.of(0, 5), 0)))
+        val constraint = object : de.fluxflow.flowquery.query.QueryConstraint {}
+        val provider = de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider { _, supplied ->
+            assertThat(supplied).isSameAs(constraint)
+            listOf(
+                Aggregation.match(org.springframework.data.mongodb.core.query.Criteria.where("allowed").`is`(true)),
+                Aggregation.sort(org.springframework.data.domain.Sort.Direction.DESC, "_id"),
+                Aggregation.limit(3),
+            )
+        }
+        val constrained = MongoFlowQueryRepository(WorkflowDocument::class.java, translator, executor, listOf(provider))
+            .withConstraint(constraint)
+        constrained.find { sort { get(WorkflowDocument::id).asc() }.paged(pageIndex = 0, pageSize = 5) }
+        val results = argumentCaptor<Aggregation>()
+        val count = argumentCaptor<Aggregation>()
+        verify(executor).executePaged(results.capture(), count.capture(), eq(PageRequest.of(0, 5)), eq(WorkflowDocument::class.java))
+        val dataStages = results.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)
+        val countStages = count.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)
+        assertThat(dataStages.map { it.keys.first() }).containsExactly("\$match", "\$sort", "\$limit", "\$sort", "\$skip", "\$limit")
+        assertThat(countStages.map { it.keys.first() }).containsExactly("\$match", "\$sort", "\$limit", "\$count")
+        assertThat(countStages.take(3)).containsExactlyElementsOf(dataStages.take(3))
+    }
+
     private fun capturedUnpagedStages(): List<Document> {
         val aggregation = argumentCaptor<Aggregation>()
         verify(executor).executeUnpaged(aggregation.capture(), eq(WorkflowDocument::class.java))

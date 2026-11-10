@@ -85,6 +85,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    `Set<Expression<*, T>>`, so the in-memory and Mongo compilers no longer need unchecked casts.
    Expressions built with `isAnyOf(...)` are unaffected; direct constructor or `copy` calls with
    candidates of a different root type must be adjusted.
+4. **Reduce Mongo pagination count work**<br/>
+   Page queries skip counting when the total follows from a partial page. Required count queries
+   omit terminal sorting while preserving filters and internal sort/limit stages. @tk-lise
 
 ### Deprecated
 1. **Two-argument scheduled-job reconciliation APIs**<br/>
