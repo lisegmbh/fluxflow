@@ -1,6 +1,7 @@
 package de.lise.fluxflow.engine.workflow
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.lise.fluxflow.api.ReferredWorkflowObject
 import de.lise.fluxflow.api.continuation.Continuation
 import de.lise.fluxflow.api.workflow.*
@@ -40,6 +41,13 @@ class WorkflowServiceImpl(
     @Deprecated("Use the new FlowQuery overloads instead.")
     override fun getAll(query: WorkflowQuery<*>): Page<Workflow<*>> {
         return workflowQueryService.getAll(query)
+    }
+
+    override fun findAll(
+        query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>,
+        constraint: QueryConstraint,
+    ): Page<Workflow<*>> {
+        return workflowQueryService.findAll(query, constraint)
     }
 
     override fun findAll(query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>): Page<Workflow<*>> {

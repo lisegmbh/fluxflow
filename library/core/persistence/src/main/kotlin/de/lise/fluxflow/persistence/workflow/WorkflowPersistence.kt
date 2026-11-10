@@ -1,6 +1,7 @@
 package de.lise.fluxflow.persistence.workflow
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.persistence.workflow.query.WorkflowDataQuery
 import de.lise.fluxflow.query.pagination.Page
@@ -26,6 +27,16 @@ interface WorkflowPersistence {
     fun findAll(): List<WorkflowData>
     fun findAll(query: WorkflowDataQuery): Page<WorkflowData>
     fun findAll(query: FlowQuery<WorkflowData, WorkflowData>): Page<WorkflowData>
+
+    /**
+     * Executes an explicitly restricted query when supported by this adapter.
+     * Currently only the Mongo adapter supports it; the built-in test and in-memory
+     * persistence inherit this rejection. Ordinary query overloads remain available.
+     * @throws UnsupportedOperationException If constraint execution is not supported.
+     */
+    fun findAll(query: FlowQuery<WorkflowData, WorkflowData>, constraint: QueryConstraint): Page<WorkflowData> =
+        throw UnsupportedOperationException("Explicit query constraints are not supported by this persistence")
+
     fun find(id: WorkflowIdentifier): WorkflowData?
     fun save(workflowData: WorkflowData): WorkflowData
     fun delete(id: WorkflowIdentifier)

@@ -1,13 +1,15 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.fluxflow.flowquery.query.QueryExecutionException
 import de.fluxflow.flowquery.repository.FlowQueryRepository
+import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import de.lise.fluxflow.query.pagination.Page
+import kotlin.reflect.KClass
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.aggregation.Aggregation
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation
-import kotlin.reflect.KClass
 
 /**
  * MongoDB implementation of [FlowQueryRepository] using a generic [MongoExecutor].
@@ -22,13 +24,29 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     private val rootType: Class<TRoot>,
     private val translator: MongoQueryTranslator,
     private val executor: MongoExecutor<TRoot>,
+    private val pipelineProviders: () -> List<FluxFlowMongoQueryPipelineProvider> = { emptyList() },
+    private val constraint: QueryConstraint? = null,
 ) : FlowQueryRepository<TRoot> {
+
+    internal constructor(
+        rootType: Class<TRoot>,
+        translator: MongoQueryTranslator,
+        executor: MongoExecutor<TRoot>,
+        pipelineProviders: List<FluxFlowMongoQueryPipelineProvider>,
+    ) : this(rootType, translator, executor, { pipelineProviders })
 
     internal constructor(
         rootType: KClass<TRoot>,
         translator: MongoQueryTranslator,
         executor: MongoExecutor<TRoot>,
-    ) : this(rootType.java, translator, executor)
+        pipelineProviders: List<FluxFlowMongoQueryPipelineProvider> = emptyList(),
+    ) : this(rootType.java, translator, executor, { pipelineProviders })
+
+    /** Returns an immutable execution view; restrictions cannot be overwritten on the same view. */
+    fun withConstraint(constraint: QueryConstraint): MongoFlowQueryRepository<TRoot> {
+        check(this.constraint == null) { "A query constraint is already bound to this repository view" }
+        return MongoFlowQueryRepository(rootType, translator, executor, pipelineProviders, constraint)
+    }
 
     // --------------------------------------------------------------------------------------------
     // Find methods
@@ -107,8 +125,9 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
 
         val pageRequest = query.pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
-        // Shortcut: plain collection scan without operations
-        if (query.operations.isEmpty()) {
+        val stages = queryStages(query)
+        // Preserve the plain-query shortcut only when no provider contributes stages.
+        if (stages.isEmpty()) {
             return if (pageRequest == null) {
                 UnpagedMongoResults(executor.findAll(mappedResultType))
             } else {
@@ -116,7 +135,7 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
             }
         }
 
-        val aggregation = translator.translate(query)
+        val aggregation = Aggregation.newAggregation(stages)
         return if (pageRequest == null) {
             UnpagedMongoResults(executor.executeUnpaged(aggregation, mappedResultType))
         } else {
@@ -138,17 +157,24 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         validateResultType(resultType)
         val pageRequest = query.pagination?.let { PageRequest.of(it.pageIndex, it.pageSize) }
 
-        // An Aggregation must not be empty, so queries without operations contribute no stages
-        val queryStages = if (query.operations.isEmpty()) {
-            emptyList()
-        } else {
-            translator.translate(query).pipeline.operations
-        }
-        val operations = queryStages +
+        val operations = queryStages(query) +
             pageRequest?.let(::pagingStages).orEmpty() +
             Aggregation.limit(maxResults)
 
         return executor.executeUnpaged(Aggregation.newAggregation(operations), resultType.toMappedResultType())
+    }
+
+    private fun <TResult> queryStages(query: FlowQuery<TRoot, TResult>): List<AggregationOperation> {
+        // Resolve the explicit restriction once for both result and count pipelines.
+        val prefix = constraint?.let { restriction ->
+            val contributions = pipelineProviders().mapNotNull { it.stages(rootType, restriction) }
+            if (contributions.isEmpty()) {
+                throw QueryExecutionException("No Mongo pipeline provider supports this query constraint")
+            }
+            contributions.flatten()
+        }.orEmpty()
+        val translatedStages = if (query.operations.isEmpty()) emptyList() else translator.translate(query).pipeline.operations
+        return prefix + translatedStages
     }
 
     private fun <TResult : Any> executePaged(

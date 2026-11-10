@@ -631,3 +631,49 @@ query.where { root ->
     get(User::attributes).get(other.get(Setting::key)).isEqual("value")
 }
 ```
+
+
+## Mongo workflow query pipeline extensions
+
+Applications can pass an immutable `QueryConstraint` explicitly with a workflow FlowQuery:
+
+```kotlin
+workflowService.findAll(Model::class, query, constraint)
+```
+
+The service and persistence forward the same constraint separately from query mapping.
+The Mongo adapter uses `MongoFlowQueryRepository.withConstraint(constraint)`, an immutable
+repository view that also supports projection and first/single queries. It consults ordered
+`FluxFlowMongoQueryPipelineProvider` beans with the persisted root type and constraint.
+Providers return `null` when unsupported, or a list of read-only stages when accepted;
+an empty list explicitly accepts an unrestricted operation. No accepting provider is an error.
+
+Stages preserve the raw root document shape and precede projection, limits, counting and
+pagination. Each execution resolves them once for both page contents and total counts.
+Provider failures and guarded document-conversion failures propagate.
+
+Provider beans are resolved lazily during constrained execution, not while constructing
+workflow persistence. Each execution keeps Spring ordering and resolves the provider list
+once, so request-scoped providers and providers depending on the workflow service can be used.
+
+Existing overloads without a constraint retain their behavior and do not consult providers.
+This includes `findAll(query)`, `getAll()`, `getAll(query)`, `getAll(type)` and
+`getAll(type, query)`, as well as direct workflow ID reads. Step and job searches use
+these ordinary calls when loading their workflows; a separately constrained workflow query
+does not restrict those internal loads. Applications authorize the legacy methods, ID reads,
+and step, job and continuation operations independently.
+Explicit constraints are currently supported only by `WorkflowMongoPersistence`.
+`WorkflowTestPersistence` and the Spring Boot 3/4 in-memory configurations that use it
+throw `UnsupportedOperationException` for `findAll(query, constraint)`. Their ordinary
+query methods remain available. Test the restricted execution path with Mongo, or mock
+the relevant service boundary when testing controller behavior without a database.
+A Mongo-specific permission filter cannot be evaluated by the in-memory adapter.
+Missing or non-accepting Mongo providers cause `QueryExecutionException` before any
+query is sent to MongoDB. Exceptions raised by a provider itself continue to propagate.
+
+Existing persistence implementations remain compatible and reject the new overload until
+they explicitly support it. FluxFlow has no Spring Tools dependency or permission policy.
+Applications enforce mandatory authorization through a protected reader/service API whose
+filter argument has no default; the legacy FluxFlow overload is not an authorization boundary.
+No thread-local scope or consumption check is needed. Early returns without database calls
+are valid, and constraints can be passed explicitly across threads.

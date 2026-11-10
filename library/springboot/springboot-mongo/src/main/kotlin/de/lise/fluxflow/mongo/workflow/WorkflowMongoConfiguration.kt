@@ -4,12 +4,14 @@ import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.mapper.query.QueryMapperImpl
 import de.lise.fluxflow.mongo.ConditionalOnFluxFlowMongo
 import de.lise.fluxflow.mongo.FluxFlowMongoAccess
+import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import de.lise.fluxflow.mongo.flowquery.repository.MongoExecutor
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.flowquery.repository.MongoQueryTranslator
 import de.lise.fluxflow.mongo.workflow.flowquery.WorkflowDataToDocumentReplacer
 import de.lise.fluxflow.persistence.workflow.WorkflowData
 import de.lise.fluxflow.persistence.workflow.WorkflowPersistence
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.mongodb.core.MongoTemplate
@@ -29,9 +31,11 @@ open class WorkflowMongoConfiguration {
     internal open fun workflowFlowQueryRepository(
         queryTranslator: MongoQueryTranslator,
         executor: MongoExecutor<WorkflowDocument>,
+        pipelineProviders: ObjectProvider<FluxFlowMongoQueryPipelineProvider>? = null,
     ): MongoFlowQueryRepository<WorkflowDocument> {
         return MongoFlowQueryRepository(
-            WorkflowDocument::class, queryTranslator, executor
+            WorkflowDocument::class.java, queryTranslator, executor,
+            { pipelineProviders?.orderedStream()?.toList().orEmpty() }
         )
     }
 

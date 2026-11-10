@@ -2,6 +2,7 @@ package de.lise.fluxflow.engine.workflow
 
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.lise.fluxflow.api.workflow.Workflow
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.api.workflow.WorkflowNotFoundException
@@ -48,6 +49,15 @@ class WorkflowQueryServiceImpl(
         return persistence.findAll(
             query.toDataQuery()
         ).map {
+            activationService.activate<Any>(it)
+        }
+    }
+
+    override fun findAll(
+        query: FlowQuery<WorkflowQueryable<*>, WorkflowQueryable<*>>,
+        constraint: QueryConstraint,
+    ): Page<Workflow<*>> {
+        return persistence.findAll(queryMapper.map(query), constraint).map {
             activationService.activate<Any>(it)
         }
     }

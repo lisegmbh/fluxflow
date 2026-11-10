@@ -2,6 +2,7 @@ package de.lise.fluxflow.mongo.workflow
 
 import de.fluxflow.flowquery.mapper.query.QueryMapper
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.lise.fluxflow.api.workflow.WorkflowIdentifier
 import de.lise.fluxflow.mongo.flowquery.repository.MongoFlowQueryRepository
 import de.lise.fluxflow.mongo.workflow.query.WorkflowDocumentQuery
@@ -36,6 +37,12 @@ class WorkflowMongoPersistence(
             WorkflowDocumentQuery(query)
         ).map { it.toWorkflowData() }
     }
+
+    override fun findAll(
+        query: FlowQuery<WorkflowData, WorkflowData>,
+        constraint: QueryConstraint,
+    ): Page<WorkflowData> = queryableRepository.withConstraint(constraint)
+        .find(queryMapper.map(query)).map { it.toWorkflowData() }
 
     override fun findAll(query: FlowQuery<WorkflowData, WorkflowData>): Page<WorkflowData> {
         return queryableRepository.find(
