@@ -87,7 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    candidates of a different root type must be adjusted.
 4. **Reduce Mongo pagination count work**<br/>
    Page queries skip counting when the total follows from a partial page. Required count queries
-   omit terminal sorting while preserving filters and internal sort/limit stages. @tk-lise
+   omit sorting that cannot affect later stages, including raw provider sorts, while preserving
+   filters and sorts before limits, skips or unknown pipeline stages. @tk-lise
 
 ### Deprecated
 1. **Two-argument scheduled-job reconciliation APIs**<br/>

@@ -3,6 +3,8 @@ package de.lise.fluxflow.mongo.flowquery.repository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.mockito.kotlin.*
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.MongoTemplate
@@ -89,23 +91,27 @@ class MongoExecutorTest {
         verify(mongoTemplate).aggregate(countAggregation, rootType, MongoCountResult::class.java)
     }
 
-    @Test
-    fun `executePaged derives totals for partial pages without running count`() {
-        for ((pageIndex, size, expectedTotal) in listOf(Triple(0, 0, 0L), Triple(0, 14, 14L), Triple(2, 14, 64L))) {
-            val mongo = mock<MongoTemplate>()
-            val subject = MongoExecutor(mongo, rootType)
-            val data = mock<Aggregation>()
-            val count = mock<Aggregation>()
-            val items = List(size) { TestProjection("item$it") }
-            val mapped = mock<AggregationResults<TestProjection>> { on { mappedResults }.thenReturn(items) }
-            whenever(mongo.aggregate(data, rootType, TestProjection::class.java)).thenReturn(mapped)
+    @ParameterizedTest(name = "page {0}, {1} items -> total {2}, no count")
+    @CsvSource("0, 0, 0", "0, 14, 14", "2, 14, 64")
+    fun `executePaged derives totals for partial pages without running count`(
+        pageIndex: Int,
+        size: Int,
+        expectedTotal: Long,
+    ) {
+        // Arrange
+        val data = mock<Aggregation>()
+        val count = mock<Aggregation>()
+        val items = List(size) { TestProjection("item$it") }
+        val mapped = mock<AggregationResults<TestProjection>> { on { mappedResults }.thenReturn(items) }
+        whenever(mongoTemplate.aggregate(data, rootType, TestProjection::class.java)).thenReturn(mapped)
 
-            val result = subject.executePaged(data, count, PageRequest.of(pageIndex, 25), TestProjection::class.java)
+        // Act
+        val result = executor.executePaged(data, count, PageRequest.of(pageIndex, 25), TestProjection::class.java)
 
-            assertThat(result.page.content).containsExactlyElementsOf(items)
-            assertThat(result.page.totalElements).isEqualTo(expectedTotal)
-            verify(mongo, never()).aggregate(count, rootType, MongoCountResult::class.java)
-        }
+        // Assert
+        assertThat(result.page.content).containsExactlyElementsOf(items)
+        assertThat(result.page.totalElements).isEqualTo(expectedTotal)
+        verify(mongoTemplate, never()).aggregate(count, rootType, MongoCountResult::class.java)
     }
 
     @Test

@@ -10,7 +10,6 @@ import kotlin.reflect.KClass
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.mongodb.core.aggregation.Aggregation
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation
-import org.springframework.data.mongodb.core.aggregation.SortOperation
 
 /**
  * MongoDB implementation of [FlowQueryRepository] using a generic [MongoExecutor].
@@ -184,10 +183,19 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         resultType: Class<TResult>,
     ): MongoExecutionResults<TResult> {
         val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + pagingStages(pageRequest))
+        val operations = aggregation.pipeline.operations
+        // Only these stages are known to be independent of input order. Keep sorts before
+        // limits, skips and unknown provider stages, which may depend on that order.
+        val lastOrderSensitiveStage = operations.indexOfLast {
+            when (it.operator) {
+                "\$sort", "\$match", "\$project", "\$replaceRoot" -> false
+                else -> true
+            }
+        }
         val countAggregation = Aggregation.newAggregation(
-            // Only terminal sorting is irrelevant to count. Keep internal sort/limit stages intact.
-            aggregation.pipeline.operations.dropLastWhile { it is SortOperation || it is QuerySortOperation } +
-                Aggregation.count().`as`(MongoCountResult::totalElements.name)
+            operations.filterIndexed { index, operation ->
+                index < lastOrderSensitiveStage || operation.operator != "\$sort"
+            } + Aggregation.count().`as`(MongoCountResult::totalElements.name)
         )
 
         return executor.executePaged(pagedAggregation, countAggregation, pageRequest, resultType)
