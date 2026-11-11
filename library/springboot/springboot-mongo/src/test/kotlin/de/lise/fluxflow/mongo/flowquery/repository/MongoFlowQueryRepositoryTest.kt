@@ -1,6 +1,9 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
+import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
+import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.MongoCompiler
 import de.lise.fluxflow.mongo.flowquery.expression.compilation.SubclassProvider
 import org.assertj.core.api.Assertions.assertThat
@@ -8,6 +11,8 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -18,7 +23,11 @@ import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.aggregation.Aggregation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperationContext
+import org.springframework.data.mongodb.core.query.Criteria
 
 /**
  * Unit tests for [MongoFlowQueryRepository] that do not require Docker.
@@ -134,6 +143,158 @@ class MongoFlowQueryRepositoryTest {
         }.isInstanceOf(IllegalArgumentException::class.java)
 
         verifyNoInteractions(executor)
+    }
+
+    @Test
+    fun `count drops terminal sorting while preserving permission restrictions and internal sort limits`() {
+        // Arrange
+        whenever(executor.executePaged(any(), any(), any(), eq(WorkflowDocument::class.java)))
+            .thenReturn(PagedMongoResults(PageImpl(emptyList(), PageRequest.of(0, 5), 0)))
+        val constraint = object : QueryConstraint {}
+        val provider = FluxFlowMongoQueryPipelineProvider { _, supplied ->
+            assertThat(supplied).isSameAs(constraint)
+            listOf(
+                Aggregation.match(Criteria.where("allowed").`is`(true)),
+                Aggregation.sort(Sort.Direction.DESC, "_id"),
+                Aggregation.limit(3),
+            )
+        }
+        val constrained = MongoFlowQueryRepository(WorkflowDocument::class.java, translator, executor, listOf(provider))
+            .withConstraint(constraint)
+
+        // Act
+        constrained.find { sort { get(WorkflowDocument::id).asc() }.paged(pageIndex = 0, pageSize = 5) }
+
+        // Assert
+        val results = argumentCaptor<Aggregation>()
+        val count = argumentCaptor<Aggregation>()
+        verify(executor).executePaged(
+            results.capture(), count.capture(), eq(PageRequest.of(0, 5)), eq(WorkflowDocument::class.java),
+        )
+        val dataStages = results.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)
+        val countStages = count.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)
+        assertThat(dataStages.map { it.keys.first() }).containsExactly("\$match", "\$sort", "\$limit", "\$sort", "\$skip", "\$limit")
+        assertThat(countStages.map { it.keys.first() }).containsExactly("\$match", "\$sort", "\$limit", "\$count")
+        assertThat(countStages.take(3)).containsExactlyElementsOf(dataStages.take(3))
+    }
+
+    @ParameterizedTest(name = "provider sort {0}, following stage {1}")
+    @CsvSource(
+        "typed, terminal", "raw, terminal",
+        "typed, match", "raw, match",
+        "typed, projection", "raw, projection",
+        "typed, limit", "raw, limit",
+        "typed, skip", "raw, skip",
+        "typed, unknown", "raw, unknown",
+    )
+    fun `count removes only provider sorts that cannot affect later stages`(sortKind: String, following: String) {
+        // Arrange
+        whenever(executor.executePaged(any(), any(), any(), eq(WorkflowDocument::class.java)))
+            .thenReturn(PagedMongoResults(PageImpl(emptyList(), PageRequest.of(0, 5), 0)))
+        val restriction = Aggregation.match(Criteria.where("allowed").`is`(true))
+        val sort = if (sortKind == "typed") Aggregation.sort(Sort.Direction.DESC, "_id")
+            else Aggregation.stage(Document("\$sort", Document("_id", -1)))
+        val suffix = when (following) {
+            "terminal" -> emptyList()
+            "match" -> listOf(Aggregation.match(Criteria.where("active").`is`(true)))
+            "projection" -> listOf(
+                Aggregation.stage(Document("\$project", Document("model", 1))),
+                Aggregation.replaceRoot("model"),
+            )
+            "limit" -> listOf(Aggregation.limit(3))
+            "skip" -> listOf(Aggregation.skip(1))
+            "unknown" -> listOf(Aggregation.stage(Document("\$sample", Document("size", 3))))
+            else -> error("Unknown test case: $following")
+        }
+        val providerStages = listOf(restriction, sort) + suffix
+        val provider = FluxFlowMongoQueryPipelineProvider { _, _ -> providerStages }
+        val constrained = MongoFlowQueryRepository(WorkflowDocument::class.java, translator, executor, listOf(provider))
+            .withConstraint(object : QueryConstraint {})
+
+        // Act
+        constrained.find { paged(pageIndex = 0, pageSize = 5) }
+
+        // Assert
+        val results = argumentCaptor<Aggregation>()
+        val count = argumentCaptor<Aggregation>()
+        verify(executor).executePaged(
+            results.capture(), count.capture(), eq(PageRequest.of(0, 5)), eq(WorkflowDocument::class.java),
+        )
+        val providerPipeline = Aggregation.newAggregation(providerStages).toPipeline(Aggregation.DEFAULT_CONTEXT)
+        assertThat(results.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)).containsExactlyElementsOf(
+            providerPipeline + listOf(Document("\$skip", 0L), Document("\$limit", 5L))
+        )
+        val expectedCountPrefix = if (following in listOf("limit", "skip", "unknown")) providerPipeline
+            else providerPipeline.filterNot { it.containsKey("\$sort") }
+        assertThat(count.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)).containsExactlyElementsOf(
+            expectedCountPrefix + Document("\$count", "totalElements")
+        )
+    }
+
+    @Test
+    fun `count drops translator sorting before a projection without changing page stages`() {
+        // Arrange
+        whenever(executor.executePaged(any(), any(), any(), eq(WorkflowModel::class.java)))
+            .thenReturn(PagedMongoResults(PageImpl(emptyList(), PageRequest.of(0, 5), 0)))
+        val query = FlowQuery.of<WorkflowDocument>()
+            .sort { get(WorkflowDocument::id).asc() }
+            .project { get(WorkflowDocument::model) }
+            .paged(0, 5)
+
+        // Act
+        repo.find(WorkflowModel::class.java, query)
+
+        // Assert
+        val results = argumentCaptor<Aggregation>()
+        val count = argumentCaptor<Aggregation>()
+        verify(executor).executePaged(
+            results.capture(), count.capture(), eq(PageRequest.of(0, 5)), eq(WorkflowModel::class.java),
+        )
+        val dataStages = results.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)
+        assertThat(dataStages.map { it.keys.first() })
+            .containsExactly("\$sort", "\$project", "\$replaceRoot", "\$skip", "\$limit")
+        assertThat(count.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)).containsExactlyElementsOf(
+            dataStages.subList(1, 3) + Document("\$count", "totalElements")
+        )
+    }
+
+    @ParameterizedTest(name = "composite provider starts with {0}")
+    @CsvSource("\$sort", "\$match")
+    fun `count preserves composite operations and preceding sorts`(operator: String) {
+        // Arrange
+        whenever(executor.executePaged(any(), any(), any(), eq(WorkflowDocument::class.java)))
+            .thenReturn(PagedMongoResults(PageImpl(emptyList(), PageRequest.of(0, 1), 0)))
+        val documents = listOf(
+            if (operator == "\$sort") Document("\$sort", Document("_id", 1))
+            else Document("\$match", Document("allowed", true)),
+            if (operator == "\$sort") Document("\$match", Document("allowed", true))
+            else Document("\$limit", 2L),
+        )
+        val composite = object : AggregationOperation {
+            override fun getOperator(): String = operator
+            override fun toDocument(context: AggregationOperationContext): Document = documents.first()
+            override fun toPipelineStages(context: AggregationOperationContext): List<Document> = documents
+        }
+        val prefix = Aggregation.sort(Sort.Direction.DESC, "_id")
+        val provider = FluxFlowMongoQueryPipelineProvider { _, _ -> listOf(prefix, composite) }
+        val constrained = MongoFlowQueryRepository(WorkflowDocument::class.java, translator, executor, listOf(provider))
+            .withConstraint(object : QueryConstraint {})
+
+        // Act
+        constrained.find { sort { get(WorkflowDocument::id).asc() }.paged(0, 1) }
+
+        // Assert
+        val results = argumentCaptor<Aggregation>()
+        val count = argumentCaptor<Aggregation>()
+        verify(executor).executePaged(
+            results.capture(), count.capture(), eq(PageRequest.of(0, 1)), eq(WorkflowDocument::class.java),
+        )
+        assertThat(count.firstValue.pipeline.operations.take(2)).containsExactly(prefix, composite)
+        val retained = listOf(Document("\$sort", Document("_id", -1))) + documents
+        assertThat(count.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT))
+            .containsExactlyElementsOf(retained + Document("\$count", "totalElements"))
+        assertThat(results.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT).take(3))
+            .containsExactlyElementsOf(retained)
     }
 
     private fun capturedUnpagedStages(): List<Document> {

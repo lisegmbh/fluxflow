@@ -1,14 +1,20 @@
 package de.lise.fluxflow.mongo.flowquery.repository
 
 import de.fluxflow.flowquery.query.FlowQuery
+import de.fluxflow.flowquery.query.QueryConstraint
 import de.fluxflow.flowquery.query.QueryExecutionException
 import de.fluxflow.flowquery.query.sorting.Sort.Companion.asc
+import de.lise.fluxflow.mongo.FluxFlowMongoQueryPipelineProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.mongodb.core.MongoTemplate
+import org.springframework.data.mongodb.core.aggregation.Aggregation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperationContext
 import org.springframework.data.mongodb.core.query.Query
 
 /**
@@ -99,6 +105,84 @@ abstract class AbstractMongoPagedFirstSingleIT {
         assertThat(repo.findFirst(laterPage).name).isIn(names)
         assertThat(repo.findFirstOrNull(laterPage)?.name).isIn(names)
         assertThat(repo.findSingleOrNull(laterPage)).isNull()
+    }
+
+    @Test
+    fun `paged counts and ordered results survive raw sorting followed by filtering and projection`() {
+        // Arrange
+        val provider = FluxFlowMongoQueryPipelineProvider { _, _ ->
+            listOf(
+                Aggregation.stage(Document("\$sort", Document("name", 1))),
+                Aggregation.stage(Document("\$match", Document("name", Document("\$in", listOf("A", "C", "E"))))),
+                Aggregation.stage(Document("\$project", Document("name", 1).append("details", 1))),
+                Aggregation.stage(Document("\$replaceRoot", Document("newRoot", "\$\$ROOT"))),
+            )
+        }
+        val constrained = MongoFlowQueryRepository(PagedDocument::class.java, translator,
+            MongoExecutor(template, PagedDocument::class.java), listOf(provider))
+            .withConstraint(object : QueryConstraint {})
+
+        // Act
+        val pages = (0..2).map { index -> constrained.find { paged(index, 2) } }
+
+        // Assert
+        assertThat(pages.flatMap { it.items }.map { it.name }).containsExactly("A", "C", "E")
+        assertThat(pages.map { it.totalItems }).containsOnly(3L)
+        assertThat(pages.map { it.totalPages }).containsOnly(2)
+        assertThat(pages.map { it.isLastPage }).containsExactly(false, true, true)
+    }
+
+    @Test
+    fun `paged counts retain sorting before a provider limit and later filter`() {
+        // Arrange
+        // Sorting then limiting selects A/B/C; without sorting, C/A/E would be selected
+        // and the following restriction would produce two hits instead of one.
+        val provider = FluxFlowMongoQueryPipelineProvider { _, _ ->
+            listOf(
+                Aggregation.stage(Document("\$sort", Document("name", 1))),
+                Aggregation.limit(3),
+                Aggregation.stage(Document("\$match", Document("name", Document("\$in", listOf("C", "E"))))),
+            )
+        }
+        val constrained = MongoFlowQueryRepository(PagedDocument::class.java, translator,
+            MongoExecutor(template, PagedDocument::class.java), listOf(provider))
+            .withConstraint(object : QueryConstraint {})
+
+        // Act
+        val pages = (0..1).map { index -> constrained.find {
+            sort { get(PagedDocument::name).asc() }.paged(index, 1)
+        } }
+
+        // Assert
+        assertThat(pages.flatMap { it.items }.map { it.name }).containsExactly("C")
+        assertThat(pages.map { it.totalItems }).containsOnly(1L)
+    }
+
+    @Test
+    fun `composite sort and permission filter preserve totals on full and empty pages`() {
+        // Arrange: only B and D are readable out of five documents.
+        val stages = listOf(
+            Document("\$sort", Document("name", 1)),
+            Document("\$match", Document("name", Document("\$in", listOf("B", "D")))),
+        )
+        val composite = object : AggregationOperation {
+            override fun getOperator(): String = "\$sort"
+            override fun toDocument(context: AggregationOperationContext): Document = stages.first()
+            override fun toPipelineStages(context: AggregationOperationContext): List<Document> = stages
+        }
+        val provider = FluxFlowMongoQueryPipelineProvider { _, _ -> listOf(composite) }
+        val constrained = MongoFlowQueryRepository(PagedDocument::class.java, translator,
+            MongoExecutor(template, PagedDocument::class.java), listOf(provider))
+            .withConstraint(object : QueryConstraint {})
+
+        // Act
+        val pages = (0..2).map { index -> constrained.find { paged(index, 1) } }
+
+        // Assert
+        assertThat(pages.flatMap { it.items }.map { it.name }).containsExactly("B", "D")
+        assertThat(pages.map { it.totalItems }).containsOnly(2L)
+        assertThat(pages.map { it.totalPages }).containsOnly(2)
+        assertThat(pages.map { it.isLastPage }).containsExactly(false, true, true)
     }
 
     private fun sortedByName(): FlowQuery<PagedDocument, PagedDocument> {

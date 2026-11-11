@@ -183,8 +183,22 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
         resultType: Class<TResult>,
     ): MongoExecutionResults<TResult> {
         val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + pagingStages(pageRequest))
+        val operations = aggregation.pipeline.operations
+        // A provider operation may contain multiple stages, including permission filters.
+        // Preserve it as a whole and treat it as an order-sensitive boundary.
+        val operators = operations.map {
+            it.toPipelineStages(Aggregation.DEFAULT_CONTEXT).singleOrNull()?.keys?.singleOrNull()
+        }
+        val lastOrderSensitiveStage = operators.indexOfLast {
+            when (it) {
+                "\$sort", "\$match", "\$project", "\$replaceRoot" -> false
+                else -> true
+            }
+        }
         val countAggregation = Aggregation.newAggregation(
-            aggregation.pipeline.operations + Aggregation.count().`as`(MongoCountResult::totalElements.name)
+            operations.filterIndexed { index, _ ->
+                index < lastOrderSensitiveStage || operators[index] != "\$sort"
+            } + Aggregation.count().`as`(MongoCountResult::totalElements.name)
         )
 
         return executor.executePaged(pagedAggregation, countAggregation, pageRequest, resultType)

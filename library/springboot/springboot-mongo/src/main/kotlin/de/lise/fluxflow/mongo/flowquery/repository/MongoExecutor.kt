@@ -20,11 +20,11 @@ internal class MongoExecutor<TRoot : Any>(
         resultType: Class<TResult>,
     ): PagedMongoResults<TResult> {
         val results = mongoTemplate.aggregate(aggregation, rootType, resultType).mappedResults
-        val totalCount = mongoTemplate.aggregate(countAggregation, rootType, MongoCountResult::class.java)
-            .uniqueMappedResult?.totalElements ?: 0
-
         return PagedMongoResults(
-            PageableExecutionUtils.getPage(results, pageRequest) { totalCount }
+            PageableExecutionUtils.getPage(results, pageRequest) {
+                mongoTemplate.aggregate(countAggregation, rootType, MongoCountResult::class.java)
+                    .uniqueMappedResult?.totalElements ?: 0
+            }
         )
     }
 
