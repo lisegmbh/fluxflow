@@ -25,6 +25,8 @@ import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.aggregation.Aggregation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperationContext
 import org.springframework.data.mongodb.core.query.Criteria
 
 /**
@@ -254,6 +256,45 @@ class MongoFlowQueryRepositoryTest {
         assertThat(count.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT)).containsExactlyElementsOf(
             dataStages.subList(1, 3) + Document("\$count", "totalElements")
         )
+    }
+
+    @ParameterizedTest(name = "composite provider starts with {0}")
+    @CsvSource("\$sort", "\$match")
+    fun `count preserves composite operations and preceding sorts`(operator: String) {
+        // Arrange
+        whenever(executor.executePaged(any(), any(), any(), eq(WorkflowDocument::class.java)))
+            .thenReturn(PagedMongoResults(PageImpl(emptyList(), PageRequest.of(0, 1), 0)))
+        val documents = listOf(
+            if (operator == "\$sort") Document("\$sort", Document("_id", 1))
+            else Document("\$match", Document("allowed", true)),
+            if (operator == "\$sort") Document("\$match", Document("allowed", true))
+            else Document("\$limit", 2L),
+        )
+        val composite = object : AggregationOperation {
+            override fun getOperator(): String = operator
+            override fun toDocument(context: AggregationOperationContext): Document = documents.first()
+            override fun toPipelineStages(context: AggregationOperationContext): List<Document> = documents
+        }
+        val prefix = Aggregation.sort(Sort.Direction.DESC, "_id")
+        val provider = FluxFlowMongoQueryPipelineProvider { _, _ -> listOf(prefix, composite) }
+        val constrained = MongoFlowQueryRepository(WorkflowDocument::class.java, translator, executor, listOf(provider))
+            .withConstraint(object : QueryConstraint {})
+
+        // Act
+        constrained.find { sort { get(WorkflowDocument::id).asc() }.paged(0, 1) }
+
+        // Assert
+        val results = argumentCaptor<Aggregation>()
+        val count = argumentCaptor<Aggregation>()
+        verify(executor).executePaged(
+            results.capture(), count.capture(), eq(PageRequest.of(0, 1)), eq(WorkflowDocument::class.java),
+        )
+        assertThat(count.firstValue.pipeline.operations.take(2)).containsExactly(prefix, composite)
+        val retained = listOf(Document("\$sort", Document("_id", -1))) + documents
+        assertThat(count.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT))
+            .containsExactlyElementsOf(retained + Document("\$count", "totalElements"))
+        assertThat(results.firstValue.toPipeline(Aggregation.DEFAULT_CONTEXT).take(3))
+            .containsExactlyElementsOf(retained)
     }
 
     private fun capturedUnpagedStages(): List<Document> {

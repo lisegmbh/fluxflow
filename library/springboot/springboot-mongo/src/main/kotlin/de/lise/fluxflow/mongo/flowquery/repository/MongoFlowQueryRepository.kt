@@ -184,17 +184,20 @@ class MongoFlowQueryRepository<TRoot : Any> internal constructor(
     ): MongoExecutionResults<TResult> {
         val pagedAggregation = Aggregation.newAggregation(aggregation.pipeline.operations + pagingStages(pageRequest))
         val operations = aggregation.pipeline.operations
-        // Only these stages are known to be independent of input order. Keep sorts before
-        // limits, skips and unknown provider stages, which may depend on that order.
-        val lastOrderSensitiveStage = operations.indexOfLast {
-            when (it.operator) {
+        // A provider operation may contain multiple stages, including permission filters.
+        // Preserve it as a whole and treat it as an order-sensitive boundary.
+        val operators = operations.map {
+            it.toPipelineStages(Aggregation.DEFAULT_CONTEXT).singleOrNull()?.keys?.singleOrNull()
+        }
+        val lastOrderSensitiveStage = operators.indexOfLast {
+            when (it) {
                 "\$sort", "\$match", "\$project", "\$replaceRoot" -> false
                 else -> true
             }
         }
         val countAggregation = Aggregation.newAggregation(
-            operations.filterIndexed { index, operation ->
-                index < lastOrderSensitiveStage || operation.operator != "\$sort"
+            operations.filterIndexed { index, _ ->
+                index < lastOrderSensitiveStage || operators[index] != "\$sort"
             } + Aggregation.count().`as`(MongoCountResult::totalElements.name)
         )
 

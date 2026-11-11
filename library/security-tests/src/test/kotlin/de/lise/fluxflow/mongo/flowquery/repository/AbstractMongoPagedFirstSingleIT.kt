@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.aggregation.Aggregation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation
+import org.springframework.data.mongodb.core.aggregation.AggregationOperationContext
 import org.springframework.data.mongodb.core.query.Query
 
 /**
@@ -154,6 +156,33 @@ abstract class AbstractMongoPagedFirstSingleIT {
         // Assert
         assertThat(pages.flatMap { it.items }.map { it.name }).containsExactly("C")
         assertThat(pages.map { it.totalItems }).containsOnly(1L)
+    }
+
+    @Test
+    fun `composite sort and permission filter preserve totals on full and empty pages`() {
+        // Arrange: only B and D are readable out of five documents.
+        val stages = listOf(
+            Document("\$sort", Document("name", 1)),
+            Document("\$match", Document("name", Document("\$in", listOf("B", "D")))),
+        )
+        val composite = object : AggregationOperation {
+            override fun getOperator(): String = "\$sort"
+            override fun toDocument(context: AggregationOperationContext): Document = stages.first()
+            override fun toPipelineStages(context: AggregationOperationContext): List<Document> = stages
+        }
+        val provider = FluxFlowMongoQueryPipelineProvider { _, _ -> listOf(composite) }
+        val constrained = MongoFlowQueryRepository(PagedDocument::class.java, translator,
+            MongoExecutor(template, PagedDocument::class.java), listOf(provider))
+            .withConstraint(object : QueryConstraint {})
+
+        // Act
+        val pages = (0..2).map { index -> constrained.find { paged(index, 1) } }
+
+        // Assert
+        assertThat(pages.flatMap { it.items }.map { it.name }).containsExactly("B", "D")
+        assertThat(pages.map { it.totalItems }).containsOnly(2L)
+        assertThat(pages.map { it.totalPages }).containsOnly(2)
+        assertThat(pages.map { it.isLastPage }).containsExactly(false, true, true)
     }
 
     private fun sortedByName(): FlowQuery<PagedDocument, PagedDocument> {
