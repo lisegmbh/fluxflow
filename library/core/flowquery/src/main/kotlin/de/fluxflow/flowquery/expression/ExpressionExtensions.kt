@@ -343,7 +343,10 @@ object ExpressionExtensions {
     object Types {
 
         /**
-         * Creates a predicate that checks whether this expression is of the specified type.
+         * Creates a predicate that checks whether this expression is of the specified type or one of its subtypes.
+         *
+         * In MongoDB, only non-abstract `MODEL` or `VALUE` types registered in the type registry are matched.
+         * See the "isType" section in `docs/features/queries.md`.
          *
          * Example:
          * ```
@@ -361,6 +364,8 @@ object ExpressionExtensions {
 
         /**
          * Creates a cast expression converting this expression to a more specific type.
+         *
+         * The cast does not filter by type; combine it with [isType] to restrict results to [type].
          *
          * Example:
          * ```
