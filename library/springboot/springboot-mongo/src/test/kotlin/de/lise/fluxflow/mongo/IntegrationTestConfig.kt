@@ -24,7 +24,7 @@ open class IntegrationTestConfig {
     @ServiceConnection
     open fun mongoDbContainer(): MongoDBContainer? {
         return if (DockerClientFactory.instance().isDockerAvailable) {
-            MongoDBContainer("mongo:8.0.12")
+            MongoDBContainer("mongo:8.0.38")
         } else {
             null
         }

@@ -81,7 +81,7 @@ internal class MongoSecurityHarness : AutoCloseable {
     }
 
     private class SecurityMongoContainer : GenericContainer<SecurityMongoContainer>(
-        DockerImageName.parse("mongo:8.0.12")
+        DockerImageName.parse("mongo:8.0.38")
     ) {
         init {
             withExposedPorts(27017)
