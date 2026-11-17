@@ -290,8 +290,7 @@ These versions document the framework boundary exercised by the shared tests:
 | Spring Data MongoDB | 4.5.5 | 5.0.5 |
 | MongoDB synchronous driver | 5.5.2 | 5.6.5 |
 | JUnit Jupiter engine | 5.12.2 | 6.0.3 |
-| Testcontainers | 1.21.4 | 2.0.5 |
+| Testcontainers | 2.0.5 | 2.0.5 |
 
-Both lines run against the pinned `mongo:8.0.12` image. Testcontainers 1.21.4 is
-required on the Boot 3 line for compatibility with current Docker Engine API
-versions; the previously resolved 1.21.3 client failed before container startup.
+Both lines run against the pinned `mongo:8.0.38` image and use the Testcontainers
+2.0.5 BOM.

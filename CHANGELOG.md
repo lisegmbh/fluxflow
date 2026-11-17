@@ -167,6 +167,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    filters invert correctly. Global step and job queries on in-memory persistence resolve their
    workflows again instead of failing with `WorkflowNotFoundException`/`NoSuchElementException`.
    [PR #489](https://github.com/lisegmbh/fluxflow/pull/489) @bobmazy
+11. **Mongo CI test image security fixes**<br/>
+   Updates all Mongo test fixtures to `mongo:8.0.38` for patched Brotli libraries
+   and removal of the G3/AAA trust anchors affected by the eMudhra incident. @RSchwierzinski
 
 ### Removed
 

@@ -71,7 +71,7 @@ abstract class AbstractPrototypeMongoSecurityContractIT {
         assertThat(containers)
             .describedAs("The security suite must use exactly one explicitly pinned Mongo fixture")
             .hasSize(1)
-        assertThat(containers.single().dockerImageName).isEqualTo("mongo:8.0.12")
+        assertThat(containers.single().dockerImageName).isEqualTo("mongo:8.0.38")
     }
 
     @Test
