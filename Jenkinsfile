@@ -53,7 +53,7 @@ pipeline {
                         withCredentials([
                                 file(credentialsId: 'fluxflow-keyring', variable: 'KEYRING_FILE'),
                                 string(credentialsId: 'fluxflow-keyring-password', variable: 'KEYRING_PASSWORD'),
-                                usernamePassword(credentialsId: 'fluxflow-autobahn-maven-publisher', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')
+                                usernamePassword(credentialsId: 'autobahn-maven', usernameVariable: 'MAVEN_USER', passwordVariable: 'MAVEN_PASSWORD')
                         ]) {
                             sh "gradle publishMavenPublicationToSnapshotRepository" +
                                     " :manifest-gradle-plugin:publishPluginMavenPublicationToSnapshotRepository" +
