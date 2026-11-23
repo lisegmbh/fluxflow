@@ -183,7 +183,7 @@ Historical, unsuffixed Spring integration coordinates (e.g. `de.lise.fluxflow:sp
 **legacy** and must never receive new releases.
 
 Both lines are released together from this repository by the Jenkins pipeline (`Jenkinsfile`):
-pushes to `develop` publish snapshots to the lise Nexus repository, and version tags (`vX.Y.Z`)
+pushes to `develop` publish snapshots to an internal lise repository, and version tags (`vX.Y.Z`)
 publish releases to Maven Central.
 
 The Gradle task `verifyPublications` (provided by the `fluxflow.publication-verification`

@@ -22,7 +22,7 @@ val projVersion = project.findProperty("projVersion")
 
 val springBoot3Version = "3.5.7"
 val springBoot4Version = "4.0.6"
-val defaultProjectVersion = "0.4.0-SNAPSHOT-3"
+val defaultProjectVersion = "0.4.0-SNAPSHOT-4"
 val resolvedProjectVersion = projVersion ?: defaultProjectVersion
 
 val intermediateProjectPaths = setOf(":core", ":springboot", ":springboot4")
@@ -169,7 +169,7 @@ subprojects {
         repositories {
             maven {
                 name = "snapshot"
-                url = uri("https://nexus.cloud.lise.de/repository/maven-public/")
+                url = uri("https://repository.cloud.lise.de/repository/autobahn-maven/")
                 credentials(PasswordCredentials::class)
             }
         }
