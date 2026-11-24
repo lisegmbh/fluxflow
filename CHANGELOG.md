@@ -65,6 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    [PR #469](https://github.com/lisegmbh/fluxflow/pull/469) @RSchwierzinski
 
 ### Changed
+1. **Update Spring Security dependency management for Spring Boot 4**<br/>
+   The Spring 4 integration line now manages Spring Security 7.0.9, including the
+   fix for CVE-2026-59273. The Spring 3 integration line is unchanged. @RSchwierzinski
 1. **Configure FluxFlow's internal Mongo template explicitly**<br/>
    FluxFlow persistence now uses its own guarded `MongoTemplate`. Host-template settings for
    `WriteConcern`, `WriteConcernResolver`, `WriteResultChecking`, `SessionSynchronization` and

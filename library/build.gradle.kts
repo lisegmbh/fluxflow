@@ -22,7 +22,7 @@ val projVersion = project.findProperty("projVersion")
 
 val springBoot3Version = "3.5.7"
 val springBoot4Version = "4.0.6"
-val defaultProjectVersion = "0.4.0-SNAPSHOT-4"
+val defaultProjectVersion = "0.4.0-SNAPSHOT-5"
 val resolvedProjectVersion = projVersion ?: defaultProjectVersion
 
 val intermediateProjectPaths = setOf(":core", ":springboot", ":springboot4")
@@ -73,6 +73,9 @@ subprojects {
                 bomProperties(
                     mapOf("kotlin.version" to "2.4.21")
                 )
+            }
+            if (subProject.path.startsWith(":springboot4:")) {
+                mavenBom("org.springframework.security:spring-security-bom:7.0.9")
             }
         }
     }
