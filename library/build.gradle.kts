@@ -21,7 +21,7 @@ val projVersion = project.findProperty("projVersion")
     }
 
 val springBoot3Version = "3.5.7"
-val springBoot4Version = "4.0.6"
+val springBoot4Version = "4.0.10"
 val defaultProjectVersion = "0.4.0-SNAPSHOT-5"
 val resolvedProjectVersion = projVersion ?: defaultProjectVersion
 
