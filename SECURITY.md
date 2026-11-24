@@ -17,6 +17,9 @@ and can expect to receive security updates.
 Spring Boot 3 integration artifacts (`*-spring3`). The Spring 3 dependency
 management remains unchanged.
 
+The rationale for retaining the Spring 3 dependency baseline is recorded in
+[ADR-0001](docs/adr/0001-retain-spring3-dependencies-for-cve-2026-59273.md).
+
 [CVE-2026-59273](https://spring.io/security/cve-2026-59273/) concerns Spring
 Security's `ELRequestMatcher` in `spring-security-web`. An application can expose
 the vulnerability when untrusted input is converted into a matcher expression

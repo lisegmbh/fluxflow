@@ -32,6 +32,7 @@ nav:
   - Migration guides:
     - v0.2.0: migrations/v0.2.0.md
   - Other resources:
+    - "ADR-0001: Spring 3 CVE assessment": adr/0001-retain-spring3-dependencies-for-cve-2026-59273.md
     - Sources: https://github.com/lisegmbh/fluxflow
     - Issues: https://github.com/lisegmbh/fluxflow/issues
     - Changelog: https://github.com/lisegmbh/fluxflow/blob/main/CHANGELOG.md
