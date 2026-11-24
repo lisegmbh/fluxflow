@@ -74,6 +74,9 @@ subprojects {
                     mapOf("kotlin.version" to "2.4.21")
                 )
             }
+            if (subProject.path.startsWith(":springboot4:")) {
+                mavenBom("org.springframework.security:spring-security-bom:7.0.9")
+            }
         }
     }
 
